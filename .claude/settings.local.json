@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"C:\\\\Users\\\\Administrator\\\\.claude\\\\projects\\\\d--MusicServer\\\\memory\" 2>/dev/null; cat \"C:\\\\Users\\\\Administrator\\\\.claude\\\\projects\\\\d--MusicServer\\\\memory\\\\MEMORY.md\" 2>/dev/null; ls /d/MusicServer/*.md 2>/dev/null)",
+      "Read(//c/Users/Administrator/.claude/projects/d--MusicServer/memory/**)",
+      "Bash(grep -rn \"from '\\\\.\\\\./\\\\.\\\\./request'\" /d/MusicServer/musicSdk --include=\"*.js\" -l)",
+      "Bash(grep -v \"from '\\\\./\\\\|from '\\\\.\\\\./\\\\|from '\\\\.\\\\./\\\\.\\\\./\")"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "music-server",
+  "version": "1.0.0",
+  "description": "多平台音乐聚合服务器（基于 lx-music 聚合 SDK）",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node src/server.js",
+    "test": "npm run build && node src/smoke-test.js"
+  },
+  "imports": {
+    "#common/*": "./src/common/*.js",
+    "#renderer/*": "./src/renderer/*.js"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "iconv-lite": "^0.6.3",
+    "isolated-vm": "^7.0.1",
+    "pako": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "playwright": "^1.62.1",
+    "typescript": "^7.0.2"
+  }
+}
