@@ -5,7 +5,7 @@
 // promise resolve → { type, url }
 
 import { httpFetch } from '../common/request.js'
-import { eapi } from '../../musicSdk/wy/utils/crypto.js'
+import { eapi } from '../../musicSdk/wy/utils/crypto.ts'
 
 const levelMap = {
   '128k': 'standard',

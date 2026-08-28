@@ -1,11 +1,14 @@
+// 接口源声明：id 与 api-source.ts 中 allApi 的 `<id>_<source>` 键对应
 // Support qualitys: 128k 320k flac wav
 
-const sources: Array<{
+interface ApiSourceInfo {
   id: string
   name: string
   disabled: boolean
-  supportQualitys: Partial<Record<LX.OnlineSource, LX.Quality[]>>
-}> = [
+  supportQualitys: Partial<Record<'kw' | 'kg' | 'tx' | 'wy' | 'mg' | 'bd', string[]>>
+}
+
+const sources: ApiSourceInfo[] = [
   // {
   //   id: 'test',
   //   name: '测试接口',
@@ -19,14 +22,19 @@ const sources: Array<{
   //     // bd: ['128k'],
   //   },
   // },
-  // {
-  //   id: 'temp',
-  //   name: '临时接口',
-  //   disabled: false,
-  //   supportQualitys: {
-  //     kw: ['128k'],
-  //   },
-  // },
+  {
+    id: 'v5',
+    name: 'lx-music-source-v5 聚合源',
+    disabled: false,
+    supportQualitys: {
+      kw: ['128k', '320k', 'flac'],
+      kg: ['128k', '320k', 'flac'],
+      tx: ['128k', '320k', 'flac'],
+      wy: ['128k', '320k', 'flac'],
+      mg: ['128k', '320k', 'flac'],
+      // bd: ['128k', '320k', 'flac'],
+    },
+  },
 ]
 
 export default sources

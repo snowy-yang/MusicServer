@@ -12,11 +12,14 @@
     "resolveJsonModule": true,
     "types": ["node"],
     "noImplicitAny": false,
-    "noEmitOnError": false
+    "noEmitOnError": false,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
   },
   "include": [
     "src/**/*.ts",
-    "src/types/**/*.d.ts"
+    "src/types/**/*.d.ts",
+    "musicSdk/**/*.ts"
   ],
   "exclude": [
     "node_modules",

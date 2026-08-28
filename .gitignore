@@ -26,3 +26,10 @@ Thumbs.db
 dist/
 coverage/
 .nyc_output/
+
+# TypeScript in-place emit (musicSdk source is .ts)
+musicSdk/**/*.js
+!musicSdk/**/api-test.js
+!musicSdk/**/api-temp.js
+!musicSdk/**/temp/*.js
+!musicSdk/**/vendors/*.js
