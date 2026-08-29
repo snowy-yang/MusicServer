@@ -1,7 +1,8 @@
 // 冒烟测试 —— 验证服务器各接口与各平台功能
 // 运行：node src/smoke-test.js
 //
-// 覆盖：搜索（各平台 + 聚合）、URL（kw/wy/tx）、歌词（kw）、封面、榜单、热搜
+// 覆盖：搜索（各平台 + 聚合）、URL（kw/wy/tx）、歌词（kw）、封面、榜单、热搜、
+//       标准 HTTP 语义（404/405/422/302）、文档（/docs /openapi.json /sources）
 
 import http from 'node:http'
 import { spawn } from 'node:child_process'
@@ -17,6 +18,25 @@ const get = (path) => new Promise((resolve, reject) => {
       try { resolve(JSON.parse(data)) } catch { reject(new Error(`JSON parse failed: ${data.slice(0, 100)}`)) }
     })
   }).on('error', reject)
+})
+
+// 原始响应（不解析 JSON，用于 HTML 页与状态码断言）
+const getRaw = (path) => new Promise((resolve, reject) => {
+  http.get(`${BASE}${path}`, res => {
+    let data = ''
+    res.on('data', c => { data += c })
+    res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }))
+  }).on('error', reject)
+})
+
+const postRaw = (path) => new Promise((resolve, reject) => {
+  const req = http.request(`${BASE}${path}`, { method: 'POST' }, res => {
+    let data = ''
+    res.on('data', c => { data += c })
+    res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }))
+  })
+  req.on('error', reject)
+  req.end()
 })
 
 const test = async(name, fn) => {
@@ -154,6 +174,89 @@ await test('热搜 kw', async() => {
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return r.data.list[0]
+})
+
+// ---- 标准 HTTP 语义与文档（新版路由） ----
+
+await test('平台列表 /sources', async() => {
+  const r = await get('/sources')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.platforms?.length) throw new Error('空平台列表')
+  const kw = r.data.platforms.find(p => p.id === 'kw')
+  if (!kw?.capabilities?.search) throw new Error('kw 缺少 search 能力')
+  return `${r.data.platforms.length} 个平台`
+})
+
+await test('URL 路径风格 /url/kw/:id', async() => {
+  const r = await get('/url/kw/28423286?quality=320k')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url) throw new Error('无 url')
+  return r.data.url.slice(0, 60)
+})
+
+await test('歌词 路径风格 /lyric/kw/:id', async() => {
+  const r = await get('/lyric/kw/28423286')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.lyric) throw new Error('无歌词')
+  return `${r.data.lyric.slice(0, 30)}...`
+})
+
+await test('榜单 路径风格 /boards/:source', async() => {
+  const r = await get('/boards/kg')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('空列表')
+  return `${r.data.list.length} 个榜单`
+})
+
+await test('参数校验 422（缺少 name）', async() => {
+  const r = await getRaw('/search')
+  if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
+  const body = JSON.parse(r.body)
+  if (body.code !== 422 || !body.msg) throw new Error('响应体格式错误')
+  return body.msg
+})
+
+await test('参数校验 422（非法音质）', async() => {
+  const r = await getRaw('/url/kw/28423286?quality=999k')
+  if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
+  return JSON.parse(r.body).msg
+})
+
+await test('404 未知接口', async() => {
+  const r = await getRaw('/not-exist')
+  if (r.status !== 404) throw new Error(`期望 404，实际 ${r.status}`)
+  return JSON.parse(r.body).msg
+})
+
+await test('405 方法不允许', async() => {
+  const r = await postRaw('/search')
+  if (r.status !== 405) throw new Error(`期望 405，实际 ${r.status}`)
+  if (!r.headers.allow) throw new Error('缺少 Allow 头')
+  return `Allow: ${r.headers.allow}`
+})
+
+await test('根路径 302 → /docs', async() => {
+  const r = await getRaw('/')
+  if (r.status !== 302) throw new Error(`期望 302，实际 ${r.status}`)
+  if (r.headers.location !== '/docs') throw new Error(`期望 /docs，实际 ${r.headers.location}`)
+  return r.headers.location
+})
+
+await test('Swagger UI 文档页 /docs', async() => {
+  const r = await getRaw('/docs')
+  if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
+  if (!r.body.includes('swagger-ui')) throw new Error('页面内容异常')
+  return 'Swagger UI'
+})
+
+await test('OpenAPI 规范 /openapi.json', async() => {
+  const r = await getRaw('/openapi.json')
+  if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
+  const spec = JSON.parse(r.body)
+  if (!spec.openapi?.startsWith('3.')) throw new Error(`openapi 版本异常: ${spec.openapi}`)
+  if (!spec.paths?.['/search']) throw new Error('缺少 /search 定义')
+  if (!spec.paths?.['/url/:source/:id']) throw new Error('缺少路径参数路由定义')
+  return `${Object.keys(spec.paths).length} 个路径`
 })
 
 // 汇总
