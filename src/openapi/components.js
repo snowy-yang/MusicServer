@@ -1,78 +1,24 @@
-// OpenAPI 3.1 文档生成 —— 从路由元数据构建 /openapi.json，供 Swagger UI（/docs）与 ReDoc（/redoc）使用
+// OpenAPI 领域模型 —— 注册为 Fastify 共享 schema（fastify.addSchema）
+// 路由的 response schema 通过 `名称#` 形式的 $ref 引用；
+// @fastify/swagger 生成文档时会自动映射到 components/schemas/名称
+// 注：additionalProperties: true 保证运行时序列化不剥离未声明字段
 
-const json = (schema) => ({ 'application/json': { schema } })
-const ref = (name) => ({ $ref: `#/components/schemas/${name}` })
+const ref = (name) => ({ $ref: `${name}#` })
 
-/** 200 响应体：统一信封 { code: 0, data } */
-const okResponse = (dataSchema, description) => ({
-  description: description || '成功',
-  content: {
-    'application/json': {
-      schema: {
-        type: 'object',
-        properties: {
-          code: { type: 'integer', description: '0 表示成功', example: 0 },
-          data: dataSchema ? ref(dataSchema) : { description: '响应数据，结构由接口决定' },
-        },
-        required: ['code', 'data'],
-      },
-    },
-  },
-})
-
-const errorResponse = (description) => ({
-  description,
-  content: json(ref('ErrorEnvelope')),
-})
-
-const buildParameters = (meta) => {
-  const parameters = []
-  for (const [name, def] of Object.entries(meta.pathParams || {})) {
-    parameters.push({
-      name,
-      in: 'path',
-      required: true,
-      description: def.description,
-      schema: paramSchema(def),
-      example: def.example,
-    })
-  }
-  for (const [name, def] of Object.entries(meta.queryParams || {})) {
-    parameters.push({
-      name,
-      in: 'query',
-      required: Boolean(def.required),
-      description: def.description,
-      schema: paramSchema(def),
-      example: def.example,
-    })
-  }
-  return parameters
-}
-
-const paramSchema = (def) => {
-  const schema = { type: def.enum ? 'string' : (def.type || 'string') }
-  if (def.enum) schema.enum = def.enum
-  if (def.default !== undefined) schema.default = def.default
-  if (def.minimum !== undefined) schema.minimum = def.minimum
-  if (def.maximum !== undefined) schema.maximum = def.maximum
-  return schema
-}
-
-/** 领域模型（components/schemas），与 musicSdk/types.ts 的运行时数据形状对应 */
 export const COMPONENT_SCHEMAS = {
   ErrorEnvelope: {
     type: 'object',
     properties: {
       code: { type: 'integer', description: '与 HTTP 状态码一致', example: 422 },
       msg: { type: 'string', description: '错误描述' },
-      detail: { description: '可选的结构化错误详情' },
     },
+    additionalProperties: true,
     required: ['code', 'msg'],
   },
   QualityInfo: {
     type: 'object',
     properties: { size: { type: 'string', example: '9.8M' } },
+    additionalProperties: true,
   },
   SongType: {
     type: 'object',
@@ -80,6 +26,7 @@ export const COMPONENT_SCHEMAS = {
       type: { type: 'string', example: '320k', enum: ['128k', '320k', 'flac', 'flac24bit'] },
       size: { type: 'string', example: '9.8M' },
     },
+    additionalProperties: true,
   },
   SongInfo: {
     type: 'object',
@@ -98,6 +45,7 @@ export const COMPONENT_SCHEMAS = {
       _types: { type: 'object', additionalProperties: ref('QualityInfo') },
       typeUrl: { type: 'object' },
     },
+    additionalProperties: true,
   },
   SearchResult: {
     type: 'object',
@@ -107,12 +55,14 @@ export const COMPONENT_SCHEMAS = {
       page: { type: 'integer' },
       limit: { type: 'integer' },
     },
+    additionalProperties: true,
   },
   FindResult: {
     type: 'object',
     properties: {
       list: { type: 'array', items: ref('SongInfo'), description: '按匹配度排序的歌曲列表' },
     },
+    additionalProperties: true,
   },
   MusicUrlResult: {
     type: 'object',
@@ -120,6 +70,7 @@ export const COMPONENT_SCHEMAS = {
       type: { type: 'string', example: '320k' },
       url: { type: 'string', description: '播放地址' },
     },
+    additionalProperties: true,
   },
   LyricInfo: {
     type: 'object',
@@ -129,11 +80,13 @@ export const COMPONENT_SCHEMAS = {
       rlyric: { type: 'string', description: '罗马音歌词（部分平台）' },
       lxlyric: { type: 'string', description: '逐字歌词（部分平台）' },
     },
+    additionalProperties: true,
     required: ['lyric', 'tlyric'],
   },
   PicResult: {
     type: 'object',
     properties: { url: { type: 'string', description: '封面地址' } },
+    additionalProperties: true,
   },
   BoardItem: {
     type: 'object',
@@ -142,10 +95,12 @@ export const COMPONENT_SCHEMAS = {
       name: { type: 'string' },
       bangid: { type: 'string', description: '平台原始榜单 id' },
     },
+    additionalProperties: true,
   },
   BoardListResult: {
     type: 'object',
     properties: { list: { type: 'array', items: ref('BoardItem') } },
+    additionalProperties: true,
   },
   SongItem: {
     type: 'object',
@@ -161,6 +116,7 @@ export const COMPONENT_SCHEMAS = {
       img: { type: 'string' },
       types: { type: 'array', items: ref('SongType') },
     },
+    additionalProperties: true,
   },
   BoardDetailResult: {
     type: 'object',
@@ -171,6 +127,7 @@ export const COMPONENT_SCHEMAS = {
       limit: { type: 'integer' },
       source: { type: 'string' },
     },
+    additionalProperties: true,
   },
   HotSearchResult: {
     type: 'object',
@@ -178,6 +135,7 @@ export const COMPONENT_SCHEMAS = {
       source: { type: 'string' },
       list: { type: 'array', items: { type: 'string' } },
     },
+    additionalProperties: true,
   },
   SongListSummary: {
     type: 'object',
@@ -192,6 +150,7 @@ export const COMPONENT_SCHEMAS = {
       desc: { type: 'string' },
       source: { type: 'string' },
     },
+    additionalProperties: true,
   },
   SongListResult: {
     type: 'object',
@@ -202,6 +161,7 @@ export const COMPONENT_SCHEMAS = {
       limit: { type: 'integer' },
       source: { type: 'string' },
     },
+    additionalProperties: true,
   },
   SourceInfo: {
     type: 'object',
@@ -220,14 +180,17 @@ export const COMPONENT_SCHEMAS = {
           hotSearch: { type: 'boolean' },
           songList: { type: 'boolean' },
         },
+        additionalProperties: true,
       },
     },
+    additionalProperties: true,
   },
   SourcesResult: {
     type: 'object',
     properties: {
       platforms: { type: 'array', items: ref('SourceInfo') },
     },
+    additionalProperties: true,
   },
   HealthResult: {
     type: 'object',
@@ -236,46 +199,6 @@ export const COMPONENT_SCHEMAS = {
       uptime: { type: 'integer', description: '运行秒数' },
       platforms: { type: 'integer', description: '已接入平台数' },
     },
+    additionalProperties: true,
   },
-}
-
-/**
- * 从路由元数据构建 OpenAPI 3.1 文档
- * @param {import('../http/router.js').Router} router
- */
-export const buildOpenApi = (router, { title, description, version }) => {
-  const paths = {}
-  for (const route of router.routes) {
-    if (route.meta.hide) continue
-    const item = paths[route.pattern] || (paths[route.pattern] = {})
-    const meta = route.meta
-    item[route.method.toLowerCase()] = {
-      summary: meta.summary || route.pattern,
-      ...(meta.description ? { description: meta.description } : {}),
-      tags: meta.tags || ['其他'],
-      ...(meta.deprecated ? { deprecated: true } : {}),
-      parameters: buildParameters(meta),
-      responses: meta.rawResponses || {
-        '200': okResponse(meta.dataSchema, meta.responseDescription),
-        '422': errorResponse('参数校验失败'),
-        ...(meta.possible404 ? { '404': errorResponse('不支持的平台') } : {}),
-        ...(meta.possible502 ? { '502': errorResponse('上游平台请求失败') } : {}),
-      },
-    }
-  }
-
-  return {
-    openapi: '3.1.0',
-    info: { title, description, version },
-    servers: [{ url: '/', description: '当前服务器' }],
-    tags: [
-      { name: '搜索', description: '歌曲搜索与跨平台匹配' },
-      { name: '歌曲资源', description: '播放地址、歌词、封面' },
-      { name: '榜单', description: '排行榜' },
-      { name: '歌单', description: '歌单与热搜' },
-      { name: '系统', description: '健康检查、平台信息、文档' },
-    ],
-    paths,
-    components: { schemas: COMPONENT_SCHEMAS },
-  }
 }

@@ -7,6 +7,7 @@ pnpm-lock.yaml
 # Runtime
 *.log
 logs/
+tmp/
 .env
 .env.local
 .env.*.local
@@ -14,6 +15,9 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# ZCode 本地目录
+.zcode/
 
 # IDE
 .vscode/

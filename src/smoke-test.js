@@ -1,13 +1,15 @@
 // 冒烟测试 —— 验证服务器各接口与各平台功能
 // 运行：node src/smoke-test.js
 //
-// 覆盖：搜索（各平台 + 聚合）、URL（kw/wy/tx）、歌词（kw）、封面、榜单、热搜、
-//       标准 HTTP 语义（404/405/422/302）、文档（/docs /openapi.json /sources）
+// 覆盖：搜索（各平台 + 聚合）、URL（kw/wy/tx）、歌词、封面、榜单详情、热搜、歌单、
+//       跨平台匹配 /find、路径参数风格路由、标准 HTTP 语义（404/405/422/302）、文档页
 
 import http from 'node:http'
 import { spawn } from 'node:child_process'
 
-const BASE = process.env.BASE_URL || 'http://localhost:3300'
+// 本地默认 16688（避开 1024~15000 的动态端口冲突区），可用 PORT/BASE_URL 覆盖
+const PORT = process.env.PORT || 16688
+const BASE = process.env.BASE_URL || `http://localhost:${PORT}`
 const results = []
 
 const get = (path) => new Promise((resolve, reject) => {
@@ -69,6 +71,7 @@ const isServerRunning = () => new Promise(resolve => {
 const startLocalServer = () => new Promise((resolve, reject) => {
   const proc = spawn(process.execPath, ['src/server.js'], {
     cwd: process.cwd(),
+    env: { ...process.env, PORT: String(PORT) },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stdout = ''
@@ -208,6 +211,42 @@ await test('榜单 路径风格 /boards/:source', async() => {
   return `${r.data.list.length} 个榜单`
 })
 
+await test('封面 路径风格 /pic/kw/:id', async() => {
+  const r = await get('/pic/kw/28423286')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url) throw new Error('无 url')
+  return r.data.url.slice(0, 60)
+})
+
+await test('榜单详情 路径风格 /boards/:source/:boardId', async() => {
+  // 用列表返回的带前缀 id（回归：详情接口应自动归一化为裸 bangid）
+  const r = await get('/boards/kw/kw__93?page=1')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('空列表')
+  return `${r.data.list.length} 首`
+})
+
+await test('跨平台匹配 /find', async() => {
+  const r = await get(`/find?name=${encodeURIComponent('稻香')}&singer=${encodeURIComponent('周杰伦')}`)
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('空列表')
+  return `${r.data.list[0].name} / ${r.data.list[0].singer}`
+})
+
+await test('歌单 路径风格 /song-list/:source', async() => {
+  const r = await get('/song-list/kg?page=1')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('空列表')
+  return `${r.data.list.length} 个歌单`
+})
+
+await test('歌单 默认排序 /song-list/kw', async() => {
+  const r = await get('/song-list/kw?page=1')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('空列表（sortId 默认值未适配平台）')
+  return `${r.data.list.length} 个歌单`
+})
+
 await test('参数校验 422（缺少 name）', async() => {
   const r = await getRaw('/search')
   if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
@@ -228,10 +267,17 @@ await test('404 未知接口', async() => {
   return JSON.parse(r.body).msg
 })
 
-await test('405 方法不允许', async() => {
+await test('405 方法不允许（静态路由）', async() => {
   const r = await postRaw('/search')
   if (r.status !== 405) throw new Error(`期望 405，实际 ${r.status}`)
   if (!r.headers.allow) throw new Error('缺少 Allow 头')
+  return `Allow: ${r.headers.allow}`
+})
+
+await test('405 方法不允许（参数路由）', async() => {
+  const r = await postRaw('/url/kw/28423286')
+  if (r.status !== 405) throw new Error(`期望 405，实际 ${r.status}`)
+  if (!r.headers.allow || !r.headers.allow.includes('GET')) throw new Error(`Allow 头异常: ${r.headers.allow}`)
   return `Allow: ${r.headers.allow}`
 })
 
@@ -255,7 +301,7 @@ await test('OpenAPI 规范 /openapi.json', async() => {
   const spec = JSON.parse(r.body)
   if (!spec.openapi?.startsWith('3.')) throw new Error(`openapi 版本异常: ${spec.openapi}`)
   if (!spec.paths?.['/search']) throw new Error('缺少 /search 定义')
-  if (!spec.paths?.['/url/:source/:id']) throw new Error('缺少路径参数路由定义')
+  if (!spec.paths?.['/url/{source}/{id}']) throw new Error('缺少路径参数路由定义')
   return `${Object.keys(spec.paths).length} 个路径`
 })
 

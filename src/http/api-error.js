@@ -15,9 +15,6 @@ export class ApiError extends Error {
   }
 }
 
-/** 参数校验失败（FastAPI 风格使用 422） */
-export const invalidParam = (msg, detail) => new ApiError(422, msg, detail)
-
 /** 资源不存在（未知路由 / 不支持的平台） */
 export const notFound = (msg, detail) => new ApiError(404, msg, detail)
 
