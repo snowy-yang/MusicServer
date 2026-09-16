@@ -1,9 +1,5 @@
 # lx 聚合源 —— isolated-vm 加载器
 
-> 结论先行：lx-music-source-v5 的请求签名中 `to`/`si` 两项为脚本内部哈希（服务端分别以
-> "时间签名验证失败"/"脚本完整性验证失败" 独立校验），无法脱离脚本复算。直连签名方案已放弃，
-> 一切请求由脚本本身在隔离沙箱中发起。
-
 ## 架构
 
 ```
@@ -50,5 +46,3 @@ HTTP 白名单选项（`createIvmLxSource`）：
 - `lx.request` 回调的 resp 不含 `raw`/`bytes`（Buffer 无法跨隔离边界，实测脚本未使用）
 - `formData` 选项不支持（底层 httpFetch 不支持 multipart）
 - `updateAlert` 事件仅记日志，不弹窗
-- 签名逆向的历史结论已随直连方案移除；如需重启攻坚，`to` 为 88bit 时间签名、`si = md5(A + M2)`
-  （M2 为脚本文本零宽+大写化变换哈希，A 为 VM 内部 128bit 哈希），需字节码级反编译

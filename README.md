@@ -78,10 +78,6 @@ musicSdk/           洛雪音乐聚合 SDK（搜索/歌词/榜单等核心逻辑
 
 > TypeScript 源码（`src/apis/index.ts`、`musicSdk/**/*.ts`）经 `npm run build`（tsc）就地发射为 `.js` 产物后运行。
 
-## 关于 lx-music-source-v5.js
-
-项目目录下的 `lx-music-source-v5.js` 是第三方混淆音源脚本（`lx` 平台）。由于内容不可审计，它**不会在服务器进程内直接执行**，而是通过 `src/apis/lx-source-ivm.js` 使用 isolated-vm 硬隔离加载：脚本在独立 V8 沙箱中发起网络请求，服务器只做日志审计与 HTTP 白名单管控。其请求签名中的 `to`/`si` 两项为脚本内部哈希，无法脱离脚本复算，直连签名方案已放弃，详见 `docs/lx-source-ivm.md`。
-
 ## 已知限制
 
 - **kg 取流**：酷狗当前环境下 `wwwapi`/`trackercdn`/`m.kugou.com` 等取流接口均被服务端风控（err_code 30020/20010），播放地址获取可能失败；歌词、搜索、榜单正常。
