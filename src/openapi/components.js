@@ -102,6 +102,96 @@ export const COMPONENT_SCHEMAS = {
     properties: { list: { type: 'array', items: ref('BoardItem') } },
     additionalProperties: true,
   },
+  SingerInfo: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: '歌手名' },
+      desc: { type: ['string', 'null'], description: '歌手简介' },
+      avatar: { type: ['string', 'null'], description: '头像地址' },
+      gender: { type: ['string', 'null'], description: '性别（man/woman）' },
+    },
+    additionalProperties: true,
+  },
+  SingerInfoResult: {
+    type: 'object',
+    properties: {
+      source: { type: 'string' },
+      id: { type: 'string', description: '平台歌手 id' },
+      info: ref('SingerInfo'),
+      count: {
+        type: 'object',
+        properties: {
+          music: { type: ['integer', 'null'], description: '歌曲数' },
+          album: { type: ['integer', 'null'], description: '专辑数' },
+        },
+        additionalProperties: true,
+      },
+    },
+    additionalProperties: true,
+  },
+  SingerAlbumItem: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: '专辑 id，可用于 /album/:source/:id' },
+      mid: { type: 'string', description: 'tx 平台专辑 mid' },
+      count: { type: ['integer', 'null'], description: '专辑曲目数' },
+      info: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          author: { type: ['string', 'null'] },
+          img: { type: ['string', 'null'] },
+          desc: { type: ['string', 'null'] },
+        },
+        additionalProperties: true,
+      },
+    },
+    additionalProperties: true,
+  },
+  SingerAlbumListResult: {
+    type: 'object',
+    properties: {
+      source: { type: 'string' },
+      list: { type: 'array', items: ref('SingerAlbumItem') },
+      page: { type: 'integer' },
+      limit: { type: 'integer' },
+      total: { type: ['integer', 'string', 'null'] },
+    },
+    additionalProperties: true,
+  },
+  SingerSongListResult: {
+    type: 'object',
+    properties: {
+      source: { type: 'string' },
+      list: { type: 'array', items: ref('SongInfo') },
+      page: { type: 'integer' },
+      limit: { type: 'integer' },
+      total: { type: ['integer', 'string', 'null'] },
+    },
+    additionalProperties: true,
+  },
+  AlbumInfo: {
+    type: 'object',
+    properties: {
+      name: { type: ['string', 'null'], description: '专辑名' },
+      img: { type: ['string', 'null'], description: '专辑封面' },
+      desc: { type: ['string', 'null'], description: '专辑简介' },
+      author: { type: ['string', 'null'], description: '专辑作者' },
+    },
+    additionalProperties: true,
+  },
+  AlbumDetailResult: {
+    type: 'object',
+    properties: {
+      source: { type: 'string' },
+      info: ref('AlbumInfo'),
+      list: { type: 'array', items: ref('SongInfo'), description: '专辑曲目' },
+      page: { type: 'integer' },
+      limit: { type: ['integer', 'string', 'null'] },
+      total: { type: ['integer', 'string', 'null'] },
+    },
+    additionalProperties: true,
+  },
   SongItem: {
     type: 'object',
     properties: {
@@ -179,6 +269,8 @@ export const COMPONENT_SCHEMAS = {
           boards: { type: 'boolean' },
           hotSearch: { type: 'boolean' },
           songList: { type: 'boolean' },
+          singer: { type: 'boolean', description: '支持歌手接口（/singer/:source/:id）' },
+          album: { type: 'boolean', description: '支持专辑接口（/album/:source/:id）' },
         },
         additionalProperties: true,
       },

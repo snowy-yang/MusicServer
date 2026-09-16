@@ -10,6 +10,10 @@
 //   GET /boards/:source/:boardId                     榜单详情
 //   GET /hot-search/:source                          热搜词
 //   GET /song-list/:source                           歌单列表
+//   GET /singer/:source/:id                          歌手信息（kg/tx/wy）
+//   GET /singer/:source/:id/songs                    歌手歌曲（kg/tx/wy）
+//   GET /singer/:source/:id/albums                   歌手专辑（kg/tx/wy）
+//   GET /album/:source/:id                           专辑详情+曲目（kg/kw/mg）
 //   GET /sources /health              GET /docs /redoc /openapi.json
 //
 // 状态码语义：200 成功；422 参数校验失败；404 路由或平台不存在；405 方法不允许；502 上游平台失败；500 内部错误
@@ -139,6 +143,7 @@ fastify.register(swagger, {
       { name: '歌曲资源', description: '播放地址、歌词、封面' },
       { name: '榜单', description: '排行榜' },
       { name: '歌单', description: '歌单与热搜' },
+      { name: '歌手专辑', description: '歌手信息、歌曲与专辑详情' },
       { name: '系统', description: '健康检查、平台信息、文档' },
     ],
   },

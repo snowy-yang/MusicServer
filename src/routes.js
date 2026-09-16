@@ -285,6 +285,72 @@ export const musicRoutes = async(fastify) => {
     return songListHandler(request.params.source, page, sortId, tagId)
   })
 
+  // ---------- 歌手 & 专辑 ----------
+
+  fastify.get('/singer/:source/:id', {
+    schema: {
+      summary: '获取歌手信息',
+      description: '支持 kg/tx/wy（见 /sources 的 singer 能力位）。',
+      tags: ['歌手专辑'],
+      params: params({ source: pSource('singer'), id: { type: 'string', description: '平台歌手 id' } }),
+      response: responses('SingerInfoResult'),
+    },
+  }, async(request) => {
+    const { source, id } = request.params
+    return getSource(musicSdk, source, 'singer').singer
+      .getInfo(id).catch(err => { throw upstream(err.message) })
+  })
+
+  fastify.get('/singer/:source/:id/songs', {
+    schema: {
+      summary: '获取歌手歌曲列表',
+      description: '支持 kg/tx/wy。',
+      tags: ['歌手专辑'],
+      params: params({ source: pSource('singer'), id: { type: 'string', description: '平台歌手 id' } }),
+      querystring: qs({ page: pPage, limit: pLimit }),
+      response: responses('SingerSongListResult'),
+    },
+  }, async(request) => {
+    const { source, id } = request.params
+    const { page, limit } = request.query
+    return getSource(musicSdk, source, 'singer').singer
+      .getSongList(id, page, limit).catch(err => { throw upstream(err.message) })
+  })
+
+  fastify.get('/singer/:source/:id/albums', {
+    schema: {
+      summary: '获取歌手专辑列表',
+      description: '支持 kg/tx/wy。',
+      tags: ['歌手专辑'],
+      params: params({ source: pSource('singer'), id: { type: 'string', description: '平台歌手 id' } }),
+      querystring: qs({ page: pPage, limit: pLimit }),
+      response: responses('SingerAlbumListResult'),
+    },
+  }, async(request) => {
+    const { source, id } = request.params
+    const { page, limit } = request.query
+    return getSource(musicSdk, source, 'singer').singer
+      .getAlbumList(id, page, limit).catch(err => { throw upstream(err.message) })
+  })
+
+  fastify.get('/album/:source/:id', {
+    schema: {
+      summary: '获取专辑详情与曲目列表',
+      description: '支持 kg/mg（见 /sources 的 album 能力位）。kw 的专辑上游接口已失效暂不支持。',
+      tags: ['歌手专辑'],
+      params: params({ source: pSource('album'), id: { type: 'string', description: '平台专辑 id（搜索结果中的 albumId）' } }),
+      querystring: qs({ page: pPage, limit: pLimit }),
+      response: responses('AlbumDetailResult'),
+    },
+  }, async(request) => {
+    const { source, id } = request.params
+    const { page, limit } = request.query
+    const album = getSource(musicSdk, source, 'album').album
+    // kg/mg 为 getAlbumDetail(id, page, limit)，其他平台适配器如只提供 getAlbumListDetail(id, page) 也可接入
+    const fn = album.getAlbumDetail || album.getAlbumListDetail
+    return fn.call(album, id, page, limit).catch(err => { throw upstream(err.message) })
+  })
+
   // ---------- 系统 ----------
 
   fastify.get('/health', {
@@ -327,6 +393,8 @@ export const musicRoutes = async(fastify) => {
           boards: Boolean(m.leaderboard),
           hotSearch: Boolean(m.hotSearch),
           songList: Boolean(m.songList),
+          singer: Boolean(m.singer),
+          album: Boolean(m.album),
         },
       }
     }),

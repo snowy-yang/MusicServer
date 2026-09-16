@@ -29,7 +29,7 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/health` | 健康检查（status / uptime / 平台数） |
-| GET | `/sources` | 支持的平台及其音质、能力（search/url/lyric/pic/boards/hotSearch/songList） |
+| GET | `/sources` | 支持的平台及其音质、能力（search/url/lyric/pic/boards/hotSearch/songList/singer/album） |
 | GET | `/` | 302 重定向到 `/docs` |
 | GET | `/docs` | Swagger UI 文档页 |
 | GET | `/redoc` | ReDoc 阅读版文档 |
@@ -39,7 +39,7 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/search?name=稻香&singer=周杰伦&source=kw&page=1&limit=20` | 搜索歌曲；`source` 省略时聚合全部平台（排除 xm），失败的平台跳过 |
+| GET | `/search?name=稻香&singer=周杰伦&source=kw&page=1&limit=20` | 搜索歌曲；`source` 省略时聚合全部平台，失败的平台跳过 |
 | GET | `/find?name=稻香&singer=周杰伦&albumName=魔杰座&interval=03:43&excludeSource=kw` | 跨平台精确匹配，按歌手/歌名/专辑/时长综合排序 |
 
 ### 歌曲资源
@@ -63,6 +63,17 @@
 | --- | --- | --- |
 | GET | `/hot-search/:source` | 热搜词 |
 | GET | `/song-list/:source` | 歌单列表；可带 `page`/`sortId`/`tagId`。`sortId`/`tagId` 各平台词汇不同（kw `new`/`hot`、tx `5`/`2`、kw 标签为 `173-digest` 形态等），`sortId` 省略时用平台默认 |
+
+### 歌手 & 专辑
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/singer/:source/:id` | 歌手信息（name/desc/avatar 与歌曲/专辑数量）。支持 kg/tx/wy |
+| GET | `/singer/:source/:id/songs` | 歌手歌曲列表；可带 `page`/`limit`（默认 20）。支持 kg/tx/wy |
+| GET | `/singer/:source/:id/albums` | 歌手专辑列表；可带 `page`/`limit`。支持 kg/tx/wy |
+| GET | `/album/:source/:id` | 专辑详情与曲目列表；可带 `page`/`limit`（limit 仅 kg 生效）。支持 kg/mg；kw 专辑上游接口已失效暂不支持 |
+
+歌手/专辑 id 来源：搜索结果条目包含 `albumId`；歌手 id 需从平台方获取（不在搜索结果中）。
 
 ## 响应示例
 

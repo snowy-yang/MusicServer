@@ -6,6 +6,7 @@ import pic from './pic.ts'
 import lyric from './lyric.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
+import album from './album.js'
 // import tipSearch from './tipSearch.ts'
 
 const mg = {
@@ -15,6 +16,7 @@ const mg = {
   leaderboard,
   hotSearch,
   comment,
+  album,
   getMusicUrl(songInfo, type) {
     return apis('mg').getMusicUrl!(songInfo, type)
   },

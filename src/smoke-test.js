@@ -2,7 +2,7 @@
 // 运行：node src/smoke-test.js
 //
 // 覆盖：搜索（各平台 + 聚合）、URL（kw/wy/tx）、歌词、封面、榜单详情、热搜、歌单、
-//       跨平台匹配 /find、路径参数风格路由、标准 HTTP 语义（404/405/422/302）、
+//       跨平台匹配 /find、歌手/专辑、路径参数风格路由、标准 HTTP 语义（404/405/422/302）、
 //       文档页、旧 query 路由移除回归
 
 import http from 'node:http'
@@ -218,6 +218,57 @@ await test('歌单 默认排序 /song-list/kw', async() => {
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表（sortId 默认值未适配平台）')
   return `${r.data.list.length} 个歌单`
+})
+
+// ---- 歌手 & 专辑 ----
+
+await test('歌手信息 /singer/kg', async() => {
+  const r = await get('/singer/kg/3062')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name) throw new Error('无歌手名')
+  return r.data.info.name
+})
+
+await test('歌手信息 /singer/wy', async() => {
+  const r = await get('/singer/wy/3684')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name) throw new Error('无歌手名')
+  return r.data.info.name
+})
+
+await test('歌手信息 /singer/tx', async() => {
+  const r = await get('/singer/tx/0025NhlN2yWrP4')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name) throw new Error('无歌手名')
+  return r.data.info.name
+})
+
+await test('歌手歌曲 /singer/tx/:id/songs', async() => {
+  const r = await get('/singer/tx/0025NhlN2yWrP4/songs?page=1&limit=3')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('空列表')
+  return `${r.data.list.length} 首 / 共 ${r.data.total}`
+})
+
+await test('歌手专辑 /singer/kg/:id/albums', async() => {
+  const r = await get('/singer/kg/3062/albums?page=1&limit=3')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('空列表')
+  return `${r.data.list.length} 张`
+})
+
+await test('专辑详情 /album/kg', async() => {
+  const r = await get('/album/kg/171089481')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name || !r.data?.list) throw new Error('响应不完整')
+  return `${r.data.info.name}（${r.data.list.length} 首）`
+})
+
+await test('专辑详情 /album/mg', async() => {
+  const r = await get('/album/mg/25578')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name) throw new Error('无专辑名')
+  return `${r.data.info.name}（${r.data.list?.length ?? 0} 首）`
 })
 
 await test('参数校验 422（缺少 name）', async() => {

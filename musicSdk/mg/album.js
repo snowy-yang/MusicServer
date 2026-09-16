@@ -29,23 +29,21 @@ export default {
         play_count: listInfo.play_count,
       },
     }
-  },
-  /**
+  },  /**
    * 通过AlbumId获取专辑信息
    * @param {*} id
-   * @param {*} page
    */
   async getAlbumInfo(id) {
     const info = await createHttpFetch(`https://app.c.nf.migu.cn/MIGUM3.0/resource/album/v2.0?albumId=${id}`)
     if (!info) return Promise.reject(new Error('Get album info error.'))
 
     return {
-      name: info.title,
-      image: info.imgItems.length ? info.imgItems[0].img : null,
-      desc: info.summary,
-      author: info.singer,
-      play_count: formatPlayCount(info.opNumItem.playNum),
-      total: info.totalCount,
+      name: info.title ?? null,
+      image: info.imgItems?.length ? info.imgItems[0].img : null,
+      desc: info.summary ?? null,
+      author: info.singer ?? null,
+      play_count: formatPlayCount(info.opNumItem?.playNum ?? 0),
+      total: parseInt(info.totalCount) || null,
     }
   },
 }

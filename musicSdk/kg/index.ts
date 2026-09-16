@@ -6,6 +6,8 @@ import pic from './pic.ts'
 import lyric from './lyric.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
+import singer from './singer.ts'
+import album from './album.ts'
 // import tipSearch from './tipSearch.js'
 
 const kg = {
@@ -15,6 +17,8 @@ const kg = {
   musicSearch,
   hotSearch,
   comment,
+  singer,
+  album,
   getMusicUrl(songInfo, type) {
     return apis('kg').getMusicUrl!(songInfo, type)
   },

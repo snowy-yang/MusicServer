@@ -31,6 +31,10 @@ pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
 | `GET /boards/:source/:boardId` | 榜单详情 |
 | `GET /hot-search/:source` | 热搜列表 |
 | `GET /song-list/:source?page=1` | 歌单列表 |
+| `GET /singer/:source/:id` | 歌手信息（kg/tx/wy） |
+| `GET /singer/:source/:id/songs?page=1&limit=30` | 歌手歌曲列表（kg/tx/wy） |
+| `GET /singer/:source/:id/albums?page=1&limit=10` | 歌手专辑列表（kg/tx/wy） |
+| `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/mg） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
 | `GET /docs` `/redoc` `/openapi.json` | 接口文档（Swagger UI / ReDoc / OpenAPI 3.1） |

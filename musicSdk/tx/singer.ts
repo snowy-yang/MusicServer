@@ -61,38 +61,30 @@ export const filterMusicInfoItem = item => {
 
 
 /**
- * 创建一个适用于TX的Http请求
- * @param {*} url
- * @param {*} options
- * @param {*} retryNum
+ * musicu.fcg 通用请求（comm 参数对齐榜单模块的可用配置）。
+ * 注意：musichallSinger.GetSingerDetail 等歌手详情接口在该通道已停用（104403），
+ * 歌手名/统计改由歌单与专辑接口合成。
  */
-const createMusicuFetch = async(data, options?, retryNum = 0) => {
+const createMusicuFetch = async(data, retryNum = 0) => {
   if (retryNum > 2) throw new Error('try max num')
 
   let result
   try {
     result = await httpFetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
-      method: 'POST',
-      body: {
-        comm: {
-          cv: 4747474,
-          ct: 24,
-          format: 'json',
-          inCharset: 'utf-8',
-          outCharset: 'utf-8',
-          uin: 0,
-        },
-        ...data,
-      },
+      method: 'post',
       headers: {
-        'User-Angent': 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)',
+        'User-Agent': 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)',
+      },
+      body: {
+        comm: { uin: 0, format: 'json', ct: 20, cv: 1859 },
+        ...data,
       },
     }).promise
   } catch (err) {
     console.log(err)
-    return createMusicuFetch(data, options, ++retryNum)
+    return createMusicuFetch(data, ++retryNum)
   }
-  if (result.statusCode !== 200 || result.body.code != 0) return createMusicuFetch(data, options, ++retryNum)
+  if (result.statusCode !== 200 || result.body.code != 0) return createMusicuFetch(data, ++retryNum)
 
   return result.body
 }
@@ -103,59 +95,28 @@ export default {
    * @param {*} id
    */
   getInfo(id) {
-    return createMusicuFetch({
-      req_1: {
-        module: 'music.musichallSinger.SingerInfoInter',
-        method: 'GetSingerDetail',
-        param: {
-          singer_mid: [id],
-          ex_singer: 1,
-          wiki_singer: 1,
-          group_singer: 0,
-          pic: 1,
-          photos: 0,
-        },
-      },
-      req_2: {
-        module: 'music.musichallAlbum.AlbumListServer',
-        method: 'GetAlbumList',
-        param: {
-          singerMid: id,
-          order: 0,
-          begin: 0,
-          num: 1,
-          songNumTag: 0,
-          singerID: 0,
-        },
-      },
-      req_3: {
-        module: 'musichall.song_list_server',
-        method: 'GetSingerSongList',
-        param: {
-          singerMid: id,
-          order: 1,
-          begin: 0,
-          num: 1,
-        },
-      },
-    }).then(body => {
-      if (body.req_1.code != 0 || body.req_2 != 0 || body.req_3 != 0) throw new Error('get singer info faild.')
-
-      const info = body.req_1.data.singer_list[0]
-      const music = body.req_3.data
-      const album = body.req_3.data
+    return Promise.all([
+      createMusicuFetch({ req: { module: 'musichall.song_list_server', method: 'GetSingerSongList', param: { singerMid: id, order: 1, begin: 0, num: 1 } } }),
+      createMusicuFetch({ req: { module: 'music.musichallAlbum.AlbumListServer', method: 'GetAlbumList', param: { singerMid: id, order: 0, begin: 0, num: 1, songNumTag: 0, singerID: 0 } } }),
+    ]).then(([songBody, albumBody]) => {
+      if (songBody.req.code != 0 || albumBody.req.code != 0) throw new Error('get singer info faild.')
+      const songData = songBody.req.data
+      const albumData = albumBody.req.data
+      // 详情接口停用：歌手名从歌曲条目反查，头像用平台的固定图片 URL 规则
+      const singers = songData.songList?.[0]?.songInfo?.singer ?? []
+      const self = singers.find(s => s.mid === id) ?? singers[0]
       return {
         source: 'tx',
-        id: info.basic_info.singer_mid,
+        id,
         info: {
-          name: info.basic_info.name,
-          desc: info.ex_info.desc,
-          avatar: info.pic.pic,
-          gender: info.ex_info.genre === 1 ? 'man' : 'woman',
+          name: self?.name ?? '',
+          desc: null,
+          avatar: `https://y.gtimg.cn/music/photo_new/T001R500x500M000${id}.jpg`,
+          gender: null,
         },
         count: {
-          music: music.totalNum,
-          album: album.total,
+          music: songData.totalNum,
+          album: albumData.total,
         },
       }
     })
@@ -167,7 +128,6 @@ export default {
    * @param {*} limit
    */
   getAlbumList(id, page = 1, limit = 10) {
-    if (page === 1) page = 0
     return createMusicuFetch({
       req: {
         module: 'music.musichallAlbum.AlbumListServer',
@@ -175,7 +135,7 @@ export default {
         param: {
           singerMid: id,
           order: 0,
-          begin: page * limit,
+          begin: (page - 1) * limit,
           num: limit,
           songNumTag: 0,
           singerID: 0,
@@ -201,30 +161,28 @@ export default {
    * @param {*} limit
    */
   async getSongList(id, page = 1, limit = 100) {
-    if (page === 1) page = 0
-    return createMusicuFetch({
+    const body = await createMusicuFetch({
       req: {
         module: 'musichall.song_list_server',
         method: 'GetSingerSongList',
         param: {
           singerMid: id,
           order: 1,
-          begin: page * limit,
+          begin: (page - 1) * limit,
           num: limit,
         },
       },
-    }).then(body => {
-      if (body.req.code != 0) throw new Error('get singer song list faild.')
-
-      const list = this.filterSongList(body.req.data.songList)
-      return {
-        source: 'tx',
-        list,
-        limit,
-        page,
-        total: body.req.data.totalNum,
-      }
     })
+    if (body.req.code != 0) throw new Error('get singer song list faild.')
+
+    const list = this.filterSongList(body.req.data.songList)
+    return {
+      source: 'tx',
+      list,
+      limit,
+      page,
+      total: body.req.data.totalNum,
+    }
   },
   filterAlbumList(raw) {
     return raw.map(item => {
@@ -242,7 +200,7 @@ export default {
     })
   },
   filterSongList(raw) {
-    raw.map(item => {
+    return raw.map(item => {
       return filterMusicInfoItem(item.songInfo)
     })
   },

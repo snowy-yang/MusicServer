@@ -8,20 +8,23 @@ export default {
    * @param {*} id
    */
   getInfo(id) {
-    return (eapiRequest('/api/artist/head/info/get', { id }) as any).then(({ body }) => {
+    return eapiRequest('/api/artist/head/info/get', { id }).promise.then(({ body }) => {
       if (!body || body.code != 200) throw new Error('get singer info faild.')
+      // 响应结构为 { code, data: { artist: { ... } } }，无 body.user
+      const artist = body.data?.artist
+      if (!artist) throw new Error('get singer info faild.')
       return {
         source: 'wy',
-        id: body.artist.id,
+        id: artist.id,
         info: {
-          name: body.artist.name,
-          desc: body.artist.briefDesc,
-          avatar: body.user.avatarUrl,
-          gender: body.user.gender === 1 ? 'man' : 'woman',
+          name: artist.name,
+          desc: artist.briefDesc,
+          avatar: artist.avatar ?? artist.cover ?? null,
+          gender: null,
         },
         count: {
-          music: body.artist.musicSize,
-          album: body.artist.albumSize,
+          music: artist.musicSize,
+          album: artist.albumSize,
         },
       }
     })
@@ -33,12 +36,11 @@ export default {
    * @param {*} limit
    */
   getSongList(id, page = 1, limit = 100) {
-    if (page === 1) page = 0
-    return (eapiRequest('/api/v2/artist/songs', {
+    return eapiRequest('/api/v2/artist/songs', {
       id,
       limit,
-      offset: limit * page,
-    }) as any).then(({ body }) => {
+      offset: (page - 1) * limit,
+    }).promise.then(({ body }) => {
       if (!body.songs || body.code != 200) throw new Error('get singer song list faild.')
 
       const list = this.filterSongList(body.songs)
@@ -58,11 +60,10 @@ export default {
    * @param {*} limit
    */
   getAlbumList(id, page = 1, limit = 10) {
-    if (page === 1) page = 0
-    return (eapiRequest(`/api/artist/albums/${id}`, {
+    return eapiRequest(`/api/artist/albums/${id}`, {
       limit,
-      offset: limit * page,
-    }) as any).then(({ body }) => {
+      offset: (page - 1) * limit,
+    }).promise.then(({ body }) => {
       if (!body.hotAlbums || body.code != 200) throw new Error('get singer album list faild.')
 
       const list = this.filterAlbumList(body.hotAlbums)
@@ -108,24 +109,28 @@ export default {
             _types['128k'] = {
               size,
             }
+            break
           case 320000:
             size = item.hMusic ? sizeFormate(item.hMusic.size) : null
             types.push({ type: '320k', size })
             _types['320k'] = {
               size,
             }
+            break
           case 999000:
             size = item.sqMusic ? sizeFormate(item.sqMusic.size) : null
             types.push({ type: 'flac', size })
             _types.flac = {
               size,
             }
+            break
           case 1999000:
             size = item.hrMusic ? sizeFormate(item.hrMusic.size) : null
             types.push({ type: 'flac24bit', size })
             _types.flac24bit = {
               size,
             }
+            break
         }
       })
 
@@ -136,7 +141,7 @@ export default {
         albumId: item.album.id,
         songmid: item.id,
         source: 'wy',
-        interval: formatPlayTime(item.duration),
+        interval: formatPlayTime((item.dt ?? item.duration) / 1000),
         img: null,
         lrc: null,
         otherSource: null,

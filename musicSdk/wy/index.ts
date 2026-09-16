@@ -6,6 +6,7 @@ import musicSearch from './musicSearch.ts'
 import songList from './songList.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
+import singer from './singer.ts'
 // import tipSearch from './tipSearch.js'
 
 const wy = {
@@ -15,6 +16,7 @@ const wy = {
   songList,
   hotSearch,
   comment,
+  singer,
   getMusicUrl(songInfo, type) {
     return apis('wy').getMusicUrl!(songInfo, type)
   },

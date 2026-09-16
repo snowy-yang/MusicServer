@@ -76,7 +76,7 @@ export default {
         info: {
           name: item.albumname,
           author: item.singername,
-          img: item.replaceAll('{size}', '480'),
+          img: String(item.imgurl || item.img || '').replace('{size}', '480'),
           desc: item.intro,
         },
       }
