@@ -11,9 +11,9 @@
 ## 快速开始
 
 ```bash
-npm install
-npm start        # 默认端口 16688，可用 PORT 环境变量修改
-npm test         # 运行冒烟测试（自动启动/关闭本地服务器）
+pnpm install
+pnpm start       # 默认端口 16688，可用 PORT 环境变量修改
+pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
 ```
 
 ## HTTP 接口
@@ -49,7 +49,7 @@ npm test         # 运行冒烟测试（自动启动/关闭本地服务器）
 
 ```
 src/
-  server.js         HTTP 服务器入口（npm start 实际启动文件，Fastify）
+  server.js         HTTP 服务器入口（pnpm start 实际启动文件，Fastify）
   routes.js         业务路由（JSON Schema 校验 + OpenAPI 元数据）
   smoke-test.js     冒烟测试（自动启动本地服务器）
   index.js          SDK 根模块（工具函数聚合导出）
@@ -76,7 +76,7 @@ musicSdk/           洛雪音乐聚合 SDK（搜索/歌词/榜单等核心逻辑
   message.js        SDK 消息模块（转接 src/common/message.js）
 ```
 
-> TypeScript 源码（`src/apis/index.ts`、`musicSdk/**/*.ts`）经 `npm run build`（tsc）就地发射为 `.js` 产物后运行。
+> TypeScript 源码（`src/apis/index.ts`、`musicSdk/**/*.ts`）经 `pnpm run build`（tsc）就地发射为 `.js` 产物后运行。
 
 ## 已知限制
 

@@ -4,10 +4,11 @@
   "description": "多平台音乐聚合服务器（基于 lx-music 聚合 SDK）",
   "type": "module",
   "main": "src/index.js",
+  "packageManager": "pnpm@12.4.1",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node src/server.js",
-    "test": "npm run build && node src/smoke-test.js"
+    "start": "pnpm run build && node src/server.js",
+    "test": "pnpm run build && node src/smoke-test.js"
   },
   "imports": {
     "#common/*": "./src/common/*.js",
