@@ -31,6 +31,7 @@ import { redocHtml } from './openapi/ui.js'
 
 // 默认端口 16688：本机 TCP 动态端口范围是 1024~15000（出站连接会随机占用低端端口），避开该区间
 const PORT = process.env.PORT || 16688
+const DOCS_PREFIX = '/docs'
 const API_TITLE = 'MusicServer 聚合音乐 API'
 const API_DESCRIPTION = '多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单。' +
   '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）/ mg（咪咕）平台。'
@@ -74,10 +75,13 @@ fastify.addHook('onResponse', async(request, reply) => {
   console.log(`[${new Date().toISOString()}] ${request.method} ${request.url} → ${reply.statusCode} (${Math.round(reply.elapsedTime)}ms)`)
 })
 
-// 成功响应统一包成 { code: 0, data }；文档页/raw 路由与非 200 响应不包
+// 成功响应统一包成 { code: 0, data }；文档页/raw 路由与非 200 响应不包。
+// @fastify/swagger-ui 的规范端点 {DOCS_PREFIX}/json 由插件内部注册、无法加 raw 标记，
+// 必须豁免：Swagger UI 强制从该地址加载规范，包了信封顶层就没有 openapi 字段，页面直接报错
 fastify.addHook('preSerialization', async(request, reply, payload) => {
   if (reply.statusCode !== 200) return payload
   if (request.routeOptions.config?.raw) return payload
+  if (request.routeOptions.url === `${DOCS_PREFIX}/json`) return payload
   if (payload === null || typeof payload === 'object') return { code: 0, data: payload }
   return payload
 })
@@ -141,10 +145,9 @@ fastify.register(swagger, {
   },
 })
 
-fastify.register(swaggerUi, {
-  routePrefix: '/docs',
-  url: '/openapi.json',
-})
+// 注意：插件初始化器会把规范地址强制为 {DOCS_PREFIX}/json（uiConfig 的 url 会被覆盖），
+// 真正对外文档化的规范地址是下方带 raw 标记的 /openapi.json
+fastify.register(swaggerUi, { routePrefix: DOCS_PREFIX })
 
 fastify.get('/openapi.json', {
   config: { raw: true },

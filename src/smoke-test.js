@@ -305,6 +305,15 @@ await test('OpenAPI 规范 /openapi.json', async() => {
   return `${Object.keys(spec.paths).length} 个路径`
 })
 
+await test('Swagger UI 规范端点 /docs/json（不可包信封）', async() => {
+  const r = await getRaw('/docs/json')
+  if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
+  const spec = JSON.parse(r.body)
+  // Swagger UI 强制从该地址加载规范：若被全局信封钩子包成 { code, data }，顶层无 openapi 字段，文档页直接报错
+  if (!spec.openapi?.startsWith('3.')) throw new Error(`顶层缺少 openapi 字段（疑似被信封包裹）: ${r.body.slice(0, 80)}`)
+  return spec.openapi
+})
+
 // 汇总
 const passed = results.filter(r => r.ok).length
 const failed = results.filter(r => !r.ok)
