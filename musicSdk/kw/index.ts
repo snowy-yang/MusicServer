@@ -9,6 +9,7 @@ import { apis } from '../api-source.ts'
 import songList from './songList.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
+import album from './album.ts'
 import type { HttpRequestObject } from '../types.ts'
 
 const kw = {
@@ -16,6 +17,7 @@ const kw = {
   _musicInfoPromiseCancelFn: null,
   _musicPicRequestObj: null as HttpRequestObject | null,
   _musicPicPromiseCancelFn: null,
+  album,
   // context: null,
 
 

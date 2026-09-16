@@ -336,7 +336,7 @@ export const musicRoutes = async(fastify) => {
   fastify.get('/album/:source/:id', {
     schema: {
       summary: '获取专辑详情与曲目列表',
-      description: '支持 kg/mg（见 /sources 的 album 能力位）。kw 的专辑上游接口已失效暂不支持。',
+      description: '支持 kg/kw/mg（见 /sources 的 album 能力位）。kw 单页固定 1000 条、limit 不生效。',
       tags: ['歌手专辑'],
       params: params({ source: pSource('album'), id: { type: 'string', description: '平台专辑 id（搜索结果中的 albumId）' } }),
       querystring: qs({ page: pPage, limit: pLimit }),
@@ -346,9 +346,10 @@ export const musicRoutes = async(fastify) => {
     const { source, id } = request.params
     const { page, limit } = request.query
     const album = getSource(musicSdk, source, 'album').album
-    // kg/mg 为 getAlbumDetail(id, page, limit)，其他平台适配器如只提供 getAlbumListDetail(id, page) 也可接入
-    const fn = album.getAlbumDetail || album.getAlbumListDetail
-    return fn.call(album, id, page, limit).catch(err => { throw upstream(err.message) })
+    // 各平台适配器签名不同：kg/mg 为 getAlbumDetail(id, page, limit)，
+    // kw 为 getAlbumListDetail(id, page)——第三参数是 retryNum，不能透传 limit
+    if (album.getAlbumDetail) return album.getAlbumDetail(id, page, limit).catch(err => { throw upstream(err.message) })
+    return album.getAlbumListDetail(id, page).catch(err => { throw upstream(err.message) })
   })
 
   // ---------- 系统 ----------

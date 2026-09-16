@@ -71,7 +71,7 @@
 | GET | `/singer/:source/:id` | 歌手信息（name/desc/avatar 与歌曲/专辑数量）。支持 kg/tx/wy |
 | GET | `/singer/:source/:id/songs` | 歌手歌曲列表；可带 `page`/`limit`（默认 20）。支持 kg/tx/wy |
 | GET | `/singer/:source/:id/albums` | 歌手专辑列表；可带 `page`/`limit`。支持 kg/tx/wy |
-| GET | `/album/:source/:id` | 专辑详情与曲目列表；可带 `page`/`limit`（limit 仅 kg 生效）。支持 kg/mg；kw 专辑上游接口已失效暂不支持 |
+| GET | `/album/:source/:id` | 专辑详情与曲目列表；可带 `page`/`limit`（limit 仅 kg 生效，kw 单页固定 1000 条）。支持 kg/kw/mg |
 
 歌手/专辑 id 来源：搜索结果条目包含 `albumId`；歌手 id 需从平台方获取（不在搜索结果中）。
 

@@ -34,7 +34,7 @@ pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
 | `GET /singer/:source/:id` | 歌手信息（kg/tx/wy） |
 | `GET /singer/:source/:id/songs?page=1&limit=30` | 歌手歌曲列表（kg/tx/wy） |
 | `GET /singer/:source/:id/albums?page=1&limit=10` | 歌手专辑列表（kg/tx/wy） |
-| `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/mg） |
+| `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/kw/mg） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
 | `GET /docs` `/redoc` `/openapi.json` | 接口文档（Swagger UI / ReDoc / OpenAPI 3.1） |
