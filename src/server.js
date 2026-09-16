@@ -1,16 +1,15 @@
 // HTTP 服务器入口（Fastify）—— 多平台音乐聚合 API
 // 设计目标：标准 HTTP 语义 + FastAPI 风格的自动文档（校验与文档均由 JSON Schema 驱动）
 //
-//   规范路由（路径参数风格）           旧版路由（query 风格，保留兼容）
-//   GET /search                       （同左）
-//   GET /find                         （同左）
-//   GET /url/:source/:id              GET /url?source=&id=
-//   GET /lyric/:source/:id            GET /lyric?source=&id=
-//   GET /pic/:source/:id              GET /pic?source=&id=
-//   GET /boards/:source               GET /boards?source=
-//   GET /boards/:source/:boardId      GET /board?source=&id=
-//   GET /hot-search/:source           GET /hotSearch?source=
-//   GET /song-list/:source            GET /songList?source=
+//   GET /search?name=&singer=&source=&page=&limit=   搜索（source 省略时聚合全部平台）
+//   GET /find?name=&singer=&albumName=&interval=     跨平台精确匹配
+//   GET /url/:source/:id                             播放地址
+//   GET /lyric/:source/:id                           歌词
+//   GET /pic/:source/:id                             封面
+//   GET /boards/:source                              榜单列表
+//   GET /boards/:source/:boardId                     榜单详情
+//   GET /hot-search/:source                          热搜词
+//   GET /song-list/:source                           歌单列表
 //   GET /sources /health              GET /docs /redoc /openapi.json
 //
 // 状态码语义：200 成功；422 参数校验失败；404 路由或平台不存在；405 方法不允许；502 上游平台失败；500 内部错误

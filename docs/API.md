@@ -19,7 +19,7 @@
   - `405` 方法不允许（响应带 `Allow` 头）
   - `502` 上游平台请求失败
   - `500` 服务器内部错误
-- 每个资源接口同时提供**路径参数风格**（规范）与 **query 风格**（旧版兼容，文档中标记 deprecated）。
+- 资源类接口统一为**路径参数风格**；`/search`、`/find` 搜索类接口使用 query 参数。
 - 平台歌曲 id 形态：kw/tx/wy/mg 用 `songmid`，kg 用 `hash`（mg 内部自动换取 contentId）。
 
 ## 接口速查
@@ -44,25 +44,25 @@
 
 ### 歌曲资源
 
-| 方法 | 路径（规范） | 旧版 query 别名（deprecated） | 说明 |
-| --- | --- | --- | --- |
-| GET | `/url/:source/:id` | `/url?source=&id=` | 播放地址；query 可带 `quality`（128k/320k/flac/flac24bit，默认 128k）与 `albumId`（kg 需要） |
-| GET | `/lyric/:source/:id` | `/lyric?source=&id=` | 歌词；可带 `name`/`interval`（部分平台搜索歌词时需要） |
-| GET | `/pic/:source/:id` | `/pic?source=&id=` | 封面；可带 `albumId`（kg 需要） |
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/url/:source/:id` | 播放地址；query 可带 `quality`（128k/320k/flac/flac24bit，默认 128k）与 `albumId`（kg 需要） |
+| GET | `/lyric/:source/:id` | 歌词；可带 `name`/`interval`（部分平台搜索歌词时需要） |
+| GET | `/pic/:source/:id` | 封面；可带 `albumId`（kg 需要） |
 
 ### 榜单
 
-| 方法 | 路径（规范） | 旧版 query 别名（deprecated） | 说明 |
-| --- | --- | --- | --- |
-| GET | `/boards/:source` | `/boards?source=` | 榜单列表 |
-| GET | `/boards/:source/:boardId` | `/board?source=&id=` | 榜单详情；可带 `page`。`boardId` 兼容榜单列表的带前缀 `id`（`kw__93`）与裸 `bangid`（`93`） |
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/boards/:source` | 榜单列表 |
+| GET | `/boards/:source/:boardId` | 榜单详情；可带 `page`。`boardId` 兼容榜单列表的带前缀 `id`（`kw__93`）与裸 `bangid`（`93`） |
 
 ### 歌单 & 热搜
 
-| 方法 | 路径（规范） | 旧版 query 别名（deprecated） | 说明 |
-| --- | --- | --- | --- |
-| GET | `/hot-search/:source` | `/hotSearch?source=` | 热搜词 |
-| GET | `/song-list/:source` | `/songList?source=` | 歌单列表；可带 `page`/`sortId`/`tagId`。`sortId`/`tagId` 各平台词汇不同（kw `new`/`hot`、tx `5`/`2`、kw 标签为 `173-digest` 形态等），`sortId` 省略时用平台默认 |
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/hot-search/:source` | 热搜词 |
+| GET | `/song-list/:source` | 歌单列表；可带 `page`/`sortId`/`tagId`。`sortId`/`tagId` 各平台词汇不同（kw `new`/`hot`、tx `5`/`2`、kw 标签为 `173-digest` 形态等），`sortId` 省略时用平台默认 |
 
 ## 响应示例
 

@@ -2,7 +2,8 @@
 // 运行：node src/smoke-test.js
 //
 // 覆盖：搜索（各平台 + 聚合）、URL（kw/wy/tx）、歌词、封面、榜单详情、热搜、歌单、
-//       跨平台匹配 /find、路径参数风格路由、标准 HTTP 语义（404/405/422/302）、文档页
+//       跨平台匹配 /find、路径参数风格路由、标准 HTTP 语义（404/405/422/302）、
+//       文档页、旧 query 路由移除回归
 
 import http from 'node:http'
 import { spawn } from 'node:child_process'
@@ -124,23 +125,23 @@ await test('聚合搜索', async() => {
   return `${r.data.list.length} 条结果`
 })
 
-// URL（用已知歌曲 id）
+// URL（用已知歌曲 id，路径参数风格）
 await test('URL kw 320k', async() => {
-  const r = await get('/url?source=kw&id=28423286&quality=320k')
+  const r = await get('/url/kw/28423286?quality=320k')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   return r.data.url.slice(0, 60)
 })
 
 await test('URL wy 128k', async() => {
-  const r = await get('/url?source=wy&id=3357698666&quality=128k')
+  const r = await get('/url/wy/3357698666?quality=128k')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   return r.data.url.slice(0, 60)
 })
 
 await test('URL tx 320k', async() => {
-  const r = await get('/url?source=tx&id=003C9fBv2K4x8b&quality=320k')
+  const r = await get('/url/tx/003C9fBv2K4x8b?quality=320k')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   return r.data.url.slice(0, 60)
@@ -148,7 +149,7 @@ await test('URL tx 320k', async() => {
 
 // 歌词
 await test('歌词 kw', async() => {
-  const r = await get('/lyric?source=kw&id=28423286')
+  const r = await get('/lyric/kw/28423286')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.lyric) throw new Error('无歌词')
   return `${r.data.lyric.slice(0, 30)}...`
@@ -156,7 +157,7 @@ await test('歌词 kw', async() => {
 
 // 封面
 await test('封面 kw', async() => {
-  const r = await get('/pic?source=kw&id=28423286')
+  const r = await get('/pic/kw/28423286')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   return r.data.url.slice(0, 60)
@@ -165,7 +166,7 @@ await test('封面 kw', async() => {
 // 榜单 & 热搜
 for (const source of ['kw', 'kg', 'tx', 'wy', 'mg']) {
   await test(`榜单 ${source}`, async() => {
-    const r = await get(`/boards?source=${source}`)
+    const r = await get(`/boards/${source}`)
     if (r.code != 0) throw new Error(r.msg)
     if (!r.data?.list?.length) throw new Error('空列表')
     return `${r.data.list.length} 个榜单`
@@ -173,13 +174,13 @@ for (const source of ['kw', 'kg', 'tx', 'wy', 'mg']) {
 }
 
 await test('热搜 kw', async() => {
-  const r = await get('/hotSearch?source=kw')
+  const r = await get('/hot-search/kw')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return r.data.list[0]
 })
 
-// ---- 标准 HTTP 语义与文档（新版路由） ----
+// ---- 标准 HTTP 语义与文档 ----
 
 await test('平台列表 /sources', async() => {
   const r = await get('/sources')
@@ -188,34 +189,6 @@ await test('平台列表 /sources', async() => {
   const kw = r.data.platforms.find(p => p.id === 'kw')
   if (!kw?.capabilities?.search) throw new Error('kw 缺少 search 能力')
   return `${r.data.platforms.length} 个平台`
-})
-
-await test('URL 路径风格 /url/kw/:id', async() => {
-  const r = await get('/url/kw/28423286?quality=320k')
-  if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.url) throw new Error('无 url')
-  return r.data.url.slice(0, 60)
-})
-
-await test('歌词 路径风格 /lyric/kw/:id', async() => {
-  const r = await get('/lyric/kw/28423286')
-  if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.lyric) throw new Error('无歌词')
-  return `${r.data.lyric.slice(0, 30)}...`
-})
-
-await test('榜单 路径风格 /boards/:source', async() => {
-  const r = await get('/boards/kg')
-  if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.list?.length) throw new Error('空列表')
-  return `${r.data.list.length} 个榜单`
-})
-
-await test('封面 路径风格 /pic/kw/:id', async() => {
-  const r = await get('/pic/kw/28423286')
-  if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.url) throw new Error('无 url')
-  return r.data.url.slice(0, 60)
 })
 
 await test('榜单详情 路径风格 /boards/:source/:boardId', async() => {
@@ -265,6 +238,14 @@ await test('404 未知接口', async() => {
   const r = await getRaw('/not-exist')
   if (r.status !== 404) throw new Error(`期望 404，实际 ${r.status}`)
   return JSON.parse(r.body).msg
+})
+
+await test('旧 query 路由已移除（404）', async() => {
+  const r = await getRaw('/url?source=kw&id=28423286')
+  if (r.status !== 404) throw new Error(`期望 404，实际 ${r.status}`)
+  const body = JSON.parse(r.body)
+  if (!/接口不存在/.test(body.msg)) throw new Error(`响应异常: ${body.msg}`)
+  return body.msg
 })
 
 await test('405 方法不允许（静态路由）', async() => {

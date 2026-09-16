@@ -124,13 +124,11 @@ export const musicRoutes = async(fastify) => {
     }
   })
 
-  // ---------- 歌曲资源（路径参数风格 + 旧 query 风格别名） ----------
+  // ---------- 歌曲资源（路径参数风格） ----------
 
   const urlHandler = async(request) => {
-    const q = request.params.id
-      ? { source: request.params.source, id: request.params.id, ...request.query }
-      : request.query
-    const { source, id, quality, albumId } = q
+    const { source, id } = request.params
+    const { quality, albumId } = request.query
     const m = getSource(musicSdk, source, 'getMusicUrl')
     const songInfo = { songmid: id, hash: id, copyrightId: id, albumId: albumId || '', _types: {} }
     let result
@@ -161,26 +159,9 @@ export const musicRoutes = async(fastify) => {
     },
   }, urlHandler)
 
-  fastify.get('/url', {
-    schema: {
-      summary: '获取播放地址（旧版 query 风格）',
-      deprecated: true,
-      tags: ['歌曲资源'],
-      querystring: qs({
-        source: pSource('url'),
-        id: pId,
-        quality: pQuality,
-        albumId: { type: 'string', description: '专辑 id' },
-      }, ['source', 'id']),
-      response: responses('MusicUrlResult'),
-    },
-  }, urlHandler)
-
   const lyricHandler = async(request) => {
-    const q = request.params.id
-      ? { source: request.params.source, id: request.params.id, ...request.query }
-      : request.query
-    const { source, id, name, interval } = q
+    const { source, id } = request.params
+    const { name, interval } = request.query
     const m = getSource(musicSdk, source, 'getLyric')
     let result
     try {
@@ -206,26 +187,9 @@ export const musicRoutes = async(fastify) => {
     },
   }, lyricHandler)
 
-  fastify.get('/lyric', {
-    schema: {
-      summary: '获取歌词（旧版 query 风格）',
-      deprecated: true,
-      tags: ['歌曲资源'],
-      querystring: qs({
-        source: pSource('lyric'),
-        id: pId,
-        name: { type: 'string', description: '歌名' },
-        interval: { type: 'string', description: '时长（mm:ss）' },
-      }, ['source', 'id']),
-      response: responses('LyricInfo'),
-    },
-  }, lyricHandler)
-
   const picHandler = async(request) => {
-    const q = request.params.id
-      ? { source: request.params.source, id: request.params.id, ...request.query }
-      : request.query
-    const { source, id, albumId } = q
+    const { source, id } = request.params
+    const { albumId } = request.query
     const m = getSource(musicSdk, source, 'getPic')
     let result
     try {
@@ -248,20 +212,6 @@ export const musicRoutes = async(fastify) => {
     },
   }, picHandler)
 
-  fastify.get('/pic', {
-    schema: {
-      summary: '获取封面（旧版 query 风格）',
-      deprecated: true,
-      tags: ['歌曲资源'],
-      querystring: qs({
-        source: pSource('pic'),
-        id: pId,
-        albumId: { type: 'string', description: '专辑 id' },
-      }, ['source', 'id']),
-      response: responses('PicResult'),
-    },
-  }, picHandler)
-
   // ---------- 榜单 ----------
 
   fastify.get('/boards/:source', {
@@ -273,19 +223,6 @@ export const musicRoutes = async(fastify) => {
     },
   }, async(request) => {
     const m = getSource(musicSdk, request.params.source, 'leaderboard')
-    return m.leaderboard.getBoards().catch(err => { throw upstream(err.message) })
-  })
-
-  fastify.get('/boards', {
-    schema: {
-      summary: '获取榜单列表（旧版 query 风格）',
-      deprecated: true,
-      tags: ['榜单'],
-      querystring: qs({ source: pSource('boards') }, ['source']),
-      response: responses('BoardListResult'),
-    },
-  }, async(request) => {
-    const m = getSource(musicSdk, request.query.source, 'leaderboard')
     return m.leaderboard.getBoards().catch(err => { throw upstream(err.message) })
   })
 
@@ -311,22 +248,6 @@ export const musicRoutes = async(fastify) => {
     request.params.source, request.params.boardId, request.query.page,
   ))
 
-  fastify.get('/board', {
-    schema: {
-      summary: '获取榜单详情（旧版 query 风格）',
-      deprecated: true,
-      tags: ['榜单'],
-      querystring: qs({
-        source: pSource('boards'),
-        id: { type: 'string', description: '榜单 id' },
-        page: pPage,
-      }, ['source', 'id']),
-      response: responses('BoardDetailResult'),
-    },
-  }, async(request) => boardHandler(
-    request.query.source, request.query.id, request.query.page,
-  ))
-
   // ---------- 歌单 & 热搜 ----------
 
   fastify.get('/hot-search/:source', {
@@ -341,19 +262,6 @@ export const musicRoutes = async(fastify) => {
     return m.hotSearch.getList().catch(err => { throw upstream(err.message) })
   })
 
-  fastify.get('/hotSearch', {
-    schema: {
-      summary: '获取热搜词（旧版 query 风格）',
-      deprecated: true,
-      tags: ['歌单'],
-      querystring: qs({ source: pSource('hotSearch') }, ['source']),
-      response: responses('HotSearchResult'),
-    },
-  }, async(request) => {
-    const m = getSource(musicSdk, request.query.source, 'hotSearch')
-    return m.hotSearch.getList().catch(err => { throw upstream(err.message) })
-  })
-
   const songListHandler = (source, page, sortId, tagId) => {
     const m = getSource(musicSdk, source, 'songList')
     // sortId 各平台词汇不同（kw 'new'、tx 5、wy 'hot'…），省略时用平台自己声明的默认排序
@@ -365,34 +273,16 @@ export const musicRoutes = async(fastify) => {
       summary: '获取歌单列表',
       tags: ['歌单'],
       params: params({ source: pSource('songList') }),
-        querystring: qs({
-          page: pPage,
-          sortId: { type: ['integer', 'string'], description: '排序 id（平台相关，见 /sources 对应平台文档；省略时用平台默认）' },
-          tagId: { type: ['integer', 'string'], description: '标签 id（平台相关，kw 为 `173-digest` 形态字符串；0 为全部）' },
-        }),
-        response: responses('SongListResult'),
-      },
-    }, async(request) => {
-      const { page, sortId, tagId } = request.query
-      return songListHandler(request.params.source, page, sortId, tagId)
-    })
-
-  fastify.get('/songList', {
-    schema: {
-      summary: '获取歌单列表（旧版 query 风格）',
-      deprecated: true,
-      tags: ['歌单'],
       querystring: qs({
-        source: pSource('songList'),
         page: pPage,
-        sortId: { type: ['integer', 'string'], description: '排序 id（平台相关，省略时用平台默认）' },
-        tagId: { type: ['integer', 'string'], description: '标签 id（平台相关，kw 为 `173-digest` 形态字符串）' },
-      }, ['source']),
+        sortId: { type: ['integer', 'string'], description: '排序 id（平台相关，见 /sources 对应平台文档；省略时用平台默认）' },
+        tagId: { type: ['integer', 'string'], description: '标签 id（平台相关，kw 为 `173-digest` 形态字符串；0 为全部）' },
+      }),
       response: responses('SongListResult'),
     },
   }, async(request) => {
-    const { source, page, sortId, tagId } = request.query
-    return songListHandler(source, page, sortId, tagId)
+    const { page, sortId, tagId } = request.query
+    return songListHandler(request.params.source, page, sortId, tagId)
   })
 
   // ---------- 系统 ----------
