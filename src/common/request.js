@@ -1,4 +1,4 @@
-// 网络请求模块（替代原 lx-music 渲染器 src/renderer/utils/request.js）
+// 网络请求模块
 // 接口与原版保持一致：
 //   httpFetch(url, { method, headers, body, form, timeout, lookup, family })
 //     → { promise, cancelHttp }

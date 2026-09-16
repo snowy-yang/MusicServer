@@ -1,38 +1,35 @@
-// lx 聚合源加载器（isolated-vm 硬隔离执行第三方脚本）
+// 外部聚合音源加载器（isolated-vm 硬隔离执行第三方脚本）
 //
-// 这是 lx 聚合源的唯一接入方式：在 isolated-vm 硬隔离沙箱中运行原始混淆脚本
-// （如 lx-music-source-v5.js），脚本的所有能力都经由本模块显式桥接的通道：
+// 这是外部音源的唯一接入方式：在 isolated-vm 硬隔离沙箱中运行原始混淆脚本，
+// 脚本的所有能力都经由本模块显式桥接的通道：
 //   - http：默认只放行脚本头部 SERVER_SCRIPT_CONFIG.apiUrl 同源请求，其余一律阻止
 //   - crypto / zlib / buffer：Node 侧实现，日志只记操作与长度，不记录密钥内容
 //   - 定时器 / console：桥接到 Node，随 isolate 销毁回收
 // 对外接口：getMusicUrl(songInfo, type) → { promise, cancelHttp }，与其它平台适配器一致。
-// 脚本升版时只需替换脚本文件，无需改代码。
+// 脚本升版时只需替换 sources/ 目录下的脚本文件，无需改代码。
 //
 // 安全模型：
 //   - isolate 内存上限（memoryLimit），无 process/require/fs/网络直连能力
 //   - HTTP 出站默认拒绝（deny-all），白名单来自脚本自身声明的 apiUrl，可被 options 收紧或放宽
-//   - 每个 lx API 调用（on/send/request/utils/dispatch）都有日志，请求含耗时与状态
+//   - 每个音源 API 调用（on/send/request/utils/dispatch）都有日志，请求含耗时与状态
 //
 // 依赖：isolated-vm（未安装时工厂函数抛出明确错误）
 // 用法：
-//   import { createIvmLxSource } from './lx-source-ivm.js'
-//   const lx = await createIvmLxSource()                     // 默认加载项目根目录的 lx-music-source-v5.js
-//   const lx = await createIvmLxSource({ scriptPath, http }) // http 可注入 mock 做离线测试
-//   await lx.kw.getMusicUrl({ songmid: '123' }, '320k').promise
-//   await lx.destroy()
+//   import { createIvmSource } from './source-ivm.js'
+//   const source = await createIvmSource({ scriptPath })      // scriptPath 必填（sources/ 扫描逻辑见 source.js）
+//   const source = await createIvmSource({ scriptPath, http }) // http 可注入 mock 做离线测试
+//   await source.kw.getMusicUrl({ songmid: '123' }, '320k').promise
+//   await source.destroy()
 //
 // 已知边界（相对桌面端 preload 的差异）：
-//   - lx.request 回调的 resp 不含 raw/bytes（Buffer 无法跨隔离边界，实测脚本未使用）
+//   - source.request 回调的 resp 不含 raw/bytes（Buffer 无法跨隔离边界，实测脚本未使用）
 //   - formData 选项不支持（httpFetch 不支持 multipart）
 //   - updateAlert 事件仅记录到日志，不弹窗
 
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import zlib from 'node:zlib'
-import { fileURLToPath } from 'node:url'
 import { httpFetch } from '../common/request.js'
-
-const DEFAULT_SCRIPT_PATH = fileURLToPath(new URL('../../lx-music-source-v5.js', import.meta.url))
 
 // 从脚本头部的 SERVER_SCRIPT_CONFIG 提取 apiUrl 声明，作为 HTTP 白名单缺省值。
 // 兼容裸键(apiUrl:)与 JSON 风格("apiUrl":)，并处理 \/ 转义
@@ -51,7 +48,7 @@ const brief = (v, max = 72) => {
   return s.length > max ? `${s.slice(0, max)}…(${s.length})` : s
 }
 
-// 从脚本头部注释解析 @name/@version 等（对齐 lx.currentScriptInfo）
+// 从脚本头部注释解析 @name/@version 等（对齐音源脚本 currentScriptInfo）
 const parseScriptInfo = (script, scriptPath) => {
   const head = script.slice(0, 2000)
   const pick = (key) => {
@@ -69,7 +66,7 @@ const parseScriptInfo = (script, scriptPath) => {
   }
 }
 
-// 注入隔离环境的胶水层：提供 lx API、定时器、console、Bytes 包装。
+// 注入隔离环境的胶水层：提供音源脚本 API（globalThis.lx 为脚本契约名）、定时器、console、Bytes 包装。
 // 与 Node 的数据交换一律走 JSON 字符串 / hex 字符串，避免跨隔离传输复杂对象。
 const GLUE = `
 'use strict'
@@ -188,10 +185,10 @@ function __fromAny(data, enc) {
 
 // ---- console / 定时器桥接 ----
 globalThis.console = {
-  log: function () { __log('[lx] ' + Array.prototype.map.call(arguments, String).join(' ')) },
-  info: function () { __log('[lx] ' + Array.prototype.map.call(arguments, String).join(' ')) },
-  warn: function () { __log('[lx] ' + Array.prototype.map.call(arguments, String).join(' ')) },
-  error: function () { __log('[lx] ' + Array.prototype.map.call(arguments, String).join(' ')) },
+  log: function () { __log('[source] ' + Array.prototype.map.call(arguments, String).join(' ')) },
+  info: function () { __log('[source] ' + Array.prototype.map.call(arguments, String).join(' ')) },
+  warn: function () { __log('[source] ' + Array.prototype.map.call(arguments, String).join(' ')) },
+  error: function () { __log('[source] ' + Array.prototype.map.call(arguments, String).join(' ')) },
   debug: function () {},
 }
 globalThis.setTimeout = function (fn, ms) {
@@ -221,7 +218,9 @@ globalThis.__fireTimer = function (id) {
   try { t.fn.apply(undefined, t.args) } catch (e) { __log('timer error: ' + (e && e.message)) }
 }
 
-// ---- lx API（对齐 lx-music-desktop preload.js）----
+// ---- 音源脚本 preload API ----
+// 注意：globalThis.lx 是第三方脚本依赖的 API 契约名（脚本内部调用 lx.on/source.request 等），
+// 属于对外兼容接口而非命名残留，不可改动，否则脚本初始化直接失败。
 var __EVENT_NAMES = { request: 'request', inited: 'inited', updateAlert: 'updateAlert' }
 var __handlers = {}
 globalThis.lx = {
@@ -242,7 +241,7 @@ globalThis.lx = {
     var err = __send(String(name), JSON.stringify(data === undefined ? null : data))
     return err ? Promise.reject(new Error(err)) : Promise.resolve()
   },
-  request: function (url, options, callback) { return __lxRequest(url, options, callback, __currentDispatch) },
+  request: function (url, options, callback) { return __sourceRequest(url, options, callback, __currentDispatch) },
   utils: {
     crypto: {
       md5: function (str) { return __md5(str) },
@@ -256,11 +255,11 @@ globalThis.lx = {
     },
     buffer: {
       from: function (data, enc) {
-        __log('lx.utils.buffer.from(' + (data instanceof __Bytes ? 'Bytes(' + data.length + ')' : typeof data + (data && data.length !== undefined ? '[' + data.length + ']' : '')) + (enc ? ',' + enc : '') + ')')
+        __log('source.utils.buffer.from(' + (data instanceof __Bytes ? 'Bytes(' + data.length + ')' : typeof data + (data && data.length !== undefined ? '[' + data.length + ']' : '')) + (enc ? ',' + enc : '') + ')')
         return __fromAny(data, enc)
       },
       bufToString: function (buf, format) {
-        __log('lx.utils.buffer.bufToString(' + (buf && buf.length !== undefined ? buf.length + 'B' : typeof buf) + ',' + (format || 'utf8') + ')')
+        __log('source.utils.buffer.bufToString(' + (buf && buf.length !== undefined ? buf.length + 'B' : typeof buf) + ',' + (format || 'utf8') + ')')
         return buf.toString(format || 'utf8')
       },
     },
@@ -272,7 +271,7 @@ globalThis.lx = {
 }
 // 隔离环境内不依赖 ivm 全局：回调统一走「隔离内注册表 + 自增 id」，
 // Node 侧通过 jail.get 拿到 __completeHttp 等入口反调
-function __lxRequest(url, options, callback, dispatchId) {
+function __sourceRequest(url, options, callback, dispatchId) {
   options = options || {}
   var payload = {
     method: options.method || 'get',
@@ -343,9 +342,9 @@ globalThis.__dispatch = function (dispatchId, payloadJson) {
 `
 
 /**
- * 创建隔离执行的 lx 聚合源
+ * 创建隔离执行的外部音源
  * @param {object} [options]
- * @param {string} [options.scriptPath] 原始脚本路径，默认项目根目录 lx-music-source-v5.js
+ * @param {string} options.scriptPath 音源脚本路径（必填，sources/ 目录扫描逻辑见 source.js）
  * @param {Function} [options.http] http 实现，默认项目统一 httpFetch；测试可注入 mock
  * @param {number} [options.memoryLimit] 隔离内存上限 MB，默认 256
  * @param {number} [options.initTimeout] 等待脚本上报 inited 的超时 ms，默认 10000
@@ -356,8 +355,8 @@ globalThis.__dispatch = function (dispatchId, payloadJson) {
  * @param {boolean} [options.allowAllHttp] 放行全部 http 请求（调试用，默认 false）
  * @returns {{ env: string, scriptInfo: object, inited: object|null, apis: object, allowedOrigins: string[], destroy: Function }}
  */
-export const createIvmLxSource = async({
-  scriptPath = DEFAULT_SCRIPT_PATH,
+export const createIvmSource = async({
+  scriptPath,
   http: httpImpl = httpFetch,
   memoryLimit = 256,
   initTimeout = 10000,
@@ -371,8 +370,9 @@ export const createIvmLxSource = async({
   try {
     ivm = (await import('isolated-vm')).default
   } catch {
-    throw new Error('未安装 isolated-vm，无法启用隔离执行兜底：npm i isolated-vm')
+    throw new Error('未安装 isolated-vm，无法启用隔离执行音源：pnpm add isolated-vm')
   }
+  if (!scriptPath) throw new Error('缺少音源脚本路径 scriptPath（sources/ 目录扫描逻辑见 source.js）')
 
   const script = fs.readFileSync(scriptPath, 'utf8')
   const scriptInfo = parseScriptInfo(script, scriptPath)
@@ -382,7 +382,7 @@ export const createIvmLxSource = async({
     ? logOption
     : logOption === false
       ? () => {}
-      : (msg) => console.log('[lx-ivm]', msg)
+      : (msg) => console.log('[source-ivm]', msg)
   const scriptOrigins = extractAllowedOrigins(script)
   const origins = (allowedOrigins ?? scriptOrigins).map(o => String(o).replace(/\/+$/, ''))
   const httpAllowed = (urlStr) => {
@@ -433,12 +433,12 @@ export const createIvmLxSource = async({
   await jail.set('__log', new ivm.Callback((msg) => log(String(msg))))
   await jail.set('__on', new ivm.Callback((name) => {
     state.onRegistered = name
-    log(`lx.on(${String(name)})`)
+    log(`source.on(${String(name)})`)
   }))
   await jail.set('__send', new ivm.Callback((name, dataJson) => {
     let data = null
     try { data = JSON.parse(dataJson) } catch {}
-    log(`lx.send(${String(name)}) ${brief(dataJson ?? '')}`)
+    log(`source.send(${String(name)}) ${brief(dataJson ?? '')}`)
     if (name === 'inited') {
       state.inited = data
       const waiters = state.initWaiters.splice(0)
@@ -458,26 +458,26 @@ export const createIvmLxSource = async({
     else p.reject(new Error(parsed.message || '获取失败'))
   }))
   await jail.set('__md5', new ivm.Callback((str) => {
-    log(`lx.utils.crypto.md5(${brief(str)})`)
+    log(`source.utils.crypto.md5(${brief(str)})`)
     return crypto.createHash('md5').update(String(str)).digest('hex')
   }))
   await jail.set('__randomBytesHex', new ivm.Callback((size) => {
-    log(`lx.utils.crypto.randomBytes(${size})`)
+    log(`source.utils.crypto.randomBytes(${size})`)
     return crypto.randomBytes(size).toString('hex')
   }))
   await jail.set('__aesEncryptHex', new ivm.Callback((hexBuf, mode, hexKey, hexIv) => {
-    log(`lx.utils.crypto.aesEncrypt(${Buffer.from(hexBuf, 'hex').length}B, ${mode})`)
+    log(`source.utils.crypto.aesEncrypt(${Buffer.from(hexBuf, 'hex').length}B, ${mode})`)
     const cipher = crypto.createCipheriv(mode, Buffer.from(hexKey, 'hex'), Buffer.from(hexIv, 'hex'))
     return Buffer.concat([cipher.update(Buffer.from(hexBuf, 'hex')), cipher.final()]).toString('hex')
   }))
   await jail.set('__rsaEncryptHex', new ivm.Callback((hexBuf, pemKey) => {
-    log(`lx.utils.crypto.rsaEncrypt(${Buffer.from(hexBuf, 'hex').length}B, key=${brief(pemKey, 24)})`)
+    log(`source.utils.crypto.rsaEncrypt(${Buffer.from(hexBuf, 'hex').length}B, key=${brief(pemKey, 24)})`)
     let buf = Buffer.from(hexBuf, 'hex')
     buf = Buffer.concat([Buffer.alloc(128 - buf.length), buf])
     return crypto.publicEncrypt({ key: pemKey, padding: crypto.constants.RSA_NO_PADDING }, buf).toString('hex')
   }))
   await jail.set('__zlib', new ivm.Callback((opId, op, hex) => {
-    log(`lx.utils.zlib.${op}(${Buffer.from(hex, 'hex').length}B)`)
+    log(`source.utils.zlib.${op}(${Buffer.from(hex, 'hex').length}B)`)
     const buf = Buffer.from(hex, 'hex')
     zlib[op](buf, (err, out) => {
       safeApply(zlibDoneRef, [opId, err ? String(err.message) : null, err ? '' : out.toString('hex')])
@@ -488,11 +488,11 @@ export const createIvmLxSource = async({
     const opts = JSON.parse(optionsJson)
     const method = String(opts.method || 'get').toUpperCase()
     if (!httpAllowed(url)) {
-      log(`✋ lx.request ${method} ${url} → 已阻止（不在白名单）`)
+      log(`✋ source.request ${method} ${url} → 已阻止（不在白名单）`)
       safeApply(completeHttpRef, [cbId, `http blocked by allowlist: ${url}`, null, null])
       return reqId
     }
-    log(`→ lx.request ${method} ${brief(url, 120)}`)
+    log(`→ source.request ${method} ${brief(url, 120)}`)
     const startedAt = Date.now()
     const options = {
       method: opts.method || 'get',
@@ -506,12 +506,12 @@ export const createIvmLxSource = async({
     if (!dispatchHttp.has(dispatchId)) dispatchHttp.set(dispatchId, new Set())
     dispatchHttp.get(dispatchId).add(requestObj)
     requestObj.promise.then(({ statusCode, statusMessage, headers, body }) => {
-      log(`← lx.request ${method} ${brief(url, 80)} → ${statusCode}（${Date.now() - startedAt}ms）`)
+      log(`← source.request ${method} ${brief(url, 80)} → ${statusCode}（${Date.now() - startedAt}ms）`)
       forgetHttp(reqId, dispatchId, requestObj)
       const resp = { statusCode, statusMessage: statusMessage || '', headers: headers || {}, body }
       return safeApply(completeHttpRef, [cbId, null, JSON.stringify(resp), JSON.stringify(body === undefined ? null : body)])
     }).catch(err => {
-      log(`← lx.request ${method} ${brief(url, 80)} → 失败（${Date.now() - startedAt}ms）${err?.message ? ' ' + err.message : ''}`)
+      log(`← source.request ${method} ${brief(url, 80)} → 失败（${Date.now() - startedAt}ms）${err?.message ? ' ' + err.message : ''}`)
       forgetHttp(reqId, dispatchId, requestObj)
       return safeApply(completeHttpRef, [cbId, String(err && err.message || err), null, null])
     })
@@ -639,4 +639,4 @@ export const createIvmLxSource = async({
   }
 }
 
-export default { createIvmLxSource }
+export default { createIvmSource }

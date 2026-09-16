@@ -1,6 +1,6 @@
 # 音乐服务器（MusicServer）
 
-基于洛雪音乐（lx-music）聚合 SDK 的多平台音乐 API 服务器，纯 Node.js 实现，无需浏览器环境。
+多平台音乐聚合 API 服务器，纯 Node.js 实现，无需浏览器环境。
 
 ## 功能
 
@@ -25,7 +25,7 @@ pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
 | `GET /search?name=xxx&singer=xxx&source=kw&page=1&limit=20` | 搜索歌曲（source 省略则聚合所有平台） |
 | `GET /find?name=xxx&singer=xxx&albumName=xxx&interval=xxx` | 精确匹配搜索（跨平台去重排序） |
 | `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 128k/320k/flac/flac24bit） |
-| `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/lxlyric） |
+| `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/yrc） |
 | `GET /pic/:source/:id` | 获取封面 |
 | `GET /boards/:source` | 榜单列表 |
 | `GET /boards/:source/:boardId` | 榜单详情 |
@@ -59,8 +59,8 @@ src/
     components.js   OpenAPI 共享 schema（与路由校验同源）
     ui.js           ReDoc 页面模板
   apis/             各平台 URL 直连实现（kw/kg/tx/wy/mg/bd）
-    lx-source.js    lx 聚合源懒加载入口
-    lx-source-ivm.js isolated-vm 隔离执行器
+    source.js       外部音源懒加载入口（sources/ 目录脚本，不入库）
+    source-ivm.js   isolated-vm 隔离执行器
   common/           公共模块
     request.js      HTTP 请求（可取消、自动 JSON 解析、gzip/deflate 解压）
     utils.js        工具函数（sizeFormate/formatPlayTime/dateFormat 等）
@@ -70,7 +70,7 @@ src/
     lyricDecode.js  酷我/QQ 歌词解码（替代原 Electron 主进程处理器）
     qrcDecode.js    QQ 歌词 3DES 解密（纯 JS 移植）
     lyricUtils/kg.js 酷狗 krc 歌词解码
-musicSdk/           洛雪音乐聚合 SDK（搜索/歌词/榜单等核心逻辑，TypeScript 源码）
+musicSdk/           音乐聚合 SDK（搜索/歌词/榜单等核心逻辑，TypeScript 源码）
   index.js          平台聚合入口
   request.js        SDK 请求模块（转接 src/common/request.js）
   message.js        SDK 消息模块（转接 src/common/message.js）

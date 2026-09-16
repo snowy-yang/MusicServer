@@ -82,7 +82,7 @@ export default {
             lyric: Buffer.from(body.content, 'base64').toString('utf-8'),
             tlyric: '',
             rlyric: '',
-            lxlyric: '',
+            yrc: '',
           }
         default:
           return Promise.reject(new Error(`未知歌词格式: ${body.fmt}`))

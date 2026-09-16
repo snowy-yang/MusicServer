@@ -78,7 +78,7 @@ export const COMPONENT_SCHEMAS = {
       lyric: { type: 'string', description: '原文歌词（LRC）' },
       tlyric: { type: 'string', description: '翻译歌词' },
       rlyric: { type: 'string', description: '罗马音歌词（部分平台）' },
-      lxlyric: { type: 'string', description: '逐字歌词（部分平台）' },
+      yrc: { type: 'string', description: '逐字歌词（部分平台）' },
     },
     additionalProperties: true,
     required: ['lyric', 'tlyric'],

@@ -30,10 +30,10 @@ const parseTools = {
   parseLyric(lrc) {
     lrc = lrc.trim()
     lrc = lrc.replace(/\r/g, '')
-    if (!lrc) return { lyric: '', lxlyric: '' }
+    if (!lrc) return { lyric: '', yrc: '' }
     const lines = lrc.split('\n')
 
-    const lxlrcLines: string[] = []
+    const yrcLines: string[] = []
     const lrcLines: string[] = []
 
     for (let line of lines) {
@@ -41,11 +41,11 @@ const parseTools = {
       let result = this.rxps.lineTime.exec(line)
       if (!result) {
         if (line.startsWith('[offset')) {
-          lxlrcLines.push(line)
+          yrcLines.push(line)
           lrcLines.push(line)
         }
         if (this.rxps.lineTime2.test(line)) {
-          // lxlrcLines.push(line)
+          // yrcLines.push(line)
           lrcLines.push(line)
         }
         continue
@@ -67,17 +67,17 @@ const parseTools = {
       })
       const wordArr = words.split(this.rxps.wordTime)
       const newWords = times.map((time, index) => `${time}${wordArr[index]}`).join('')
-      lxlrcLines.push(`${startTimeStr}${newWords}`)
+      yrcLines.push(`${startTimeStr}${newWords}`)
     }
     return {
       lyric: lrcLines.join('\n'),
-      lxlyric: lxlrcLines.join('\n'),
+      yrc: yrcLines.join('\n'),
     }
   },
   parseRlyric(lrc) {
     lrc = lrc.trim()
     lrc = lrc.replace(/\r/g, '')
-    if (!lrc) return { lyric: '', lxlyric: '' }
+    if (!lrc) return { lyric: '', yrc: '' }
     const lines = lrc.split('\n')
 
     const lrcLines: string[] = []
@@ -177,14 +177,14 @@ const parseTools = {
       lyric: '',
       tlyric: '',
       rlyric: '',
-      lxlyric: '',
+      yrc: '',
     }
     if (lrc) {
-      let { lyric, lxlyric } = this.parseLyric(this.removeTag(lrc))
+      let { lyric, yrc } = this.parseLyric(this.removeTag(lrc))
       info.lyric = lyric
-      info.lxlyric = lxlyric
+      info.yrc = yrc
       // console.log(lyric)
-      // console.log(lxlyric)
+      // console.log(yrc)
     }
     if (rlrc) info.rlyric = this.fixRlrcTimeTag(this.parseRlyric(this.removeTag(rlrc)), info.lyric)
     if (tlrc) info.tlyric = this.fixTlrcTimeTag(tlrc, info.lyric)

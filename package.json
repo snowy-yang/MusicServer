@@ -1,7 +1,7 @@
 {
   "name": "music-server",
   "version": "1.0.0",
-  "description": "多平台音乐聚合服务器（基于 lx-music 聚合 SDK）",
+  "description": "多平台音乐聚合服务器",
   "type": "module",
   "main": "src/index.js",
   "packageManager": "pnpm@12.4.1",

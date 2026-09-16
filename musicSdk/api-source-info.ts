@@ -23,8 +23,8 @@ const sources: ApiSourceInfo[] = [
   //   },
   // },
   {
-    id: 'v5',
-    name: 'lx-music-source-v5 聚合源',
+    id: 'source',
+    name: '外部聚合音源',
     disabled: false,
     supportQualitys: {
       kw: ['128k', '320k', 'flac'],

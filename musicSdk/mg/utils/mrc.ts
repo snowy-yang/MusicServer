@@ -72,7 +72,7 @@ const toBigintArray = (data: string): bigint[] => {
   return jArr
 }
 
-// https://github.com/lyswhut/lx-music-desktop/issues/445#issuecomment-1139338682
+// 基于社区通用的 mrc 逐字歌词解析思路
 const MAX = 9223372036854775807n
 const MIN = -9223372036854775808n
 const toLong = (str: string | bigint): bigint => {

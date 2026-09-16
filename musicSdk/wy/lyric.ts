@@ -8,7 +8,7 @@ import type { LyricInfo, HttpRequestObject } from '../types.ts'
 
 //   str = str.replace(/\r/g, '')
 
-//   let lxlyric = str.replace(/\[((\d+),\d+)\].*/g, str => {
+//   let yrc = str.replace(/\[((\d+),\d+)\].*/g, str => {
 //     let result = str.match(/\[((\d+),\d+)\].*/)
 //     let time = parseInt(result[2])
 //     let ms = time % 1000
@@ -31,8 +31,8 @@ import type { LyricInfo, HttpRequestObject } from '../types.ts'
 //     return str
 //   })
 
-//   lxlyric = decodeName(lxlyric)
-//   return lxlyric.trim()
+//   yrc = decodeName(yrc)
+//   return yrc.trim()
 // }
 
 const eapiRequest = (url: string, data: object) => {
@@ -72,7 +72,7 @@ const parseTools = {
     return `[${m}:${s}.${ms}]`
   },
   parseLyric(lines) {
-    const lxlrcLines: string[] = []
+    const yrcLines: string[] = []
     const lrcLines: string[] = []
 
     for (let line of lines) {
@@ -80,7 +80,7 @@ const parseTools = {
       let result = this.rxps.lineTime.exec(line)
       if (!result) {
         if (line.startsWith('[offset')) {
-          lxlrcLines.push(line)
+          yrcLines.push(line)
           lrcLines.push(line)
         }
         continue
@@ -103,11 +103,11 @@ const parseTools = {
       const wordArr = words.split(this.rxps.wordTime)
       wordArr.shift()
       const newWords = times.map((time, index) => `${time}${wordArr[index]}`).join('')
-      lxlrcLines.push(`${startTimeStr}${newWords}`)
+      yrcLines.push(`${startTimeStr}${newWords}`)
     }
     return {
       lyric: lrcLines.join('\n'),
-      lxlyric: lxlrcLines.join('\n'),
+      yrc: yrcLines.join('\n'),
     }
   },
   parseHeaderInfo(str) {
@@ -170,7 +170,7 @@ const parseTools = {
       lyric: '',
       tlyric: '',
       rlyric: '',
-      lxlyric: '',
+      yrc: '',
     }
     if (ylrc) {
       let lines = this.parseHeaderInfo(ylrc)
@@ -196,7 +196,7 @@ const parseTools = {
         const timeRxp = /^\[[\d:.]+\]/
         const headers = lines.filter(l => timeRxp.test(l)).join('\n')
         info.lyric = `${headers}\n${result.lyric}`
-        info.lxlyric = result.lxlyric
+        info.yrc = result.yrc
         return info
       }
     }
@@ -242,13 +242,13 @@ const parseTools = {
 //       lyric: body.lrc.lyric,
 //       tlyric: body.tlyric?.lyric ?? '',
 //       rlyric: body.romalrc?.lyric ?? '',
-//       // lxlyric: parseLyric(body.klyric.lyric),
+//       // yrc: parseLyric(body.klyric.lyric),
 //     }
 //   })
 //   return requestObj
 // }
 
-// https://github.com/lyswhut/lx-music-mobile/issues/370
+// 参考社区通用的歌词时间标签修正思路
 const fixTimeLabel = (lrc: string, tlrc?: string, romalrc?: string) => {
   if (lrc) {
     let newLrc = lrc.replace(/\[(\d{2}:\d{2}):(\d{2})]/g, '[$1.$2]')

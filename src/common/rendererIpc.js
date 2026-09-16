@@ -1,4 +1,4 @@
-// 替代原 lx-music 的 @common/rendererIpc（Electron ipcRenderer.invoke）
+// 渲染器 IPC 桥（替代 Electron ipcRenderer.invoke）
 // 服务器环境下 IPC 调用直接映射到本地实现：
 //   handle_kw_decode_lyric → 酷我歌词解码（见 lyricDecode.js）
 //   handle_tx_decode_lyric → QQ音乐歌词解码（见 lyricDecode.js）

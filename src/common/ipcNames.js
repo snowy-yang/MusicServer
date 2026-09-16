@@ -1,4 +1,4 @@
-// IPC 事件名（对齐原 lx-music src/common/ipcNames.ts）
+// IPC 事件名
 
 export const WIN_MAIN_RENDERER_EVENT_NAME = {
   handle_kw_decode_lyric: 'handle_kw_decode_lyric',

@@ -1,4 +1,4 @@
-// 请求提示消息（替代原 lx-music 的 message.js）
+// 请求提示消息
 
 export const requestMsg = {
   cancelRequest: '请求已取消',

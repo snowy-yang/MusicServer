@@ -1,6 +1,6 @@
-// 歌词解码（替代原 lx-music 主进程 IPC 处理器）
+// 歌词解码（原主进程 IPC 处理器的纯 JS 实现）
 // - handle_kw_decode_lyric: 酷我歌词（inflate + yeelion XOR + gb18030）
-//   算法来源: lx-music-desktop src/main/modules/winMain/rendererEvent/kw_decodeLyric.ts
+//   算法来源: kw 桌面端歌词解码实现
 // - handle_tx_decode_lyric: QQ音乐歌词（qrc 解码：hex → XOR 偏移 → deflate）
 //   qrc 算法来源: 开源 qrc 解码器（ZhuYiQing/qrcDecode 纯 JS 版）
 

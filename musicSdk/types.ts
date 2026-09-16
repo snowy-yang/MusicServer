@@ -82,7 +82,7 @@ export interface LyricInfo {
   lyric: string
   tlyric: string
   rlyric?: string
-  lxlyric?: string
+  yrc?: string
 }
 
 /** 搜索结果 */

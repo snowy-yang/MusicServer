@@ -1,9 +1,9 @@
-// 酷狗 krc 歌词解码（对齐原 lx-music src/common/utils/lyricUtils/kg.js）
+// 酷狗 krc 歌词解码
 
 import zlib from 'node:zlib'
 import { decodeName } from '../utils.js'
 
-// https://github.com/lyswhut/lx-music-desktop/issues/296#issuecomment-683285784
+// 基于社区通用的 krc 解析思路
 const enc_key = Buffer.from([0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69], 'binary')
 
 const decodeLyric = str => new Promise((resolve, reject) => {
@@ -42,7 +42,7 @@ const parseLyric = str => {
     }
   }
   let i = 0
-  let lxlyric = str.replace(/\[((\d+),\d+)\].*/g, str => {
+  let yrc = str.replace(/\[((\d+),\d+)\].*/g, str => {
     let result = str.match(/\[((\d+),\d+)\].*/)
     let time = parseInt(result[2])
     let ms = time % 1000
@@ -58,16 +58,16 @@ const parseLyric = str => {
   })
   rlyric = rlyric ? rlyric.join('\n') : ''
   tlyric = tlyric ? tlyric.join('\n') : ''
-  lxlyric = lxlyric.replace(/<(\d+,\d+),\d+>/g, '<$1>')
-  lxlyric = decodeName(lxlyric)
-  lyric = lxlyric.replace(/<\d+,\d+>/g, '')
+  yrc = yrc.replace(/<(\d+,\d+),\d+>/g, '<$1>')
+  yrc = decodeName(yrc)
+  lyric = yrc.replace(/<\d+,\d+>/g, '')
   rlyric = decodeName(rlyric)
   tlyric = decodeName(tlyric)
   return {
     lyric,
     tlyric,
     rlyric,
-    lxlyric,
+    yrc,
   }
 }
 

@@ -71,7 +71,7 @@
 { "code": 0, "data": { "type": "320k", "url": "https://..." } }
 
 // GET /lyric/kw/228908
-{ "code": 0, "data": { "lyric": "[00:00.00]...", "tlyric": "", "lxlyric": "" } }
+{ "code": 0, "data": { "lyric": "[00:00.00]...", "tlyric": "", "yrc": "" } }
 
 // 参数缺失
 // 422

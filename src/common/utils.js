@@ -1,4 +1,4 @@
-// 通用工具函数（对齐 lx-music 原版 src/common/utils/common.ts 与 src/renderer/utils/index.ts）
+// 通用工具函数
 
 import crypto from 'node:crypto'
 
