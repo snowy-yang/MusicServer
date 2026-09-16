@@ -271,6 +271,13 @@ await test('专辑详情 /album/kw', async() => {
   return `${r.data.info.name}（${r.data.list.length} 首）`
 })
 
+await test('专辑详情 /album/tx', async() => {
+  const r = await get('/album/tx/000MkMni19ClKG')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name || !r.data?.list?.length) throw new Error('响应不完整')
+  return `${r.data.info.name}（${r.data.list.length} 首）`
+})
+
 await test('专辑详情 /album/mg', async() => {
   const r = await get('/album/mg/25578')
   if (r.code != 0) throw new Error(r.msg)

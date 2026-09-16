@@ -1,8 +1,8 @@
-import type { HttpRequestObject, SongType, Quality, QualityInfo } from '../types.ts'
-import { httpFetch } from '../request.ts'
+import type { SongType, Quality, QualityInfo } from '../types.ts'
 
 import { formatPlayTime, sizeFormate } from '../index.ts'
 import { formatSingerName } from '../utils.ts'
+import { createMusicuFetch } from './utils/index.ts'
 
 export const filterMusicInfoItem = item => {
   const types: SongType[] = []
@@ -60,35 +60,8 @@ export const filterMusicInfoItem = item => {
 }
 
 
-/**
- * musicu.fcg 通用请求（comm 参数对齐榜单模块的可用配置）。
- * 注意：musichallSinger.GetSingerDetail 等歌手详情接口在该通道已停用（104403），
- * 歌手名/统计改由歌单与专辑接口合成。
- */
-const createMusicuFetch = async(data, retryNum = 0) => {
-  if (retryNum > 2) throw new Error('try max num')
-
-  let result
-  try {
-    result = await httpFetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
-      method: 'post',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)',
-      },
-      body: {
-        comm: { uin: 0, format: 'json', ct: 20, cv: 1859 },
-        ...data,
-      },
-    }).promise
-  } catch (err) {
-    console.log(err)
-    return createMusicuFetch(data, ++retryNum)
-  }
-  if (result.statusCode !== 200 || result.body.code != 0) return createMusicuFetch(data, ++retryNum)
-
-  return result.body
-}
-
+// 歌手详情接口（musichallSinger.GetSingerDetail 等）已停用（104403）：
+// 歌手名/统计由 GetSingerSongList 与 GetAlbumList 合成，头像走固定图片 URL 规则
 export default {
   /**
    * 获取歌手信息
