@@ -11,8 +11,9 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "types": ["node"],
+    // noImplicitAny 暂缓：SDK 侧隐式 any 数量过大，待整体补类型时开启
     "noImplicitAny": false,
-    "noEmitOnError": false,
+    "noEmitOnError": true,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true
   },

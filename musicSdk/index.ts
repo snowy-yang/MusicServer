@@ -4,7 +4,6 @@ import tx from './tx/index.ts'
 import wy from './wy/index.ts'
 import mg from './mg/index.ts'
 import bd from './bd/index.ts'
-import xm from './xm.ts'
 import { supportQuality } from './api-source.ts'
 import type { PlatformModule, SearchResult, SongInfo } from './types.ts'
 import {
@@ -26,7 +25,7 @@ const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModul
   { id: 'tx', name: 'QQ音乐', module: tx },
   { id: 'wy', name: '网易音乐', module: wy },
   { id: 'mg', name: '咪咕音乐', module: mg },
-  { id: 'xm', name: '虾米音乐', module: xm },
+  // bd 取流接口可用但暂不列入平台列表（直连路由仍可访问 /url/bd/:id）
   // { id: 'bd', name: '百度音乐', module: bd },
 ]
 
@@ -87,7 +86,6 @@ export const searchMusic = async (
   const tasks: Array<Promise<SearchResult | null>> = []
   for (const source of SUPPORTED_SOURCES) {
     if (
-      source.id === 'xm' ||
       source.id === excludeSource ||
       !source.module.musicSearch
     )

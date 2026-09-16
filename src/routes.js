@@ -93,7 +93,7 @@ export const musicRoutes = async(fastify) => {
 
     const lists = await Promise.all(
       musicSdk.sources
-        .filter(s => s.id !== 'xm' && musicSdk[s.id]?.musicSearch)
+        .filter(s => musicSdk[s.id]?.musicSearch)
         .map(s => doSearch(s.id).catch(() => [])),
     )
     return { source: 'all', list: lists.flat(), page, limit }
