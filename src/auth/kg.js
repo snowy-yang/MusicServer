@@ -21,29 +21,28 @@ const randomString = (n) => {
   return Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
-/** 设备标识持久化在凭据里，保证同一登录态的请求指纹稳定 */
-const device = () => {
-  const dev = getCredentials('_kg_device') ?? { guid: crypto.randomUUID(), mid: '', dfid: randomString(24) }
-  if (!dev.mid) dev.mid = calculateMid(dev.guid)
-  setCredentials('_kg_device', dev)
-  return dev
-}
-
-const androidSign = (params, data = '') => {
+export const androidSign = (params, data = '') => {
   const s = Object.keys(params).sort()
     .map(k => `${k}=${typeof params[k] === 'object' ? JSON.stringify(params[k]) : params[k]}`)
     .join('')
   return md5(SALT_SIGN + s + data + SALT_SIGN)
 }
 
+/** 设备标识持久化（guid/mid/dfid 稳定复用，登录验证与取流共用同一指纹） */
+export const getDevice = () => {
+  const dev = getCredentials('_kg_device') ?? { guid: crypto.randomUUID(), mid: '', dfid: randomString(24) }
+  if (!dev.mid) {
+    dev.mid = calculateMid(dev.guid)
+    setCredentials('_kg_device', dev)
+  }
+  return dev
+}
+
 /** 网关移动端签名请求（gateway.kugou.com + x-router） */
 const gatewayRequest = async(url, { params: extraParams, data, router }) => {
-  const dev = device()
-  const mid = dev.mid || (dev.mid = calculateMid(dev.guid))
-  setCredentials('_kg_device', dev)
-
+  const dev = getDevice()
   const params = {
-    dfid: dev.dfid, mid, uuid: '-', appid: APPID, clientver: CLIENTVER,
+    dfid: dev.dfid, mid: dev.mid, uuid: '-', appid: APPID, clientver: CLIENTVER,
     clienttime: Math.floor(Date.now() / 1000),
     ...extraParams,
   }
@@ -52,7 +51,7 @@ const gatewayRequest = async(url, { params: extraParams, data, router }) => {
   const r = await httpFetch(`https://gateway.kugou.com${url}?${qs}&signature=${signature}`, {
     method: 'post',
     headers: {
-      dfid: dev.dfid, mid, clienttime: String(params.clienttime),
+      dfid: dev.dfid, mid: dev.mid, clienttime: String(params.clienttime),
       'kg-rc': '1', 'kg-thash': '5d816a0', 'kg-rec': '1', 'kg-rf': 'B9EDA08A64250DEFFBCADDEE00F8F25F',
       'x-router': router,
       'User-Agent': 'Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi',
@@ -65,12 +64,11 @@ const gatewayRequest = async(url, { params: extraParams, data, router }) => {
 
 /**
  * 验证 token 并返回账号资料（usercenter /v3/get_my_info）
- * p = RSA 原始加密（零填充）{ token, clienttime }
+ * p = RSA 原始加密（零填充 128 字节）{ token, clienttime }
  */
 export const verifyToken = async({ token, userid }) => {
   const unixSec = Math.floor(Date.now() / 1000)
   const payload = Buffer.from(JSON.stringify({ token, clienttime: unixSec }))
-  // 原始 RSA（无填充）：左侧零填充到密钥长度（128 字节）
   const padded = Buffer.concat([Buffer.alloc(128 - payload.length), payload])
   const p = crypto.publicEncrypt({ key: PUBLIC_KEY, padding: crypto.constants.RSA_NO_PADDING }, padded).toString('hex').toUpperCase()
 

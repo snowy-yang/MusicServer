@@ -17,6 +17,14 @@ declare module '../common/request.js' {
   export function httpFetch(url: string, options?: Record<string, any>): HttpRequestObject
 }
 
+declare module '../../src/auth/store.js' {
+  export function getCredentials(platform: string): any
+  export function setCredentials(platform: string, credentials: object): void
+  export function clearCredentials(platform: string): void
+  export function getWyCookie(): string
+  export function getKgAuth(): { token: string; userid: number | string } | null
+}
+
 declare module './kw.js' {
   const mod: { getMusicUrl(songInfo: any, type: string): any; default: any }
   export = mod

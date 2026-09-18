@@ -1,6 +1,6 @@
 import { httpFetch } from '../../request.ts'
 import { eapi } from './crypto.ts'
-import { getWyCookie } from '../../src/auth/store.js'
+import { getWyCookie } from '../../../src/auth/store.ts'
 import type { HttpRequestObject } from '../../types.ts'
 
 export const eapiRequest = (url: string, data: object): HttpRequestObject => {

@@ -1,50 +1,45 @@
 // 登录态存储 —— 各平台凭据持久化（data/auth.json，不入库）
-// 结构：{ wy: { cookie, musicU, userid?, nickname?, updatedAt }, kg: { token, userid, nickname?, updatedAt } }
-
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const DATA_FILE = join(dirname(fileURLToPath(import.meta.url)), '../../data/auth.json')
-
-let cache = null
-
+// 结构：{ wy: {...}, kg: {...}, _kg_device: {...} }
+// 注意：本文件经 tsc 就地发射 store.js 供纯 JS 模块引用（与 src/apis/index.ts 同约定）
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const DATA_FILE = join(dirname(fileURLToPath(import.meta.url)), '../../data/auth.json');
+let cache = {};
+let loaded = false;
 const load = () => {
-  if (!cache) {
+    if (loaded)
+        return cache;
     try {
-      cache = existsSync(DATA_FILE) ? JSON.parse(readFileSync(DATA_FILE, 'utf8')) : {}
-    } catch {
-      cache = {}
+        cache = existsSync(DATA_FILE) ? JSON.parse(readFileSync(DATA_FILE, 'utf8')) : {};
     }
-  }
-  return cache
-}
-
+    catch {
+        cache = {};
+    }
+    loaded = true;
+    return cache;
+};
 const save = (data) => {
-  cache = data
-  mkdirSync(dirname(DATA_FILE), { recursive: true })
-  writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
-}
-
-export const getCredentials = (platform) => load()[platform] ?? null
-
+    cache = data;
+    loaded = true;
+    mkdirSync(dirname(DATA_FILE), { recursive: true });
+    writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+};
+export const getCredentials = (platform) => load()[platform] ?? null;
 export const setCredentials = (platform, credentials) => {
-  const data = load()
-  data[platform] = { ...data[platform], ...credentials, updatedAt: new Date().toISOString() }
-  save(data)
-}
-
+    const data = load();
+    data[platform] = { ...data[platform], ...credentials, updatedAt: new Date().toISOString() };
+    save(data);
+};
 export const clearCredentials = (platform) => {
-  const data = load()
-  delete data[platform]
-  save(data)
-}
-
+    const data = load();
+    delete data[platform];
+    save(data);
+};
 /** wy 登录 cookie 字符串（未登录返回空串） */
-export const getWyCookie = () => getCredentials('wy')?.cookie || ''
-
+export const getWyCookie = () => getCredentials('wy')?.cookie || '';
 /** kg 登录态（未登录返回 null） */
 export const getKgAuth = () => {
-  const cred = getCredentials('kg')
-  return cred?.token ? { token: cred.token, userid: cred.userid || 0 } : null
-}
+    const cred = getCredentials('kg');
+    return cred?.token ? { token: cred.token, userid: cred.userid || 0 } : null;
+};
