@@ -142,7 +142,7 @@ export default {
         songmid: item.id,
         source: 'wy',
         interval: formatPlayTime((item.dt ?? item.duration) / 1000),
-        img: null,
+        img: item.album?.picUrl ?? null,
         lrc: null,
         otherSource: null,
         types,
