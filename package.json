@@ -18,7 +18,8 @@
     "fastify": "^5.12.1",
     "iconv-lite": "^0.6.3",
     "isolated-vm": "^7.0.1",
-    "pako": "^2.1.0"
+    "pako": "^2.1.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",

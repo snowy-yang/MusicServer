@@ -29,6 +29,7 @@ import { dirname, join } from 'node:path'
 import musicSdk from '../musicSdk/index.js'
 import { ApiError } from './http/api-error.js'
 import { musicRoutes } from './routes.js'
+import { loginRoutes } from './routes-login.js'
 import { COMPONENT_SCHEMAS } from './openapi/components.js'
 import { redocHtml } from './openapi/ui.js'
 
@@ -144,6 +145,7 @@ fastify.register(swagger, {
       { name: '榜单', description: '排行榜' },
       { name: '歌单', description: '歌单与热搜' },
       { name: '歌手专辑', description: '歌手信息、歌曲与专辑详情' },
+      { name: '登录', description: '账号登录（wy 扫码/手机号、kg token）与状态' },
       { name: '系统', description: '健康检查、平台信息、文档' },
     ],
   },
@@ -180,6 +182,7 @@ fastify.get('/', {
 // ---- 业务路由 ----
 
 fastify.register(musicRoutes)
+fastify.register(loginRoutes)
 
 export const startServer = async(port = PORT) => {
   await fastify.listen({ port, host: '0.0.0.0' })

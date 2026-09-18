@@ -35,6 +35,10 @@ pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
 | `GET /singer/:source/:id/songs?page=1&limit=30` | 歌手歌曲列表（kg/tx/wy） |
 | `GET /singer/:source/:id/albums?page=1&limit=10` | 歌手专辑列表（kg/tx/wy） |
 | `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/kw/mg/tx） |
+| `POST /login/wy/qr` → `POST /login/wy/qr/check` | 网易云扫码登录（扫码后轮询完成登录） |
+| `POST /login/wy/cellphone` | 网易云手机号登录（password 或 captcha） |
+| `POST /login/kg` + `userid` | 绑定酷狗 token（App 抓包获取，服务端验证） |
+| `GET /login/status` | 登录状态（登录后取流/请求自动携带凭据） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
 | `GET /docs` `/redoc` `/openapi.json` | 接口文档（Swagger UI / ReDoc / OpenAPI 3.1） |

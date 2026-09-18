@@ -11,6 +11,7 @@ lx-music-source-v5.js
 *.log
 logs/
 tmp/
+data/
 .env
 .env.local
 .env.*.local

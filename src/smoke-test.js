@@ -42,6 +42,25 @@ const postRaw = (path) => new Promise((resolve, reject) => {
   req.end()
 })
 
+// JSON POST（登录等写入接口）
+const postJson = (path, body) => new Promise((resolve, reject) => {
+  const payload = JSON.stringify(body)
+  const req = http.request(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+  }, res => {
+    let data = ''
+    res.on('data', c => { data += c })
+    res.on('end', () => resolve({
+      status: res.statusCode,
+      body: (() => { try { return JSON.parse(data) } catch { return null } })(),
+    }))
+  })
+  req.on('error', reject)
+  req.write(payload)
+  req.end()
+})
+
 const test = async(name, fn) => {
   try {
     const result = await fn()
@@ -358,6 +377,28 @@ await test('Swagger UI 规范端点 /docs/json（不可包信封）', async() =>
   // Swagger UI 强制从该地址加载规范：若被全局信封钩子包成 { code, data }，顶层无 openapi 字段，文档页直接报错
   if (!spec.openapi?.startsWith('3.')) throw new Error(`顶层缺少 openapi 字段（疑似被信封包裹）: ${r.body.slice(0, 80)}`)
   return spec.openapi
+})
+
+// ---- 登录 ----
+
+await test('登录状态 /login/status', async() => {
+  const r = await get('/login/status')
+  if (r.code != 0) throw new Error(r.msg)
+  if (typeof r.data.wy?.logged !== 'boolean' || typeof r.data.kg?.logged !== 'boolean') throw new Error('响应不完整')
+  return `wy:${r.data.wy.logged} kg:${r.data.kg.logged}`
+})
+
+await test('扫码二维码创建 POST /login/wy/qr', async() => {
+  const r = await postJson('/login/wy/qr', {})
+  if (r.status !== 200 || r.body?.code !== 0) throw new Error(r.body?.msg ?? `HTTP ${r.status}`)
+  if (!r.body.data?.key || !r.body.data?.qrurl || !r.body.data?.qrimg) throw new Error('响应不完整')
+  return r.body.data.key.slice(0, 18) + '…'
+})
+
+await test('kg 假 token 拒绝 POST /login/kg', async() => {
+  const r = await postJson('/login/kg', { token: 'smoke_fake_token', userid: 0 })
+  if (r.status !== 401) throw new Error(`期望 401，实际 ${r.status}`)
+  return r.body?.msg
 })
 
 // 汇总

@@ -4,6 +4,7 @@
 // promise resolve → { type, url }
 
 import { httpFetch } from '../common/request.js'
+import { getKgAuth } from '../auth/store.js'
 
 let mid = ''
 
@@ -16,7 +17,8 @@ const getMid = () => {
 }
 
 const getPlayUrl = (hash, albumId) => getMid().then(m => {
-  const url = `https://wwwapi.kugou.com/yy/index.php?r=play/getdata&hash=${hash}${albumId ? `&album_id=${albumId}` : ''}&mid=${m}`
+  const auth = getKgAuth()
+  const url = `https://wwwapi.kugou.com/yy/index.php?r=play/getdata&hash=${hash}${albumId ? `&album_id=${albumId}` : ''}&mid=${m}${auth ? `&token=${encodeURIComponent(auth.token)}&userid=${auth.userid}` : ''}`
   return httpFetch(url, {
     method: 'get',
     headers: {

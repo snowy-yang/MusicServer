@@ -75,6 +75,21 @@
 
 歌手/专辑 id 来源：搜索结果条目包含 `albumId`；歌手 id 需从平台方获取（不在搜索结果中）。
 
+### 登录
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/login/wy/qr` | 获取网易云扫码登录二维码（返回 `key`/`qrurl`/`qrimg`，`qrimg` 为 data URL 可直接展示） |
+| POST | `/login/wy/qr/check` | 轮询扫码状态，body 传 `{ "key": "..." }`。返回 `code`：800 过期 / 801 等待 / 802 已扫码 / 803 登录成功（自动保存凭据） |
+| POST | `/login/wy/cellphone` | 网易云手机号登录；body 传 `phone` + `password`（明文，服务端 MD5 后提交）或 `captcha`，可带 `countrycode`（默认 86） |
+| DELETE | `/login/wy` | 退出网易云登录 |
+| POST | `/login/kg` | 绑定酷狗 token；body 传 `{ "token": "...", "userid": ... }`（App 抓包获取），服务端向用户中心验证后存储 |
+| DELETE | `/login/kg` | 退出酷狗登录 |
+| GET | `/login/status` | 登录状态（wy 实时校验 / kg 已存凭据） |
+
+- 登录态持久化于 `data/auth.json`（不入库），登录后取流与平台请求自动携带凭据。
+- VIP 歌曲完整播放地址暂不在支持范围；登录态目前用于提升请求稳定性与为后续能力预留。
+
 ## 响应示例
 
 ```jsonc
