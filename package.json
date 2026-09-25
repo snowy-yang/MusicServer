@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "多平台音乐聚合服务器",
   "type": "module",
-  "main": "src/index.js",
+  "main": "sdk/index.ts",
   "packageManager": "pnpm@12.4.1",
   "scripts": {
-    "build": "tsc",
-    "start": "pnpm run build && node src/server.js",
-    "test": "pnpm run build && node src/smoke-test.js"
+    "typecheck": "tsc",
+    "start": "node src/server.ts",
+    "test": "pnpm run typecheck && node test/smoke-test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
@@ -25,5 +25,8 @@
     "@types/node": "^26.4.0",
     "playwright": "^1.62.1",
     "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.18"
   }
 }

@@ -13,14 +13,15 @@
     "types": ["node"],
     // noImplicitAny 暂缓：SDK 侧隐式 any 数量过大，待整体补类型时开启
     "noImplicitAny": false,
+    "noEmit": true,
     "noEmitOnError": true,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true
   },
   "include": [
     "src/**/*.ts",
-    "src/types/**/*.d.ts",
-    "musicSdk/**/*.ts"
+    "sdk/**/*.ts",
+    "test/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1,6 +1,6 @@
 # MusicServer 聚合音乐 API
 
-多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单。支持平台：**kw**（酷我）/ **kg**（酷狗）/ **tx**（QQ音乐）/ **wy**（网易云）/ **mg**（咪咕）。
+多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单。支持平台：**kw**（酷我）/ **kg**（酷狗）/ **tx**（QQ音乐）/ **wy**（网易云）。
 
 > 本文档为静态速查版。交互式文档以服务器实际输出为准：
 >
@@ -20,7 +20,7 @@
   - `502` 上游平台请求失败
   - `500` 服务器内部错误
 - 资源类接口统一为**路径参数风格**；`/search`、`/find` 搜索类接口使用 query 参数。
-- 平台歌曲 id 形态：kw/tx/wy/mg 用 `songmid`，kg 用 `hash`（mg 内部自动换取 contentId）。
+- 平台歌曲 id 形态：kw/tx/wy 用 `songmid`，kg 用 `hash`。
 
 ## 接口速查
 
@@ -71,7 +71,7 @@
 | GET | `/singer/:source/:id` | 歌手信息（name/desc/avatar 与歌曲/专辑数量）。支持 kg/tx/wy |
 | GET | `/singer/:source/:id/songs` | 歌手歌曲列表；可带 `page`/`limit`（默认 20）。支持 kg/tx/wy |
 | GET | `/singer/:source/:id/albums` | 歌手专辑列表；可带 `page`/`limit`。支持 kg/tx/wy |
-| GET | `/album/:source/:id` | 专辑详情与曲目列表；可带 `page`/`limit`（limit 仅 kg 生效，kw 单页固定 1000 条）。支持 kg/kw/mg/tx；tx 的专辑名/作者由曲目数据合成（desc 为空） |
+| GET | `/album/:source/:id` | 专辑详情与曲目列表；可带 `page`/`limit`（limit 仅 kg 生效，kw 单页固定 1000 条）。支持 kg/kw/tx；tx 的专辑名/作者由曲目数据合成（desc 为空） |
 
 歌手/专辑 id 来源：搜索结果条目包含 `albumId`；歌手 id 需从平台方获取（不在搜索结果中）。
 

@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、咪咕（mg）
+- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）
 - **直连取流**：各平台播放地址获取（不依赖第三方 API 服务）
 - **完整链路**：搜索、播放地址、歌词（含各平台加密歌词解码）、封面、榜单、热搜、歌单
 
@@ -12,8 +12,9 @@
 
 ```bash
 pnpm install
-pnpm start       # 默认端口 16688，可用 PORT 环境变量修改
-pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
+pnpm start       # 默认端口 16688，可用 PORT 环境变量修改（需 Node 22.18+，直接运行 .ts）
+pnpm test        # 类型检查（tsc）+ 冒烟测试（自动启动/关闭本地服务器）
+pnpm typecheck   # 仅类型检查，不运行
 ```
 
 ## HTTP 接口
@@ -34,7 +35,7 @@ pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
 | `GET /singer/:source/:id` | 歌手信息（kg/tx/wy） |
 | `GET /singer/:source/:id/songs?page=1&limit=30` | 歌手歌曲列表（kg/tx/wy） |
 | `GET /singer/:source/:id/albums?page=1&limit=10` | 歌手专辑列表（kg/tx/wy） |
-| `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/kw/mg/tx） |
+| `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/kw/tx） |
 | `POST /login/wy/qr` → `POST /login/wy/qr/check` | 网易云扫码登录（扫码后轮询完成登录） |
 | `POST /login/wy/cellphone` | 网易云手机号登录（password 或 captcha） |
 | `POST /login/kg` + `userid` | 绑定酷狗 token（App 抓包获取，服务端验证） |
@@ -51,40 +52,38 @@ pnpm test        # 运行冒烟测试（自动启动/关闭本地服务器）
 
 - **kw / tx / wy**：`songmid`（如 `228908`、`0039MnYb0qxYhV`）
 - **kg**：`hash`（搜索结果的 `hash` 字段；当前环境 kg 取流接口被服务端限制，URL 获取可能失败）
-- **mg**：`songmid`（搜索结果的 `songmid` 字段，内部自动换取 contentId）
 
 ## 项目结构
 
 ```
-src/
-  server.js         HTTP 服务器入口（pnpm start 实际启动文件，Fastify）
-  routes.js         业务路由（JSON Schema 校验 + OpenAPI 元数据）
-  smoke-test.js     冒烟测试（自动启动本地服务器）
-  index.js          SDK 根模块（工具函数聚合导出）
-  http/             HTTP 层
-    api-error.js    业务错误类型（404/502 等 → 统一 JSON 响应）
-  openapi/          文档层
-    components.js   OpenAPI 共享 schema（与路由校验同源）
-    ui.js           ReDoc 页面模板
-  apis/             各平台 URL 直连实现（kw/kg/tx/wy/mg/bd）
-    source.js       外部音源懒加载入口（sources/ 目录脚本，不入库）
-    source-ivm.js   isolated-vm 隔离执行器
-  common/           公共模块
-    request.js      HTTP 请求（可取消、自动 JSON 解析、gzip/deflate 解压）
-    utils.js        工具函数（sizeFormate/formatPlayTime/dateFormat 等）
-    message.js      请求错误消息
-    ipcNames.js     IPC 事件名（兼容 SDK）
-    rendererIpc.js  IPC 本地实现（kw/tx 歌词解码）
-    lyricDecode.js  酷我/QQ 歌词解码（替代原 Electron 主进程处理器）
-    qrcDecode.js    QQ 歌词 3DES 解密（纯 JS 移植）
-    lyricUtils/kg.js 酷狗 krc 歌词解码
-musicSdk/           音乐聚合 SDK（搜索/歌词/榜单等核心逻辑，TypeScript 源码）
-  index.js          平台聚合入口
-  request.js        SDK 请求模块（转接 src/common/request.js）
-  message.js        SDK 消息模块（转接 src/common/message.js）
+src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源码）
+  server.ts         HTTP 服务器入口（pnpm start 实际启动文件）
+  routes.ts         业务路由（JSON Schema 校验 + OpenAPI 元数据）
+  routes-login.ts   登录路由（wy 扫码/手机号、kg token、tx cookie）
+  http/
+    api-error.ts    业务错误类型（404/502 等 → 统一 JSON 响应）
+  openapi/
+    components.ts   OpenAPI 共享 schema（与路由校验同源）
+    ui.ts           ReDoc 页面模板
+sdk/                音乐聚合 SDK（自包含：平台模块 + 取流 + 凭据 + 基础设施；kw/kg/tx/wy 四平台）
+  index.ts          平台聚合入口（通用工具转发，实现在 common/utils.ts）
+  api-source.ts     接口选择层（internal 内置直连 / sources/ 外部音源脚本，SOURCE_ENABLED 切换）
+  apis/             各平台 URL 直连取流实现（kw/kg/tx/wy）+ 外部音源加载器（source.ts / source-ivm.ts）
+  auth/             登录态与登录协议（store.ts 持久化凭据到 data/auth.json；wy.ts 扫码/手机号、kg.ts token）
+  common/           SDK 基础设施
+    request.ts      HTTP 请求（可取消、自动 JSON 解析、gzip/deflate 解压）
+    utils.ts        工具函数（sizeFormate/formatPlayTime/dateFormat 等）
+    message.ts      请求错误消息
+    ipcNames.ts     IPC 事件名（兼容 lx-music 结构）
+    rendererIpc.ts  IPC 本地实现（kw/tx 歌词解码）
+    lyricDecode.ts  酷我/QQ 歌词解码
+    qrcDecode.ts    QQ 歌词 3DES 解密（纯 JS 移植）
+    lyricUtils/kg.ts 酷狗 krc 歌词解码
+test/
+  smoke-test.ts     冒烟测试（pnpm test 运行，自动启动/关闭本地服务器）
 ```
 
-> TypeScript 源码（`src/apis/index.ts`、`musicSdk/**/*.ts`）经 `pnpm run build`（tsc）就地发射为 `.js` 产物后运行。
+> 分层依赖严格单向：`src` → `sdk`，`sdk` 内部自包含（不反向依赖 src）。源码统一为 TypeScript（import 一律写 `.ts` 后缀），由 Node ≥22.18 的原生类型剥离直接运行——**无编译产物**，改完即跑；tsc 仅用于类型检查（`pnpm typecheck`）。代码只使用可剥离的 TS 语法（无 enum/namespace/参数属性），新增代码也须遵守。
 
 ## 已知限制
 

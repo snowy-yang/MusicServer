@@ -35,9 +35,7 @@ dist/
 coverage/
 .nyc_output/
 
-# TypeScript in-place emit (musicSdk source is .ts)
-musicSdk/**/*.js
-!musicSdk/**/api-test.js
-!musicSdk/**/api-temp.js
-!musicSdk/**/temp/*.js
-!musicSdk/**/vendors/*.js
+# TypeScript：源码全部 .ts、由 Node 直接运行（类型剥离），不再生成 .js 产物。
+# 以下规则仅作保险，防止旧的发射产物被误生成后提交。
+src/**/*.js
+sdk/**/*.js
