@@ -67,7 +67,7 @@ export const musicRoutes = async(fastify: any) => {
       description: 'source 省略时聚合全部平台（排除 xm）搜索，失败的平台会被跳过。',
       tags: ['搜索'],
       querystring: qs({
-        name: { type: 'string', description: '歌名（可附带歌手，空格分隔）', example: '稻香 周杰伦' },
+        name: { type: 'string', description: '歌名', example: '稻香' },
         singer: { type: 'string', description: '歌手名', example: '周杰伦' },
         source: pSource('search'),
         page: pPage,
