@@ -13,6 +13,7 @@
 ```bash
 pnpm install
 pnpm start       # 默认端口 16688，可用 PORT 环境变量修改（需 Node 22.18+，直接运行 .ts）
+pnpm dev         # 开发模式：node --watch 热重载，改动 src/、sdk/ 代码自动重启
 pnpm test        # 类型检查（tsc）+ 冒烟测试（自动启动/关闭本地服务器）
 pnpm typecheck   # 仅类型检查，不运行
 ```
