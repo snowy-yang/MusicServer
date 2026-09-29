@@ -85,9 +85,13 @@
 | DELETE | `/login/wy` | 退出网易云登录 |
 | POST | `/login/kg` | 绑定酷狗 token；body 传 `{ "token": "...", "userid": ... }`（App 抓包获取），服务端向用户中心验证后存储 |
 | DELETE | `/login/kg` | 退出酷狗登录 |
-| GET | `/login/status` | 登录状态（wy 实时校验 / kg 已存凭据） |
+| POST | `/login/tx` | 绑定 QQ 音乐 cookie；body 传 `{ "cookie": "..." }`（需含 `uin` 与 `qm_keyst` 字段）。可选附 App 抓包的 `openId`/`accessToken`/`refreshToken`/`refreshKey` 供自动续期 |
+| DELETE | `/login/tx` | 退出 QQ 音乐登录 |
+| POST | `/login/refresh` | 手动触发 kg/tx 登录态续期（与自动任务同一逻辑；未登录平台跳过，单平台失败不影响其他） |
+| GET | `/login/status` | 登录状态（wy 实时校验 / kg、tx 已存凭据，含 `vipType` 与最近更新时间） |
 
 - 登录态持久化于 `data/auth.json`（不入库），登录后取流与平台请求自动携带凭据。
+- **登录态自动续期**：服务器启动 10s 后自动对 kg/tx 执行一次续期，此后每 24h 一次（kg 走 `login_by_token` AES/RSA 协议换新 token；tx 走 `music.login.LoginServer`，仅浏览器 cookie 时可能被网关拒绝，需在 `/login/tx` 附 App 抓包的完整凭据才可靠），结果输出到控制台日志。
 - VIP 歌曲完整播放地址暂不在支持范围；登录态目前用于提升请求稳定性与为后续能力预留。
 
 ## 响应示例

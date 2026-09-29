@@ -30,6 +30,7 @@ import musicSdk from '../sdk/index.ts'
 import { ApiError } from './http/api-error.ts'
 import { musicRoutes } from './routes.ts'
 import { loginRoutes } from './routes-login.ts'
+import { startRefreshScheduler } from './refresh.ts'
 import { COMPONENT_SCHEMAS } from './openapi/components.ts'
 import { redocHtml } from './openapi/ui.ts'
 
@@ -183,6 +184,9 @@ fastify.get('/', {
 
 fastify.register(musicRoutes)
 fastify.register(loginRoutes)
+
+// 登录态自动续期（onClose 钩子需在 listen 前注册，故这里而非 startServer 内启动）
+startRefreshScheduler(fastify)
 
 export const startServer = async(port = PORT) => {
   await fastify.listen({ port: Number(port), host: '0.0.0.0' })

@@ -34,6 +34,14 @@ export interface KgDevice {
 
 export interface TxCredentials {
   cookie: string
+  // App 抓包的完整凭据（可选）：提供后可自动续期（music.login.LoginServer），
+  // 仅浏览器 cookie 时 qm_keyst 无法主动续期，只能做 VIP 检测
+  openId?: string
+  accessToken?: string
+  refreshToken?: string
+  refreshKey?: string
+  uin?: string
+  vipType?: 'svip' | 'vip' | 'normal' | null
   updatedAt?: string
 }
 

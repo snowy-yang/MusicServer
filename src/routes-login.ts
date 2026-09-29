@@ -4,6 +4,7 @@
 import * as wyAuth from '../sdk/auth/wy.ts'
 import * as kgAuth from '../sdk/auth/kg.ts'
 import { clearCredentials, getCredentials, getTxAuth, setCredentials } from '../sdk/auth/store.ts'
+import { refreshAll } from './refresh.ts'
 
 const fail = (reply, err) => {
   const status = err.status ?? 502
@@ -107,12 +108,17 @@ export const loginRoutes = async(fastify) => {
   fastify.post('/login/tx', {
     schema: {
       summary: '绑定 QQ 音乐 cookie',
-      description: 'cookie 从已登录的 y.qq.com 浏览器请求头复制（需含 uin 与 qm_keyst 字段），用于解锁 tx 取流的 320k/无损音质。',
+      description: 'cookie 从已登录的 y.qq.com 浏览器请求头复制（需含 uin 与 qm_keyst 字段），用于解锁 tx 取流的 320k/无损音质。' +
+        '可选提供 App 抓包的 openId/accessToken/refreshToken/refreshKey，供定时任务自动续期登录态。',
       tags: ['登录'],
       body: {
         type: 'object',
         properties: {
           cookie: { type: 'string' },
+          openId: { type: 'string' },
+          accessToken: { type: 'string' },
+          refreshToken: { type: 'string' },
+          refreshKey: { type: 'string' },
         },
         required: ['cookie'],
       },
@@ -123,7 +129,8 @@ export const loginRoutes = async(fastify) => {
     if (!uin || !/qm_keyst=\S+/.test(cookie)) {
       return reply.code(422).send({ code: 422, msg: 'cookie 需包含 uin 与 qm_keyst 字段' })
     }
-    setCredentials('tx', { cookie })
+    const { openId, accessToken, refreshToken, refreshKey } = request.body
+    setCredentials('tx', { cookie, uin, openId, accessToken, refreshToken, refreshKey })
     return { logged: true, uin }
   })
 
@@ -136,19 +143,30 @@ export const loginRoutes = async(fastify) => {
 
   // ---------- 通用 ----------
 
+  fastify.post('/login/refresh', {
+    schema: {
+      summary: '手动触发登录态续期',
+      description: '对已登录的 kg/tx 执行 token/cookie 续期（与自动任务同一逻辑）。' +
+        '未登录的平台跳过；失败的平台在对应字段返回 error，不影响其他平台。',
+      tags: ['登录'],
+    },
+  }, async() => refreshAll())
+
   fastify.get('/login/status', {
     schema: {
       summary: '查看登录状态',
-      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx 为已存凭据。',
+      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx 为已存凭据（含 VIP 等级与最近更新时间）。',
       tags: ['登录'],
     },
   }, async() => {
     const [wy, kg] = await Promise.all([wyAuth.status().catch(() => null), Promise.resolve(kgAuth.status())])
     const tx = getTxAuth()
+    const txCred = getCredentials('tx') as { vipType?: string; updatedAt?: string } | null
+    const kgCred = getCredentials('kg') as { updatedAt?: string } | null
     return {
       wy: wy ? { logged: true, ...wy } : { logged: false },
-      kg: kg ? { logged: true, ...kg } : { logged: false },
-      tx: tx ? { logged: true, uin: tx.uin } : { logged: false },
+      kg: kg ? { logged: true, ...kg, updatedAt: kgCred?.updatedAt } : { logged: false },
+      tx: tx ? { logged: true, uin: tx.uin, vipType: txCred?.vipType ?? null, updatedAt: txCred?.updatedAt } : { logged: false },
     }
   })
 }

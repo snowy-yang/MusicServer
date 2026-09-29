@@ -377,8 +377,20 @@ await test('Swagger UI 规范端点 /docs/json（不可包信封）', async() =>
 await test('登录状态 /login/status', async() => {
   const r = await get('/login/status')
   if (r.code != 0) throw new Error(r.msg)
-  if (typeof r.data.wy?.logged !== 'boolean' || typeof r.data.kg?.logged !== 'boolean') throw new Error('响应不完整')
-  return `wy:${r.data.wy.logged} kg:${r.data.kg.logged}`
+  if (typeof r.data.wy?.logged !== 'boolean' || typeof r.data.kg?.logged !== 'boolean' || typeof r.data.tx?.logged !== 'boolean') {
+    throw new Error('响应不完整')
+  }
+  return `wy:${r.data.wy.logged} kg:${r.data.kg.logged} tx:${r.data.tx.logged}`
+})
+
+await test('登录态续期 POST /login/refresh', async() => {
+  const r = await postJson('/login/refresh', {})
+  if (r.status !== 200 || r.body?.code !== 0) throw new Error(r.body?.msg ?? `HTTP ${r.status}`)
+  // 各平台结果为 skipped（未登录）/ refreshed（续期成功）/ error（网关拒绝）之一
+  const valid = (v: any) => v && (v.skipped || v.refreshed || v.error)
+  if (!valid(r.body.data?.kg) || !valid(r.body.data?.tx)) throw new Error(`响应结构异常: ${JSON.stringify(r.body.data)}`)
+  const brief = (v: any) => v.skipped ? 'skipped' : v.refreshed ? 'refreshed' : `error(${v.error})`
+  return `kg:${brief(r.body.data.kg)} tx:${brief(r.body.data.tx)}`
 })
 
 await test('扫码二维码创建 POST /login/wy/qr', async() => {

@@ -5,6 +5,7 @@
 import crypto from 'node:crypto'
 import { httpFetch } from '../common/request.ts'
 import { getCredentials, setCredentials } from './store.ts'
+import type { KgCredentials } from './store.ts'
 
 const md5 = s => crypto.createHash('md5').update(s).digest('hex')
 const SALT_KEY = '57ae12eb6890223e355ccfcb74edf70d'
@@ -39,7 +40,7 @@ export const getDevice = () => {
 }
 
 /** 网关移动端签名请求（gateway.kugou.com + x-router） */
-const gatewayRequest = async(url, { params: extraParams, data, router }) => {
+const gatewayRequest = async(url, { params: extraParams, data, router, headers: extraHeaders = {} }) => {
   const dev = getDevice()
   const params = {
     dfid: dev.dfid, mid: dev.mid, uuid: '-', appid: APPID, clientver: CLIENTVER,
@@ -55,6 +56,7 @@ const gatewayRequest = async(url, { params: extraParams, data, router }) => {
       'kg-rc': '1', 'kg-thash': '5d816a0', 'kg-rec': '1', 'kg-rf': 'B9EDA08A64250DEFFBCADDEE00F8F25F',
       'x-router': router,
       'User-Agent': 'Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi',
+      ...extraHeaders,
     },
     body: data ?? undefined,
     timeout: 15000,
@@ -94,6 +96,94 @@ export const loginByToken = async({ token, userid }) => {
   const profile = await verifyToken({ token, userid })
   setCredentials('kg', { token, userid: profile.userid, nickname: profile.nickname })
   return profile
+}
+
+// ---- token 自动续期 ----
+// login_by_token 协议（与 lx-music-api-server 对齐）：
+//   p3 = AES({clienttime, token})，密钥由固定串派生；params = AES({})（随机密钥）；
+//   pk = RSA 裸加密 {clienttime_ms, key: 随机密钥}（右侧零填充 128 字节）；
+//   成功响应 data.secu_params 用随机密钥 AES 解密得到新 token。
+
+const AES_KEY_SEED = '90b8382a1bb4ccdcf063102053fd75b8'
+const AES_IV = 'f063102053fd75b8'
+
+const aesCbcEncryptHex = (data: string, keyHex: string, ivHex: string) => {
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(keyHex, 'utf8'), Buffer.from(ivHex, 'utf8'))
+  return Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]).toString('hex')
+}
+
+const aesEncryptRandom = (data: string | object) => {
+  const tempKey = randomString(16)
+  const keyHex = md5(tempKey)
+  return {
+    str: aesCbcEncryptHex(typeof data === 'string' ? data : JSON.stringify(data), keyHex, keyHex.slice(16, 32)),
+    key: tempKey,
+  }
+}
+
+const aesDecryptHex = (hex: string, tempKey: string) => {
+  const keyHex = md5(tempKey)
+  const d = crypto.createDecipheriv('aes-256-cbc', Buffer.from(keyHex, 'utf8'), Buffer.from(keyHex.slice(16, 32), 'utf8'))
+  const out = Buffer.concat([d.update(Buffer.from(hex, 'hex')), d.final()])
+  const text = out.toString('utf8')
+  try { return JSON.parse(text) } catch { return text }
+}
+
+/** RSA 裸加密（零填充 128 字节，与参考实现一致：负载在前、零在后） */
+const rsaEncryptHex = (data: object) => {
+  const payload = Buffer.from(JSON.stringify(data))
+  if (payload.length > 128) throw new Error('RSA 负载超长')
+  const padded = Buffer.concat([payload, Buffer.alloc(128 - payload.length)])
+  return crypto.publicEncrypt({ key: PUBLIC_KEY, padding: crypto.constants.RSA_NO_PADDING }, padded).toString('hex')
+}
+
+/**
+ * 刷新 kg token（login_by_token），成功后写回凭据存储。
+ * 无登录态时返回 { skipped: true }；网关拒绝（token 已失效等）抛错。
+ */
+export const refreshLogin = async() => {
+  const cred = getCredentials('kg') as KgCredentials | null
+  if (!cred?.token || cred.userid === '' || cred.userid === 0 || cred.userid === '0') {
+    return { skipped: true }
+  }
+
+  const clienttime = Math.floor(Date.now() / 1000)
+  const p3 = aesCbcEncryptHex(JSON.stringify({ clienttime, token: cred.token }), md5(AES_KEY_SEED), AES_IV)
+  const enc = aesEncryptRandom({})
+  const pk = rsaEncryptHex({ clienttime_ms: clienttime * 1000, key: enc.key })
+
+  const body = await gatewayRequest('/v5/login_by_token', {
+    router: 'login.user.kugou.com',
+    params: { clientver: 20349 },
+    data: {
+      p3,
+      params: enc.str,
+      userid: Number(cred.userid) || 0,
+      need_toneinfo: 1,
+      clienttime_ms: clienttime * 1000,
+      dfid: '-',
+      dev: 'SDY-AN00',
+      plat: 1,
+      pk,
+      t1: '0',
+      gitversion: 'a23c277',
+      t2: '0',
+      t3: 'MCwwLDEsMSwwLDYsMSw2LDA=',
+    },
+    headers: {
+      'kg-thash': '6a6a1ba',
+      'User-Agent': 'Android12-AndroidPhone-20349-201-0-ting#958959317/661004247-LOGIN-wifi',
+      'support-calm': '1',
+    },
+  })
+
+  if (body.error_code !== 0 || !body.data?.secu_params) {
+    throw new Error(`刷新失败（code ${body.error_code}${body.error ? `: ${body.error}` : ''}）`)
+  }
+  const decrypted = aesDecryptHex(body.data.secu_params, enc.key)
+  if (!decrypted?.token) throw new Error('刷新响应解密失败')
+  setCredentials('kg', { token: decrypted.token })
+  return { refreshed: true }
 }
 
 /** 当前 kg 登录资料（未登录返回 null） */
