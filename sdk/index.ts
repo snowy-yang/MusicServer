@@ -86,19 +86,17 @@ interface MatchCandidate extends SongInfo {
  * @param params.name 歌名
  * @param params.singer 歌手
  * @param params.excludeSource 指定平台时，聚合结果会跳过该平台
+ * @param params.only 只搜该平台（与 excludeSource 互斥，优先生效）
  * @param params.limit 单平台结果条数
  */
 export const searchMusic = async (
-  { name, singer, source: excludeSource, limit = 25 }: { name: string; singer?: string; source?: string; limit?: number },
+  { name, singer, source: excludeSource, only, limit = 25 }: { name: string; singer?: string; source?: string; only?: string; limit?: number },
 ): Promise<Array<SearchResult | null>> => {
   const musicName = trimStr(name)
   const tasks: Array<Promise<SearchResult | null>> = []
   for (const source of SUPPORTED_SOURCES) {
-    if (
-      source.id === excludeSource ||
-      !source.module.musicSearch
-    )
-      continue
+    if (!source.module.musicSearch) continue
+    if (only ? source.id !== only : source.id === excludeSource) continue
     tasks.push(
       source.module.musicSearch
         .search(`${musicName} ${singer || ''}`.trim(), 1, limit)
@@ -120,11 +118,12 @@ const pickMatching = <T>(items: T[], predicate: (item: T) => boolean): { matched
 
 /**
  * 跨平台精确匹配歌曲（按歌手、歌名、专辑、时长综合排序）
+ * @param params.only 只在该平台内匹配（跨平台兜底取流用）
  */
 export const findMusic = async (
-  { name, singer, albumName, interval, source: s }: { name: string; singer?: string; albumName?: string; interval?: string; source?: string },
+  { name, singer, albumName, interval, source: s, only }: { name: string; singer?: string; albumName?: string; interval?: string; source?: string; only?: string },
 ): Promise<MatchCandidate[]> => {
-  const lists = await searchMusic({ name, singer, source: s, limit: 25 })
+  const lists = await searchMusic({ name, singer, source: s, only, limit: 25 })
 
   const fMusicName = filterStr(name).toLowerCase()
   const fSinger = filterStr(sortSingle(singer)).toLowerCase()

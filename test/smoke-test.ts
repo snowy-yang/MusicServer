@@ -152,6 +152,7 @@ await test('URL kw 128k 免费歌', async() => {
   const r = await get('/url/kw/151826618?quality=128k')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
+  if (r.data.via !== undefined) throw new Error(`直接命中不应有 via 字段，实际 ${r.data.via}`)
   return r.data.url.slice(0, 60)
 })
 
@@ -191,6 +192,24 @@ await test('URL qs 试听 128k', async() => {
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   return r.data.url.slice(0, 60)
+})
+
+// 取流链兜底：平台直连失败后按 name/singer 匹配酷我（via=kw 标记实际命中通道）
+await test('URL wy 坏 id → 酷我兜底（via=kw）', async() => {
+  const r = await get('/url/wy/not-exist-id?quality=128k&name=晴天&singer=周杰伦&interval=04:29')
+  if (r.code != 0) throw new Error(r.msg)
+  if (r.data?.via !== 'kw') throw new Error(`期望 via=kw，实际 ${JSON.stringify(r.data)}`)
+  if (!r.data?.url) throw new Error('无 url')
+  return r.data.url.slice(0, 60)
+})
+
+// 坏 id 且未传歌名：kg hash 反查也失败时，应返回聚合各阶段错误的 502 而非裸错误
+await test('URL kg 坏 hash 无歌名 → 502 聚合错误', async() => {
+  const r = await getRaw('/url/kg/00000000000000000000000000000000?quality=128k')
+  if (r.status !== 502) throw new Error(`期望 502，实际 ${r.status}`)
+  const msg = JSON.parse(r.body).msg
+  if (!msg.includes('取流失败')) throw new Error(`错误信息应为取流失败聚合，实际 ${msg}`)
+  return msg
 })
 
 // 歌词

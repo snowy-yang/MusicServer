@@ -4,6 +4,7 @@
 // 抛出 ApiError → 由全局 setErrorHandler 转为对应 HTTP 状态码
 
 import { notFound, upstream } from './http/api-error.ts'
+import { getMusicInfo } from '../sdk/kg/musicInfo.ts'
 
 const QUALITIES = ['128k', '320k', 'flac', 'flac24bit']
 
@@ -128,39 +129,81 @@ export const musicRoutes = async(fastify: any) => {
 
   const urlHandler = async(request) => {
     const { source, id } = request.params
-    const { quality, albumId } = request.query
+    const { quality, albumId, name, singer, interval } = request.query
     const m = getSource(musicSdk, source, 'getMusicUrl')
-    // 音源模式下服务端把取流重定向到外部音源脚本；未挂载时走 SDK 官方直连接口
-    const impl = fastify.sourceApi?.[source] ?? m
     const songInfo = { songmid: id, hash: id, copyrightId: id, albumId: albumId || '', _types: {} }
-    let result
-    try {
-      result = unwrap(impl.getMusicUrl(songInfo, quality))
-    } catch (err: any) {
-      throw upstream(err.message)
-    }
-    return result.then(res => {
-      if (!res?.url) throw upstream('获取播放地址失败')
+
+    // 取流链：外部音源脚本（SOURCE_ENABLED 启用时）→ SDK 官方直连 → 酷我兜底（跨平台匹配）
+    const finish = (res: any, via: string) => {
+      if (!res?.url) throw new Error('获取播放地址失败')
       // qs 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）
       const url = String(res.url).startsWith('/')
         ? `${request.protocol}://${request.headers.host}${res.url}`
         : res.url
-      return { type: quality, url }
-    }).catch(err => {
-      throw err.status ? err : upstream(err.message)
-    })
+      // type 用实际音质（kw 等通道可能降级）；via 标记兜底链中真正命中的通道
+      return { type: res.type || quality, url, ...(via !== source ? { via } : {}) }
+    }
+
+    const attempts: Array<{ via: string, run: () => Promise<any> }> = []
+    if (fastify.sourceApi?.[source]) {
+      attempts.push({ via: 'script', run: () => unwrap(fastify.sourceApi[source].getMusicUrl(songInfo, quality)) })
+    }
+    attempts.push({ via: source, run: () => unwrap(m.getMusicUrl(songInfo, quality)) })
+
+    const errors: string[] = []
+    for (const attempt of attempts) {
+      try {
+        return finish(await attempt.run(), attempt.via)
+      } catch (err: any) {
+        errors.push(`${attempt.via}: ${err?.message || err}`)
+      }
+    }
+
+    // 酷我兜底：匿名可拿真无损的通道，按歌名/歌手/时长匹配同一首歌后取流
+    if (source !== 'kw') {
+      try {
+        let meta: { name?: string, singer?: string, interval?: string } | null = name ? { name, singer, interval } : null
+        if (!meta && source === 'kg') {
+          // kg 的 id 是 hash，可反查出歌名/歌手/时长
+          const info = await getMusicInfo(id)
+          if (info?.name) meta = { name: String(info.name), singer: info.singer ? String(info.singer) : undefined, interval: info.interval ? String(info.interval) : undefined }
+        }
+        if (meta?.name) {
+          const [best] = await musicSdk.findMusic({ ...meta, only: 'kw' })
+          if (best) {
+            const res = await unwrap(musicSdk.kw.getMusicUrl({ songmid: best.songmid, hash: best.songmid, _types: {} }, quality))
+            return finish(res, 'kw')
+          }
+          errors.push('kw 兜底: 未匹配到同名歌曲')
+        } else {
+          errors.push('kw 兜底: 缺少歌名信息（传 name/singer/interval 查询参数可启用）')
+        }
+      } catch (err: any) {
+        errors.push(`kw 兜底: ${err?.message || err}`)
+      }
+    }
+    throw upstream(`取流失败（${errors.join('；')}）`)
   }
 
   fastify.get('/url/:source/:id', {
     schema: {
       summary: '获取播放地址',
-      description: 'id 为平台歌曲 id：kw/tx/wy 用 songmid，kg 用 hash。',
+      description: 'id 为平台歌曲 id：kw/tx/wy 用 songmid，kg 用 hash，qs 用 track id。' +
+        '取流按「外部音源脚本（SOURCE_ENABLED 启用时）→ SDK 官方直连 → 酷我兜底」顺序尝试，' +
+        '酷我兜底按歌名/歌手/时长匹配同一首歌（匿名可用无损），kg 可由 hash 反查歌曲信息，' +
+        '其它平台需要兜底时传 name/singer/interval。响应中的 via 字段标记实际命中通道（仅兜底时出现）。',
       tags: ['歌曲资源'],
       params: params({
         source: pSource('url'),
         id: pId,
       }),
-      querystring: qs({ quality: pQuality, albumId: { type: 'string', description: '专辑 id' } }),
+      querystring: qs({
+        quality: pQuality,
+        albumId: { type: 'string', description: '专辑 id' },
+        name: { type: 'string', description: '歌名（酷我兜底匹配用）' },
+        singer: { type: 'string', description: '歌手名（酷我兜底匹配用）' },
+        interval: { type: 'string', description: '时长 mm:ss（酷我兜底匹配用）', example: '04:17' },
+      }),
       response: responses('MusicUrlResult'),
     },
   }, urlHandler)

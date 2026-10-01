@@ -67,8 +67,9 @@ export const COMPONENT_SCHEMAS = {
   MusicUrlResult: {
     type: 'object',
     properties: {
-      type: { type: 'string', example: '320k' },
+      type: { type: 'string', example: '320k', description: '实际命中的音质（降级链可能低于请求音质）' },
       url: { type: 'string', description: '播放地址' },
+      via: { type: 'string', example: 'kw', description: '实际命中通道：script=外部音源脚本 / 平台 id / kw=酷我兜底；直接命中时不返回该字段' },
     },
     additionalProperties: true,
   },
