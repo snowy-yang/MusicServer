@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）
+- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、汽水音乐（qs）
 - **直连取流**：各平台播放地址获取（不依赖第三方 API 服务）
 - **完整链路**：搜索、播放地址、歌词（含各平台加密歌词解码）、封面、榜单、热搜、歌单
 
@@ -28,7 +28,8 @@ pnpm typecheck   # 仅类型检查，不运行
 | --- | --- |
 | `GET /search?name=xxx&singer=xxx&source=kw&page=1&limit=20` | 搜索歌曲（source 省略则聚合所有平台） |
 | `GET /find?name=xxx&singer=xxx&albumName=xxx&interval=xxx` | 精确匹配搜索（跨平台去重排序） |
-| `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 128k/320k/flac/flac24bit） |
+| `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 128k/320k/flac/flac24bit）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（跨平台匹配，响应 `via` 字段标记实际命中通道） |
+| `GET /stream/qs/:id` | 汽水音乐解密流代理（登录态取流地址，服务端解密回明文音频） |
 | `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/yrc） |
 | `GET /pic/:source/:id` | 获取封面 |
 | `GET /boards/:source` | 榜单列表 |
@@ -46,6 +47,7 @@ pnpm typecheck   # 仅类型检查，不运行
 | `POST /login/kg` + `userid` | 绑定酷狗 token（App 抓包获取，服务端验证） |
 | `POST /login/tx/qr` → `POST /login/tx/qr/check` | QQ 音乐扫码登录（QQ/微信扫一扫，扫码后轮询完成登录） |
 | `POST /login/tx` | 绑定 QQ 音乐 cookie（y.qq.com 复制，可选 App 抓包字段供自动续期） |
+| `POST /login/qs/qr` → `POST /login/qs/qr/check` | 汽水音乐扫码登录（**抖音 App** 扫码，登录后解锁完整曲目与无损取流） |
 | `GET /login/status` | 登录状态（登录后取流/请求自动携带凭据） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
@@ -58,11 +60,14 @@ pnpm typecheck   # 仅类型检查，不运行
 ## 歌曲 ID 约定
 
 - **kw / tx / wy**：`songmid`（如 `228908`、`0039MnYb0qxYhV`）
-- **kg**：`hash`（搜索结果的 `hash` 字段；当前环境 kg 取流接口被服务端限制，URL 获取可能失败）
+- **kg**：`hash`（搜索结果的 `hash` 字段）；VIP/付费歌需 `/login/kg` 登录后取流
+- **qs**：track id（搜索结果的 `songmid` 字段）；匿名仅 30s 试听，`/login/qs/qr` 登录后走解密流代理取完整曲目
+
+`/url` 在外部音源与平台直连都失败时，自动降级到**酷我**兜底：按歌名/歌手/时长匹配同一首歌后走 kw 通道（匿名可拿无损）。kg 可由 hash 反查歌曲信息；其它平台需要兜底时给 `/url` 传 `name`/`singer`/`interval` 查询参数。
 
 ## 外部音源
 
-设置 `SOURCE_ENABLED=1` 后取流切换到外部音源（默认未设置时走 SDK 官方直连接口；是否启用由服务端在 `src/server.ts` 决策）。两种脚本都放 `sources/` 目录（不入库），按文件名混排成候选链：取流失败自动切换下一个，某平台连续失败 3 次的脚本降权冷却 5 分钟。音源模式下登录态不参与取流，登录自动续期不会启动（手动 `POST /login/refresh` 仍可用）。详见 [docs/source-ivm.md](docs/source-ivm.md) 与 [docs/source-simple.md](docs/source-simple.md)。
+设置 `SOURCE_ENABLED=1` 后取流优先走外部音源（默认未设置时直接走 SDK 官方直连接口；是否启用由服务端在 `src/server.ts` 决策）。两种脚本都放 `sources/` 目录（不入库），按文件名混排成候选链：取流失败自动切换下一个，某平台连续失败 3 次的脚本降权冷却 5 分钟；整条音源链失败后回落 SDK 直连、再失败走酷我兜底（见上文取流链）。音源候选链只覆盖 kw/kg/tx/wy（音源脚本协议无 qs 平台，`/url/qs` 始终走 SDK）。音源模式下登录态不参与取流，登录自动续期不会启动（手动 `POST /login/refresh` 仍可用）。详见 [docs/source-ivm.md](docs/source-ivm.md) 与 [docs/source-simple.md](docs/source-simple.md)。
 
 **社区音源脚本（`.js`）** —— 通用格式，isolated-vm 硬隔离沙箱执行（详见 `src/source-ivm.ts` 头注释），文件名排序即优先级；`SOURCE_SCRIPT_PATH` 可改为指定目录外单脚本，`SOURCE_LOG=0` 关闭请求日志，`SOURCE_ALLOW_ALL_HTTP=1` 放开 HTTP 白名单（调试用）。
 
@@ -89,8 +94,8 @@ export async function getMusicUrl({ source, id, songInfo, quality, signal }) {
 src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源码）
   server.ts         HTTP 服务器入口（pnpm start 实际启动文件）
   routes.ts         业务路由（JSON Schema 校验 + OpenAPI 元数据）
-  routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/token、tx 扫码/cookie）
-  source.ts         外部音源候选链（SOURCE_ENABLED 时 /url 取流重定向到 sources/ 脚本）
+  routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/token、tx 扫码/cookie、qs 抖音扫码）
+  source.ts         外部音源候选链（SOURCE_ENABLED 时 /url 取流优先走 sources/ 脚本，失败回落 SDK）
   source-ivm.ts     社区音源脚本加载器（isolated-vm 硬隔离沙箱）
   source-simple.ts  简单 API 音源脚本加载器（.mjs 进程内直载）
   http/
@@ -98,15 +103,15 @@ src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源�
   openapi/
     components.ts   OpenAPI 共享 schema（与路由校验同源）
     ui.ts           ReDoc 页面模板
-sdk/                音乐聚合 SDK（仅官方平台：平台模块 + 官方直连取流 + 凭据 + 基础设施；kw/kg/tx/wy 四平台）
+sdk/                音乐聚合 SDK（仅官方平台：平台模块 + 官方直连取流 + 凭据 + 基础设施；kw/kg/tx/wy/qs 五平台）
   index.ts          平台聚合入口（通用工具转发，实现在 common/utils.ts）
-  apis/             各平台官方 URL 直连取流实现（kw/kg/tx/wy）
-  auth/             登录态与登录协议（store.ts 持久化凭据到 data/auth.json；wy.ts 扫码/手机号、kg.ts 扫码/短信/token）
+  apis/             各平台官方 URL 直连取流实现（kw/kg/tx/wy/qs）
+  auth/             登录态与登录协议（store.ts 持久化凭据到 data/auth.json；wy.ts 扫码/手机号、kg.ts 扫码/短信/token/续期、tx.ts 扫码/cookie/续期）
   common/           SDK 基础设施
     request.ts      HTTP 请求（可取消、自动 JSON 解析、gzip/deflate 解压）
     utils.ts        工具函数（sizeFormate/formatPlayTime/dateFormat 等）
     message.ts      请求错误消息
-  kg/ kw/ tx/ wy/   平台模块（搜索/歌词/榜单/歌单等 + 各自的歌词解码器）
+  kg/ kw/ tx/ wy/ qs/   平台模块（搜索/歌词/榜单/歌单等；qs 含字节系参数签名与音频解密 crypto/）
 test/
   smoke-test.ts     冒烟测试（自动启动/关闭本地服务器，验证各平台接口）
   source-simple-test.ts  简单 API 音源脚本加载器测试（离线）
@@ -116,6 +121,7 @@ test/
 
 ## 已知限制
 
-- **kg 取流**：酷狗当前环境下 `wwwapi`/`trackercdn`/`m.kugou.com` 等取流接口均被服务端风控（err_code 30020/20010），播放地址获取可能失败；歌词、搜索、榜单正常。
-- **kw flac**：`antiserver` 接口对 flac 返回 `refuse`，高音质会回退官方接口（需要 csrf token，token 失效时自动重试）。
+- **kg 取流**：匿名仅能获取部分免费资源，VIP/付费歌需 `/login/kg` 登录（扫码/短信/token 均可）后取流，成功响应解析见 `sdk/apis/kg.ts` 头注释。
+- **kw 取流**：主通道 mobi.s 严格校验「返回 bitrate == 请求档位且为明文格式」，档位缺失时沿降级链换档（flac24bit→flac→320k→128k）；web playUrl 回退通道匿名恒 128k。
+- **qs 取流**：匿名仅 30s 试听；完整曲目需 `/login/qs/qr` 抖音扫码登录，取流走 `/stream/qs/:id` 解密流代理（一次性下载解密回明文，不支持 Range）。
 - 平台接口随时可能变更，遇失效时可对照 `sdk/apis/` 内的接口文档调整。
