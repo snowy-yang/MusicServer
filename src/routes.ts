@@ -141,7 +141,11 @@ export const musicRoutes = async(fastify: any) => {
     }
     return result.then(res => {
       if (!res?.url) throw upstream('获取播放地址失败')
-      return { type: quality, url: res.url }
+      // qs 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）
+      const url = String(res.url).startsWith('/')
+        ? `${request.protocol}://${request.headers.host}${res.url}`
+        : res.url
+      return { type: quality, url }
     }).catch(err => {
       throw err.status ? err : upstream(err.message)
     })
@@ -160,6 +164,29 @@ export const musicRoutes = async(fastify: any) => {
       response: responses('MusicUrlResult'),
     },
   }, urlHandler)
+
+  // qs 解密流代理：登录态取流返回 /stream/qs/:id 相对地址，本端点完成"签名 track_v2 →
+  // 密音频下载 → spade key + AES-CTR 解密 → 回明文流"。raw 豁免 { code, data } 信封包装
+  fastify.get('/stream/qs/:id', {
+    config: { raw: true },
+    schema: {
+      summary: '汽水音乐解密流代理',
+      description: '登录态取流地址（/url/qs 返回的相对地址）。服务端完成 track_v2 签名请求与 cenc-aes-ctr 本地解密，返回明文音频。',
+      tags: ['歌曲资源'],
+      params: params({ id: pId }),
+    },
+  }, async(request, reply) => {
+    const { id } = request.params
+    try {
+      const entry = await fastify.musicSdk.qs.getStreamBuffer(id)
+      reply.type(entry.contentType || 'audio/mp4')
+      reply.header('Accept-Ranges', 'none')
+      reply.header('Content-Length', entry.buffer.length)
+      return reply.send(entry.buffer)
+    } catch (err: any) {
+      throw upstream(err.message)
+    }
+  })
 
   const lyricHandler = async(request) => {
     const { source, id } = request.params

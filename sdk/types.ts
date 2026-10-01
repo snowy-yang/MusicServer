@@ -2,7 +2,7 @@
 // 所有平台模块与根模块的类型锚点。类型只描述实际返回的数据形状，不改变运行时行为。
 
 /** 音乐平台标识 */
-export type Source = 'kw' | 'kg' | 'tx' | 'wy'
+export type Source = 'kw' | 'kg' | 'tx' | 'wy' | 'qs'
 
 /** 音质标识（wav 仅部分接口声明使用） */
 export type Quality = '128k' | '320k' | 'flac' | 'flac24bit' | 'wav'

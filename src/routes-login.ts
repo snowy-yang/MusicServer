@@ -4,6 +4,7 @@
 import * as wyAuth from '../sdk/auth/wy.ts'
 import * as kgAuth from '../sdk/auth/kg.ts'
 import * as txAuth from '../sdk/auth/tx.ts'
+import * as qsPassport from '../sdk/qs/passport.ts'
 import { clearCredentials, getCredentials, getTxAuth, setCredentials } from '../sdk/auth/store.ts'
 import { refreshAll } from './refresh.ts'
 
@@ -226,6 +227,45 @@ export const loginRoutes = async(fastify) => {
     return { logged: false }
   })
 
+  // ---------- 汽水音乐 ----------
+
+  fastify.post('/login/qs/qr', {
+    schema: {
+      summary: '获取汽水音乐扫码登录二维码',
+      description: '用「抖音 APP」扫码（汽水 App 扫可能不完成确认）后轮询 /login/qs/qr/check 完成登录。' +
+        '返回 qrimg（data URL）可直接展示，token 需原样回传。登录后 qs 取流走签名 track_v2，解锁完整曲目。',
+      tags: ['登录'],
+    },
+  }, async(_request, reply) => {
+    try {
+      return await qsPassport.createQr()
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/qs/qr/check', {
+    schema: {
+      summary: '轮询汽水音乐扫码状态',
+      description: 'code：800 二维码过期 / 801 等待扫码 / 802 已扫码待确认 / 803 登录成功（自动保存凭据）。',
+      tags: ['登录'],
+      body: { type: 'object', properties: { token: { type: 'string' } }, required: ['token'] },
+    },
+  }, async(request, reply) => {
+    try {
+      return await qsPassport.checkQr(request.body.token)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.delete('/login/qs', {
+    schema: { summary: '退出汽水音乐登录', tags: ['登录'] },
+  }, async() => {
+    clearCredentials('qs')
+    return { logged: false }
+  })
+
   // ---------- 通用 ----------
 
   fastify.post('/login/refresh', {
@@ -252,6 +292,7 @@ export const loginRoutes = async(fastify) => {
       wy: wy ? { logged: true, ...wy } : { logged: false },
       kg: kg ? { logged: true, ...kg, updatedAt: kgCred?.updatedAt } : { logged: false },
       tx: tx ? { logged: true, uin: tx.uin, vipType: txCred?.vipType ?? null, updatedAt: txCred?.updatedAt } : { logged: false },
+      qs: qsPassport.status(),
     }
   })
 }

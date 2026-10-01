@@ -41,7 +41,7 @@ const PORT = process.env.PORT || 16688
 const DOCS_PREFIX = '/docs'
 const API_TITLE = 'MusicServer 聚合音乐 API'
 const API_DESCRIPTION = '多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单。' +
-  '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）平台。'
+  '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）/ qs（汽水音乐）平台。'
 
 const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'))
 
@@ -154,7 +154,7 @@ fastify.register(swagger, {
       { name: '榜单', description: '排行榜' },
       { name: '歌单', description: '歌单与热搜' },
       { name: '歌手专辑', description: '歌手信息、歌曲与专辑详情' },
-      { name: '登录', description: '账号登录（wy 扫码/手机号、kg token）与状态' },
+      { name: '登录', description: '账号登录（wy 扫码/手机号、kg 扫码/token、tx 扫码/cookie、qs 抖音扫码）与状态' },
       { name: '系统', description: '健康检查、平台信息、文档' },
     ],
   },

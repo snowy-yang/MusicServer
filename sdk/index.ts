@@ -2,10 +2,12 @@ import kw from './kw/index.ts'
 import kg from './kg/index.ts'
 import tx from './tx/index.ts'
 import wy from './wy/index.ts'
+import qs from './qs/index.ts'
 import { supportQualitys as kwQualitys } from './apis/kw.ts'
 import { supportQualitys as kgQualitys } from './apis/kg.ts'
 import { supportQualitys as txQualitys } from './apis/tx.ts'
 import { supportQualitys as wyQualitys } from './apis/wy.ts'
+import { supportQualitys as qsQualitys } from './apis/qs.ts'
 import type { PlatformModule, SearchResult, SongInfo } from './types.ts'
 import {
   sizeFormate,
@@ -25,6 +27,7 @@ const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModul
   { id: 'kg', name: '酷狗音乐', module: kg },
   { id: 'tx', name: 'QQ音乐', module: tx },
   { id: 'wy', name: '网易音乐', module: wy },
+  { id: 'qs', name: '汽水音乐', module: qs },
 ]
 
 const SOURCE_MODULES = Object.fromEntries(SUPPORTED_SOURCES.map((s) => [s.id, s.module]))
@@ -41,6 +44,7 @@ export const supportQuality: Record<string, string[]> = {
   kg: kgQualitys,
   tx: txQualitys,
   wy: wyQualitys,
+  qs: qsQualitys,
 }
 
 const trimStr = (str: unknown): string => (typeof str === 'string' ? str.trim() : str as string)

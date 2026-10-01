@@ -128,7 +128,7 @@ if (!running) {
 }
 
 // 搜索
-for (const source of ['kw', 'kg', 'tx', 'wy']) {
+for (const source of ['kw', 'kg', 'tx', 'wy', 'qs']) {
   await test(`搜索 ${source}`, async() => {
     const r = await get(`/search?source=${source}&name=${encodeURIComponent('稻香')}&limit=2`)
     if (r.code != 0) throw new Error(r.msg)
@@ -145,10 +145,29 @@ await test('聚合搜索', async() => {
 })
 
 // URL（用已知歌曲 id，路径参数风格）
-await test('URL kw 320k', async() => {
+// kw 匿名通道 2026-10-01 接入 mobi.s convert_url_with_sign 主通道后：
+// 免费歌全档位可用，VIP 歌也放行真音频（320k/flac 实测与 N_MINFO 元数据逐字节吻合），
+// web playUrl 仅作回退（匿名恒 128k）
+await test('URL kw 128k 免费歌', async() => {
+  const r = await get('/url/kw/151826618?quality=128k')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url) throw new Error('无 url')
+  return r.data.url.slice(0, 60)
+})
+
+await test('URL kw VIP 歌 320k（mobi 通道真音频）', async() => {
   const r = await get('/url/kw/28423286?quality=320k')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
+  // mobi 通道严格校验 bitrate==320 才放行，url 必然是 320k 档
+  return r.data.url.slice(0, 60)
+})
+
+await test('URL kw VIP 歌 flac 降级链', async() => {
+  const r = await get('/url/kw/228908?quality=flac24bit')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url) throw new Error('无 url')
+  // 晴天无 hi-res 档，应逐级降级命中 2000k flac 而非报错
   return r.data.url.slice(0, 60)
 })
 
@@ -166,6 +185,14 @@ await test('URL tx 320k', async() => {
   return r.data.url.slice(0, 60)
 })
 
+// qs 匿名只有 30 秒试听（7079108541549643812 = 陈粒《小半》，2026-10-01 实测可用）
+await test('URL qs 试听 128k', async() => {
+  const r = await get('/url/qs/7079108541549643812?quality=128k')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url) throw new Error('无 url')
+  return r.data.url.slice(0, 60)
+})
+
 // 歌词
 await test('歌词 kw', async() => {
   const r = await get('/lyric/kw/28423286')
@@ -174,9 +201,23 @@ await test('歌词 kw', async() => {
   return `${r.data.lyric.slice(0, 30)}...`
 })
 
+await test('歌词 qs', async() => {
+  const r = await get('/lyric/qs/7079108541549643812')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.lyric) throw new Error('无歌词')
+  return `${r.data.lyric.slice(0, 30)}...`
+})
+
 // 封面
 await test('封面 kw', async() => {
   const r = await get('/pic/kw/28423286')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url) throw new Error('无 url')
+  return r.data.url.slice(0, 60)
+})
+
+await test('封面 qs', async() => {
+  const r = await get('/pic/qs/7079108541549643812')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   return r.data.url.slice(0, 60)
@@ -398,6 +439,13 @@ await test('扫码二维码创建 POST /login/wy/qr', async() => {
   if (r.status !== 200 || r.body?.code !== 0) throw new Error(r.body?.msg ?? `HTTP ${r.status}`)
   if (!r.body.data?.key || !r.body.data?.qrurl || !r.body.data?.qrimg) throw new Error('响应不完整')
   return r.body.data.key.slice(0, 18) + '…'
+})
+
+await test('扫码二维码创建 POST /login/qs/qr', async() => {
+  const r = await postJson('/login/qs/qr', {})
+  if (r.status !== 200 || r.body?.code !== 0) throw new Error(r.body?.msg ?? `HTTP ${r.status}`)
+  if (!r.body.data?.token || !r.body.data?.qrimg?.startsWith('data:image/')) throw new Error('响应不完整')
+  return `scanApp=${r.body.data.scanApp || '?'}`
 })
 
 await test('kg 假 token 拒绝 POST /login/kg', async() => {
