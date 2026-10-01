@@ -16,6 +16,9 @@ const levelMap = {
   flac24bit: 'hires',
 }
 
+// 官方直连接口支持的音质（sdk/index.ts 汇总为 supportQuality）
+export const supportQualitys = Object.keys(levelMap)
+
 export const getMusicUrl = (songInfo, type) => {
   const requestObj = { cancelHttp() {}, promise: null as any }
   const data = {

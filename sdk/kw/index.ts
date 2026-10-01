@@ -1,11 +1,10 @@
 import { httpFetch } from '../request.ts'
-import tipSearch from './tipSearch.ts'
 import musicSearch from './musicSearch.ts'
 import { formatSinger } from './util.ts'
 import leaderboard from './leaderboard.ts'
 import lyric from './lyric.ts'
 import pic from './pic.ts'
-import { apis } from '../api-source.ts'
+import kwApi from '../apis/kw.ts'
 import songList from './songList.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
@@ -35,7 +34,6 @@ const kw = {
   //   // })
   // },
 
-  tipSearch,
   musicSearch,
   leaderboard,
   songList,
@@ -63,7 +61,7 @@ const kw = {
   },
 
   getMusicUrl(songInfo, type) {
-    return apis('kw').getMusicUrl!(songInfo, type)
+    return kwApi.getMusicUrl(songInfo, type)
   },
 
   getMusicInfo(songInfo) {

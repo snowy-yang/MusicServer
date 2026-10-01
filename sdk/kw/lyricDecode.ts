@@ -1,13 +1,9 @@
-// 歌词解码（原主进程 IPC 处理器的纯 JS 实现）
-// - handle_kw_decode_lyric: 酷我歌词（inflate + yeelion XOR + gb18030）
+// 酷我歌词解码（原主进程 IPC 处理器的纯 JS 实现）
+// - 酷我歌词（inflate + yeelion XOR + gb18030）
 //   算法来源: kw 桌面端歌词解码实现
-// - handle_tx_decode_lyric: QQ音乐歌词（qrc 解码：hex → XOR 偏移 → deflate）
-//   qrc 算法来源: 开源 qrc 解码器（ZhuYiQing/qrcDecode 纯 JS 版）
 
 import zlib from 'node:zlib'
 import iconv from 'iconv-lite'
-
-// ==================== 酷我 ====================
 
 const handleInflate = (data: Buffer): Promise<Buffer> => new Promise((resolve, reject) => {
   zlib.inflate(data, (err, result) => {
@@ -49,18 +45,4 @@ const decodeKwLyric = async(buf, isGetLyricx) => {
 export const handleKwDecodeLyric = async({ lrcBase64, isGetLyricx }) => {
   const lrc = await decodeKwLyric(Buffer.from(lrcBase64, 'base64'), isGetLyricx)
   return Buffer.from(lrc).toString('base64')
-}
-
-// ==================== QQ音乐（qrc） ====================
-
-import { decodeQrc } from './qrcDecode.ts'
-
-/**
- * QQ音乐歌词解码
- * @param {{ lrc: string, tlrc: string, rlrc: string }} params 均为十六进制字符串
- * @returns {Promise<{lyric: string, tlyric: string, rlyric: string}>}
- */
-export const handleTxDecodeLyric = async({ lrc, tlrc, rlrc }) => {
-  const [lyric, tlyric, rlyric] = await Promise.all([decodeQrc(lrc), decodeQrc(tlrc), decodeQrc(rlrc)])
-  return { lyric, tlyric, rlyric }
 }

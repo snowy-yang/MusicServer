@@ -17,6 +17,9 @@ const CLIENTVER = 11430
 
 const qualityMap = { '128k': '128', '320k': '320', flac: 'flac', flac24bit: 'high' }
 
+// 官方直连接口支持的音质（sdk/index.ts 汇总为 supportQuality）
+export const supportQualitys = Object.keys(qualityMap)
+
 export const getMusicUrl = (songInfo, type) => {
   const requestObj = { cancelHttp() {}, promise: null as any }
   const hash = (songInfo._types?.[type]?.hash || songInfo.hash || '').toLowerCase()

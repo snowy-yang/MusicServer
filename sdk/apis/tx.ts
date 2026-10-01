@@ -19,6 +19,8 @@ const prefixMap = {
   flac: ['F000', 'flac'],
   flac24bit: ['F000', 'flac'],
 }
+// 官方直连接口支持的音质（sdk/index.ts 汇总为 supportQuality）
+export const supportQualitys = Object.keys(prefixMap)
 // 降级链：高音质无版权/VIP 受限时逐级回退
 const chainMap = {
   '128k': ['128k'],

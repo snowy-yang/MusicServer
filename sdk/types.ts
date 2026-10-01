@@ -136,7 +136,6 @@ export interface PlatformModule {
   songList?: any
   hotSearch?: HotSearchModule
   comment?: CommentModule
-  tipSearch?: any
   getMusicUrl?(songInfo: SongInfo, type: Quality): HttpRequestObject
   getLyric?(songInfo: SongInfo, ...rest: unknown[]): HttpRequestObject
   getPic?(songInfo: SongInfo, ...rest: unknown[]): HttpRequestObject | Promise<any>

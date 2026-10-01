@@ -1,5 +1,5 @@
 import leaderboard from './leaderboard.ts'
-import { apis } from '../api-source.ts'
+import wyApi from '../apis/wy.ts'
 import getLyric from './lyric.ts'
 import getMusicInfo from './musicInfo.ts'
 import musicSearch from './musicSearch.ts'
@@ -7,10 +7,8 @@ import songList from './songList.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
 import singer from './singer.ts'
-// import tipSearch from './tipSearch.ts'
 
 const wy = {
-  // tipSearch,
   leaderboard,
   musicSearch,
   songList,
@@ -18,7 +16,7 @@ const wy = {
   comment,
   singer,
   getMusicUrl(songInfo, type) {
-    return apis('wy').getMusicUrl!(songInfo, type)
+    return wyApi.getMusicUrl(songInfo, type)
   },
   getLyric(songInfo) {
     return getLyric(songInfo.songmid)

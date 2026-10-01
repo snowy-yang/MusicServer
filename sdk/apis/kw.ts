@@ -25,6 +25,9 @@ const qualityMap = {
   flac24bit: { br: 'flac', format: 'flac' },
 }
 
+// 官方直连接口支持的音质（sdk/index.ts 汇总为 supportQuality）
+export const supportQualitys = Object.keys(qualityMap)
+
 let token = ''
 let tokenPromise: Promise<string> | null = null
 

@@ -1,6 +1,5 @@
 // import { httpGet, httpFetch } from '../request.ts'
-import { WIN_MAIN_RENDERER_EVENT_NAME } from '../common/ipcNames.ts'
-import { rendererInvoke } from '../common/rendererIpc.ts'
+import { handleKwDecodeLyric } from './lyricDecode.ts'
 import { createCipheriv, createDecipheriv } from 'crypto'
 import { toMD5 } from '../utils.ts'
 
@@ -63,8 +62,7 @@ export const matchToken = (headers: Record<string, any>): string | null => {
 //   })
 // })
 
-export const decodeLyric = (base64Data: { lrcBase64: string; isGetLyricx: boolean }): Promise<any> =>
-  rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.handle_kw_decode_lyric, base64Data)
+export const decodeLyric = handleKwDecodeLyric
 
 // export const tokenRequest = async(url, options = {}) => {
 //   let token = kw_token.token

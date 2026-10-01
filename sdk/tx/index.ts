@@ -2,15 +2,13 @@ import leaderboard from './leaderboard.ts'
 import lyric from './lyric.ts'
 import songList from './songList.ts'
 import musicSearch from './musicSearch.ts'
-import { apis } from '../api-source.ts'
+import txApi from '../apis/tx.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
 import singer from './singer.ts'
 import album from './album.ts'
-// import tipSearch from './tipSearch.ts'
 
 const tx = {
-  // tipSearch,
   leaderboard,
   songList,
   musicSearch,
@@ -20,7 +18,7 @@ const tx = {
   album,
 
   getMusicUrl(songInfo, type) {
-    return apis('tx')!.getMusicUrl(songInfo, type)
+    return txApi.getMusicUrl(songInfo, type)
   },
   getLyric(songInfo) {
     // let singer = songInfo.singer.indexOf('、') > -1 ? songInfo.singer.split('、')[0] : songInfo.singer

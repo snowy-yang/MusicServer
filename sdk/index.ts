@@ -2,7 +2,10 @@ import kw from './kw/index.ts'
 import kg from './kg/index.ts'
 import tx from './tx/index.ts'
 import wy from './wy/index.ts'
-import { supportQuality } from './api-source.ts'
+import { supportQualitys as kwQualitys } from './apis/kw.ts'
+import { supportQualitys as kgQualitys } from './apis/kg.ts'
+import { supportQualitys as txQualitys } from './apis/tx.ts'
+import { supportQualitys as wyQualitys } from './apis/wy.ts'
 import type { PlatformModule, SearchResult, SongInfo } from './types.ts'
 import {
   sizeFormate,
@@ -31,7 +34,14 @@ export const sources = SUPPORTED_SOURCES.map(({ id, name }) => ({ id, name }))
 export const init = (): Promise<unknown[]> =>
   Promise.all(SUPPORTED_SOURCES.map((s) => s.module.init?.()).filter(Boolean))
 
-export { supportQuality }
+// 各平台官方直连接口支持的音质（由取流接口的音质映射推导；
+// 外部音源模式下实际可用音质取决于 sources/ 脚本，另行运行时表现）
+export const supportQuality: Record<string, string[]> = {
+  kw: kwQualitys,
+  kg: kgQualitys,
+  tx: txQualitys,
+  wy: wyQualitys,
+}
 
 const trimStr = (str: unknown): string => (typeof str === 'string' ? str.trim() : str as string)
 
