@@ -2,6 +2,8 @@
 // 接口: https://gateway.kugou.com/v5/url（x-router: trackercdn.kugou.com，android 签名）
 // 登录后自动携带 token/userid（见 /login/kg）；匿名仅能获取部分免费资源，
 // VIP/受限资源会返回 status:2。quality: 128k→128, 320k→320, flac→flac, flac24bit→high
+// 成功响应（status:1）播放地址在顶层 url: string[] 与 backupUrl: string[]（2026-10 实测；
+// 旧 data:[{url}] 结构仅作兼容兜底）。album_audio_id 传 NaN 会被网关拒答，必须归零。
 // 统一接口约定：apis('kg').getMusicUrl(songInfo, type) → { promise, cancelHttp }
 // promise resolve → { type, url }
 
@@ -14,6 +16,8 @@ const md5 = s => crypto.createHash('md5').update(s).digest('hex')
 const SALT_KEY = '57ae12eb6890223e355ccfcb74edf70d'
 const APPID = 1005
 const CLIENTVER = 11430
+
+const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0 }
 
 const qualityMap = { '128k': '128', '320k': '320', flac: 'flac', flac24bit: 'high' }
 
@@ -38,14 +42,14 @@ export const getMusicUrl = (songInfo, type) => {
     const params: Record<string, any> = {
       dfid: dev.dfid, mid: dev.mid, uuid: '-', appid: APPID, clientver: CLIENTVER,
       clienttime: Math.floor(Date.now() / 1000),
-      album_id: Number(songInfo.albumId ?? 0),
+      album_id: num(songInfo.albumId),
       area_code: 1,
       hash,
       ssa_flag: 'is_fromtrack',
       version: CLIENTVER,
       page_id: 151369488,
       quality: qualityMap[type] ?? '128',
-      album_audio_id: Number(songInfo.songmid ?? 0),
+      album_audio_id: num(songInfo.songmid),
       behavior: 'play',
       pid: 2,
       cmd: 26,
@@ -75,12 +79,18 @@ export const getMusicUrl = (songInfo, type) => {
     }).promise
 
     const body = r.body && typeof r.body === 'object' ? r.body : {}
-    if (body.status !== 1 || !Array.isArray(body.data)) {
-      throw new Error(body.error || (auth ? '获取失败' : '获取失败（该资源需要酷狗登录）'))
+    if (body.status !== 1) {
+      throw new Error(body.error || (auth ? `获取失败（status ${body.status ?? '未知'}）` : '获取失败（该资源需要酷狗登录）'))
     }
-    const item = body.data.find(d => d.url) ?? body.data[0]
-    const url = item?.url || item?.fallback
-    if (!url) throw new Error('获取失败')
+    let url = ''
+    if (Array.isArray(body.url)) url = body.url[0] || ''
+    else if (Array.isArray(body.backupUrl)) url = body.backupUrl[0] || ''
+    else if (Array.isArray(body.data)) {
+      // 旧版 data:[{url, fallback}] 结构兜底
+      const item = body.data.find(d => d.url) ?? body.data[0]
+      url = item?.url || item?.fallback || ''
+    }
+    if (!url) throw new Error('获取失败（网关未返回播放地址）')
     return { type, url }
   })()
   return requestObj
