@@ -1,8 +1,9 @@
-// 登录路由 —— wy 扫码/手机号登录，kg token 绑定，凭据持久化于 data/auth.json
+// 登录路由 —— wy 扫码/手机号，kg 扫码/短信/token，tx 扫码/cookie 绑定，凭据持久化于 data/auth.json
 // 注意：成功响应返回裸数据对象，全局 preSerialization 钩子会统一包成 { code: 0, data }
 
 import * as wyAuth from '../sdk/auth/wy.ts'
 import * as kgAuth from '../sdk/auth/kg.ts'
+import * as txAuth from '../sdk/auth/tx.ts'
 import { clearCredentials, getCredentials, getTxAuth, setCredentials } from '../sdk/auth/store.ts'
 import { refreshAll } from './refresh.ts'
 
@@ -77,7 +78,8 @@ export const loginRoutes = async(fastify) => {
   fastify.post('/login/kg', {
     schema: {
       summary: '绑定酷狗 token',
-      description: 'token 从酷狗 App 抓包获取（login.token），服务端向用户中心验证后存储。手机号/扫码登录暂未实现。',
+      description: 'token 从酷狗 App 抓包获取（login.token），服务端向用户中心验证后存储。' +
+        '推荐改用 /login/kg/qr 扫码或 /login/kg/cellphone 短信验证码登录，无需抓包。',
       tags: ['登录'],
       body: {
         type: 'object',
@@ -96,6 +98,66 @@ export const loginRoutes = async(fastify) => {
     }
   })
 
+  fastify.post('/login/kg/qr', {
+    schema: {
+      summary: '获取酷狗扫码登录二维码',
+      description: '用酷狗 App 扫码后轮询 /login/kg/qr/check 完成登录。返回 qrimg（data URL）可直接展示。',
+      tags: ['登录'],
+    },
+  }, async() => kgAuth.qrKey())
+
+  fastify.post('/login/kg/qr/check', {
+    schema: {
+      summary: '轮询酷狗扫码状态',
+      description: 'code：800 二维码过期 / 801 等待扫码 / 802 已扫码待确认 / 803 登录成功（自动保存凭据并返回账号资料）。',
+      tags: ['登录'],
+      body: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
+    },
+  }, async(request, reply) => {
+    try {
+      return await kgAuth.qrCheck(request.body.key)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/kg/captcha', {
+    schema: {
+      summary: '发送酷狗短信验证码',
+      description: '向手机号发送登录验证码（有频控，勿频繁调用），随后用 /login/kg/cellphone 提交。',
+      tags: ['登录'],
+      body: { type: 'object', properties: { mobile: { type: 'string' } }, required: ['mobile'] },
+    },
+  }, async(request, reply) => {
+    try {
+      return await kgAuth.sendCaptcha(request.body.mobile)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/kg/cellphone', {
+    schema: {
+      summary: '酷狗手机验证码登录',
+      description: 'mobile + code（/login/kg/captcha 发送的短信验证码），成功后自动保存凭据并返回账号资料。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: {
+          mobile: { type: 'string' },
+          code: { type: 'string' },
+        },
+        required: ['mobile', 'code'],
+      },
+    },
+  }, async(request, reply) => {
+    try {
+      return await kgAuth.cellphoneLogin(request.body)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
   fastify.delete('/login/kg', {
     schema: { summary: '退出酷狗登录', tags: ['登录'] },
   }, async() => {
@@ -104,6 +166,29 @@ export const loginRoutes = async(fastify) => {
   })
 
   // ---------- QQ音乐 ----------
+
+  fastify.post('/login/tx/qr', {
+    schema: {
+      summary: '获取 QQ 音乐扫码登录二维码',
+      description: '用 QQ 音乐 App（或 QQ/微信）扫码后轮询 /login/tx/qr/check 完成登录。返回 qrimg（data URL）可直接展示，qrsig 需原样回传。',
+      tags: ['登录'],
+    },
+  }, async() => txAuth.qrShow())
+
+  fastify.post('/login/tx/qr/check', {
+    schema: {
+      summary: '轮询 QQ 音乐扫码状态',
+      description: 'code：800 二维码过期 / 801 等待扫码 / 802 已扫码待确认 / 803 登录成功（自动保存凭据并返回账号信息）。',
+      tags: ['登录'],
+      body: { type: 'object', properties: { qrsig: { type: 'string' } }, required: ['qrsig'] },
+    },
+  }, async(request, reply) => {
+    try {
+      return await txAuth.qrCheck(request.body.qrsig)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
 
   fastify.post('/login/tx', {
     schema: {

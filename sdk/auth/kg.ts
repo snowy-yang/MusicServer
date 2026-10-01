@@ -1,6 +1,6 @@
-// 酷狗登录 —— token 绑定与验证（网关 android 签名，与 KuGouMusicApi 对齐）
-// 完整的手机号/扫码登录需移植其 RSA/AES 全套协议，后续按需扩展；
-// token 可从酷狗 App 抓包获取（login.token）
+// 酷狗登录 —— token 绑定 / 扫码 / 短信验证码（与 MakcRe/KuGouMusicApi 协议对齐）
+// 扫码走 login-user.kugou.com 的 web 签名通道；短信走 android 签名 + AES/RSA；
+// token 也可从酷狗 App 抓包获取（login.token）后经 /login/kg 绑定
 
 import crypto from 'node:crypto'
 import { httpFetch } from '../common/request.ts'
@@ -12,6 +12,11 @@ const SALT_KEY = '57ae12eb6890223e355ccfcb74edf70d'
 const SALT_SIGN = 'OIlwieks28dk2k092lksi2UIkp'
 const APPID = 1005
 const CLIENTVER = 11430
+// 登录专用域按参考实现固定 clientver 20489（qr/短信接口实测通过的版本）
+const LOGIN_CLIENTVER = 20489
+const WEB_SALT = 'NVPh5oo715z5DIWAeQlhMDsWXXQV4hwt'
+const SRC_APPID = 2919
+const QR_URL_PREFIX = 'https://h5.kugou.com/apps/loginQRCode/html/index.html'
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HXqTW6lQ7LC8jr9fWZTwusknp+sVGzwd40MwP6U5yDE27M/X1+UR4tvOGOqp94TJtQ1EPnWGWXngpeIW5GxoQGao1rmYWAu6oi1z9XkChrsUdC6DJE5E221wf/4WLFxwAtRQIDAQAB
 -----END PUBLIC KEY-----`
@@ -39,8 +44,14 @@ export const getDevice = () => {
   return dev
 }
 
-/** 网关移动端签名请求（gateway.kugou.com + x-router） */
-const gatewayRequest = async(url, { params: extraParams, data, router, headers: extraHeaders = {} }) => {
+/** 网关移动端签名请求（默认 gateway.kugou.com + x-router，可 host 直连登录专用域） */
+const gatewayRequest = async(url, { params: extraParams, data, router, host = 'https://gateway.kugou.com', headers: extraHeaders = {} }: {
+  params?: Record<string, any>
+  data?: any
+  router?: string
+  host?: string
+  headers?: Record<string, string>
+}) => {
   const dev = getDevice()
   const params = {
     dfid: dev.dfid, mid: dev.mid, uuid: '-', appid: APPID, clientver: CLIENTVER,
@@ -49,13 +60,13 @@ const gatewayRequest = async(url, { params: extraParams, data, router, headers: 
   }
   const signature = androidSign(params, data ? JSON.stringify(data) : '')
   const qs = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&')
-  const r = await httpFetch(`https://gateway.kugou.com${url}?${qs}&signature=${signature}`, {
+  const r = await httpFetch(`${host}${url}?${qs}&signature=${signature}`, {
     method: 'post',
     headers: {
       dfid: dev.dfid, mid: dev.mid, clienttime: String(params.clienttime),
       'kg-rc': '1', 'kg-thash': '5d816a0', 'kg-rec': '1', 'kg-rf': 'B9EDA08A64250DEFFBCADDEE00F8F25F',
-      'x-router': router,
       'User-Agent': 'Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi',
+      ...(router ? { 'x-router': router } : {}),
       ...extraHeaders,
     },
     body: data ?? undefined,
@@ -98,8 +109,145 @@ export const loginByToken = async({ token, userid }) => {
   return profile
 }
 
+// ---- 扫码登录（login-user.kugou.com，web 签名，盐与 H5 网页端一致）----
+
+const webSign = (params) => {
+  const s = Object.keys(params).map(k => `${k}=${params[k]}`).sort().join('')
+  return md5(`${WEB_SALT}${s}${WEB_SALT}`)
+}
+
+/** login-user.kugou.com GET 请求（web 签名，与取流共用同一设备指纹） */
+const loginUserGet = async(url, extraParams = {}) => {
+  const dev = getDevice()
+  const params = {
+    dfid: dev.dfid, mid: dev.mid, uuid: '-',
+    appid: APPID, clientver: LOGIN_CLIENTVER, clienttime: Math.floor(Date.now() / 1000),
+    ...extraParams,
+  }
+  const qs = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&')
+  const r = await httpFetch(`https://login-user.kugou.com${url}?${qs}&signature=${webSign(params)}`, {
+    headers: {
+      dfid: dev.dfid, mid: dev.mid, clienttime: String(params.clienttime),
+      'kg-rc': '1', 'kg-thash': '5d816a0', 'kg-rec': '1', 'kg-rf': 'B9EDA08A64250DEFFBCADDEE00F8F25F',
+      'User-Agent': 'Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi',
+    },
+    timeout: 15000,
+  }).promise
+  const body = r.body ?? {}
+  if (body.status !== 1) {
+    const err = new Error(body.error ?? '酷狗登录服务请求失败')
+    ;(err as any).status = 502
+    throw err
+  }
+  return body
+}
+
+/** 保存登录凭据并拉取账号资料（扫码/短信登录共用；资料校验失败不阻断登录） */
+const applyKgLogin = async({ token, userid }) => {
+  try {
+    const profile = await verifyToken({ token, userid })
+    setCredentials('kg', { token, userid: profile.userid, nickname: profile.nickname })
+    return profile
+  } catch {
+    const uid = Number(userid) || 0
+    setCredentials('kg', { token, userid: uid })
+    return { userid: uid, nickname: null, vip: null }
+  }
+}
+
+/** 创建扫码登录 key 与二维码（qrimg 为可直接展示的 data URL） */
+export const qrKey = async() => {
+  const body = await loginUserGet('/v2/qrcode', {
+    appid: 1001, type: 1, plat: 4,
+    qrcode_txt: `${QR_URL_PREFIX}?appid=${APPID}&`,
+    srcappid: SRC_APPID,
+  })
+  const key = body.data?.qrcode
+  if (!key) throw new Error('获取二维码 key 失败')
+  const qrurl = `${QR_URL_PREFIX}?qrcode=${key}`
+  const qrimg = body.data.qrcode_img
+    || await import('qrcode').then(m => m.default.toDataURL(qrurl)).catch(() => '')
+  return { key, qrurl, qrimg }
+}
+
+/**
+ * 轮询扫码状态（沿用登录路由的 800/801/802/803 语义，酷狗原生为 0/1/2/4）
+ * @returns {{ code: 800|801|802|803, message?: string, profile? }} 800 过期 / 801 等待 / 802 已扫码 / 803 已授权（完成登录）
+ */
+export const qrCheck = async(key) => {
+  const body = await loginUserGet('/v2/get_userinfo_qrcode', {
+    plat: 4, appid: APPID, srcappid: SRC_APPID, qrcode: key,
+  })
+  const qrStatus = body.data?.status
+  if (qrStatus === 4) {
+    const { token, userid } = body.data
+    if (!token) throw new Error('登录响应中缺少 token')
+    return { code: 803, message: '登录成功', profile: await applyKgLogin({ token, userid }) }
+  }
+  const map = { 0: [800, '二维码已过期'], 1: [801, '等待扫码'], 2: [802, '已扫码，待确认'] }
+  const [code, message] = map[qrStatus] ?? [qrStatus, `未知状态 ${qrStatus}`]
+  return { code, message }
+}
+
+// ---- 手机验证码登录 ----
+// 参考 KuGouMusicApi captcha_sent / login_cellphone：签名数据中 mobile 打码
+// （前 2 位 + ***** + 末位），完整号码与验证码走 AES 随机密钥加密；
+// pk = RSA 裸加密 {clienttime_ms, key}，服务端解出密钥后还原 params。
+
+const signLoginKey = (clienttimeMs) => md5(`${APPID}${SALT_SIGN}${LOGIN_CLIENTVER}${clienttimeMs}`)
+
+/** 发送短信验证码（businessid 5 = 登录场景） */
+export const sendCaptcha = async(mobile) => {
+  const body = await gatewayRequest('/v7/send_mobile_code', {
+    router: 'login.user.kugou.com',
+    params: { clientver: LOGIN_CLIENTVER },
+    data: { businessid: 5, mobile: String(mobile), plat: 3 },
+  })
+  if (body.status !== 1) {
+    const err = new Error(body.error ?? body.msg ?? '验证码发送失败')
+    ;(err as any).status = 502
+    throw err
+  }
+  return { sent: true }
+}
+
+/** 手机验证码登录（mobile + code，成功后自动保存凭据并返回账号资料） */
+export const cellphoneLogin = async({ mobile, code }) => {
+  const clienttimeMs = Date.now()
+  const enc = aesEncryptRandom({ mobile: String(mobile), code: String(code) })
+  const body = await gatewayRequest('/v7/login_by_verifycode', {
+    host: 'https://loginserviceretry.kugou.com',
+    params: { clientver: LOGIN_CLIENTVER },
+    data: {
+      plat: 1,
+      support_multi: 1,
+      t1: 0,
+      t2: 0,
+      clienttime_ms: clienttimeMs,
+      mobile: `${String(mobile).slice(0, 2)}*****${String(mobile).slice(10, 11)}`,
+      key: signLoginKey(clienttimeMs),
+      pk: rsaEncryptHex({ clienttime_ms: clienttimeMs, key: enc.key }).toUpperCase(),
+      params: enc.str,
+      t3: 'MCwwLDAsMCwwLDAsMCwwLDA=',
+    },
+    headers: {
+      'User-Agent': 'Android16-1070-11440-130-0-LOGIN-wifi',
+      'support-calm': '1',
+    },
+  })
+  if (body.status !== 1) {
+    const err = new Error(body.error ?? `登录失败（code ${body.error_code ?? '未知'}）`)
+    ;(err as any).status = 401
+    throw err
+  }
+  const decrypted = body.data?.secu_params ? aesDecryptHex(body.data.secu_params, enc.key) : null
+  const token = typeof decrypted === 'object' ? decrypted?.token : decrypted
+  if (!token) throw new Error('登录响应解密失败')
+  return applyKgLogin({ token, userid: decrypted?.userid ?? body.data?.userid ?? 0 })
+}
+
 // ---- token 自动续期 ----
-// login_by_token 协议（与 lx-music-api-server 对齐）：
+// login_by_token 协议：
 //   p3 = AES({clienttime, token})，密钥由固定串派生；params = AES({})（随机密钥）；
 //   pk = RSA 裸加密 {clienttime_ms, key: 随机密钥}（右侧零填充 128 字节）；
 //   成功响应 data.secu_params 用随机密钥 AES 解密得到新 token。
