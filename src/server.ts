@@ -19,6 +19,7 @@
 // 状态码语义：200 成功；422 参数校验失败；404 路由或平台不存在；405 方法不允许；502 上游平台失败；500 内部错误
 // 响应信封：成功 { code: 0, data }；失败 { code: <HTTP状态码>, msg, detail? }
 
+import './env.ts' // 必须最先导入：在任何读取 process.env 的模块求值前加载 .env
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import swagger from '@fastify/swagger'
@@ -27,6 +28,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import musicSdk from '../sdk/index.ts'
+import sourceApi from './source.ts'
 import { ApiError } from './http/api-error.ts'
 import { musicRoutes } from './routes.ts'
 import { loginRoutes } from './routes-login.ts'
@@ -49,6 +51,12 @@ const fastify = Fastify({
   ajv: { customOptions: { strict: false } },
 })
 fastify.decorate('musicSdk', musicSdk)
+
+// ---- 音源模式（服务端职责）：SOURCE_ENABLED 非 0/false 时，/url 取流重定向到 sources/ 外部音源脚本 ----
+// SDK 只包含官方平台接口；是否走外部音源由服务端在此决策，路由层按 sourceApi 是否挂载分流
+const sourceEnabled = process.env.SOURCE_ENABLED
+const useSource = Boolean(sourceEnabled) && sourceEnabled !== '0' && sourceEnabled !== 'false'
+fastify.decorate('sourceApi', useSource ? sourceApi : null)
 
 // ---- 共享 schema（领域模型：校验引用与 OpenAPI components 同源） ----
 for (const [name, schema] of Object.entries(COMPONENT_SCHEMAS)) {
@@ -185,12 +193,18 @@ fastify.get('/', {
 fastify.register(musicRoutes)
 fastify.register(loginRoutes)
 
-// 登录态自动续期（onClose 钩子需在 listen 前注册，故这里而非 startServer 内启动）
-startRefreshScheduler(fastify)
+// 登录态自动续期（onClose 钩子需在 listen 前注册，故这里而非 startServer 内启动）。
+// 音源模式下取流走外部脚本，登录态不参与任何接口，自动续期没有意义；手动 /login/refresh 仍可用
+if (!useSource) {
+  startRefreshScheduler(fastify)
+} else {
+  console.log(`[${new Date().toISOString()}] [登录续期] 音源模式已启用，登录态不参与取流，自动续期未启动`)
+}
 
 export const startServer = async(port = PORT) => {
   await fastify.listen({ port: Number(port), host: '0.0.0.0' })
   console.log(`音乐服务器已启动: http://localhost:${port}`)
+  console.log(`取流通道:   ${useSource ? '外部音源脚本（sources/，SOURCE_ENABLED）' : 'SDK 官方直连接口'}`)
   console.log(`接口文档:   http://localhost:${port}/docs (Swagger UI)`)
   console.log(`ReDoc 文档: http://localhost:${port}/redoc`)
   console.log(`OpenAPI:    http://localhost:${port}/openapi.json`)

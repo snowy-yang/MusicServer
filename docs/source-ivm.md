@@ -3,10 +3,10 @@
 ## 架构
 
 ```
-调用方 ── source.kw.getMusicUrl(songInfo, type) ──▶ src/apis/source.js（懒加载单例）
+调用方 ── source.kw.getMusicUrl(songInfo, type) ──▶ src/source.ts（懒加载候选链）
                                                       │
                                                       ▼
-                                            src/apis/source-ivm.js
+                                            src/source-ivm.ts
                                             isolated-vm 硬隔离沙箱
                                             ┌──────────────────────────┐
                                             │ 音源脚本（升版即换文件）      │

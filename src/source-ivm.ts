@@ -16,7 +16,7 @@
 // 依赖：isolated-vm（未安装时工厂函数抛出明确错误）
 // 用法：
 //   import { createIvmSource } from './source-ivm.ts'
-//   const source = await createIvmSource({ scriptPath })      // scriptPath 必填（sources/ 扫描逻辑见 source.js）
+//   const source = await createIvmSource({ scriptPath })      // scriptPath 必填（sources/ 扫描逻辑见 source.ts）
 //   const source = await createIvmSource({ scriptPath, http }) // http 可注入 mock 做离线测试
 //   await source.kw.getMusicUrl({ songmid: '123' }, '320k').promise
 //   await source.destroy()
@@ -29,7 +29,7 @@
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import zlib from 'node:zlib'
-import { httpFetch } from '../common/request.ts'
+import { httpFetch } from '../sdk/common/request.ts'
 
 // 从脚本头部的 SERVER_SCRIPT_CONFIG 提取 apiUrl 声明，作为 HTTP 白名单缺省值。
 // 兼容裸键(apiUrl:)与 JSON 风格("apiUrl":)，并处理 \/ 转义

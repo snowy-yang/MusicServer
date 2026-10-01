@@ -130,10 +130,12 @@ export const musicRoutes = async(fastify: any) => {
     const { source, id } = request.params
     const { quality, albumId } = request.query
     const m = getSource(musicSdk, source, 'getMusicUrl')
+    // 音源模式下服务端把取流重定向到外部音源脚本；未挂载时走 SDK 官方直连接口
+    const impl = fastify.sourceApi?.[source] ?? m
     const songInfo = { songmid: id, hash: id, copyrightId: id, albumId: albumId || '', _types: {} }
     let result
     try {
-      result = unwrap(m.getMusicUrl(songInfo, quality))
+      result = unwrap(impl.getMusicUrl(songInfo, quality))
     } catch (err: any) {
       throw upstream(err.message)
     }
@@ -369,19 +371,15 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/sources', {
     schema: {
       summary: '获取支持的平台',
-      description: '返回各平台的音质支持与能力（search/url/lyric/pic/boards/hotSearch/songList）。',
+      description: '返回各平台的音质支持与能力（search/url/lyric/pic/boards/hotSearch/songList）。' +
+        '音质为 SDK 官方直连接口的支持范围；启用外部音源（SOURCE_ENABLED）时取流由 sources/ 脚本提供，实际可用音质以脚本为准。',
       tags: ['系统'],
       response: responses('SourcesResult', { notFoundDoc: false, upstreamDoc: false }),
     },
   }, async() => ({
     platforms: musicSdk.sources.map(({ id, name }) => {
       const m = musicSdk[id] || {}
-      const qualities = [...new Set(
-        Object.values(musicSdk.supportQuality || {})
-          .map((q: any) => q[id])
-          .filter(Boolean)
-          .flat(),
-      )]
+      const qualities = musicSdk.supportQuality?.[id] ?? []
       return {
         id,
         name,

@@ -1,5 +1,4 @@
-// 登录态自动续期调度 —— 启动即刷一轮 + 每 24h 一次（与 lx-music-api-server 的
-// APScheduler interval 86400s + next_run_time=now 对齐）
+// 登录态自动续期调度 —— 启动即刷一轮 + 每 24h 一次
 // 各平台凭据独立处理：未登录跳过，单个平台失败不影响另一个。
 
 import { refreshLogin as kgRefreshLogin } from '../sdk/auth/kg.ts'
