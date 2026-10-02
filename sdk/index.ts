@@ -7,6 +7,12 @@ import xm from './xm/index.ts'
 import me from './me/index.ts'
 import qt from './qt/index.ts'
 import lr from './lr/index.ts'
+import migu from './migu/index.ts'
+import qian from './qian/index.ts'
+import joox from './joox/index.ts'
+import bili from './bili/index.ts'
+import fivesing from './5sing/index.ts'
+import apple from './apple/index.ts'
 import { supportQualitys as kwQualitys } from './apis/kw.ts'
 import { supportQualitys as kgQualitys } from './apis/kg.ts'
 import { supportQualitys as txQualitys } from './apis/tx.ts'
@@ -16,6 +22,12 @@ import { supportQualitys as xmQualitys } from './apis/xm.ts'
 import { supportQualitys as meQualitys } from './apis/me.ts'
 import { supportQualitys as qtQualitys } from './apis/qt.ts'
 import { supportQualitys as lrQualitys } from './apis/lr.ts'
+import { supportQualitys as miguQualitys } from './apis/migu.ts'
+import { supportQualitys as qianQualitys } from './apis/qian.ts'
+import { supportQualitys as jooxQualitys } from './apis/joox.ts'
+import { supportQualitys as biliQualitys } from './apis/bili.ts'
+import { supportQualitys as fivesingQualitys } from './apis/5sing.ts'
+import { supportQualitys as appleQualitys } from './apis/apple.ts'
 import type { PlatformModule, SearchResult, SongInfo } from './types.ts'
 import {
   sizeFormate,
@@ -41,6 +53,13 @@ const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModul
   { id: 'me', name: '猫耳FM', module: me, noAggregate: true },
   { id: 'qt', name: '蜻蜓FM', module: qt, noAggregate: true },
   { id: 'lr', name: '懒人听书', module: lr, noAggregate: true },
+  { id: 'migu', name: '咪咕音乐', module: migu },
+  { id: 'qian', name: '千千音乐', module: qian },
+  { id: 'joox', name: 'JOOX', module: joox },
+  { id: 'bili', name: '哔哩哔哩', module: bili },
+  { id: '5sing', name: '5sing', module: fivesing },
+  // Apple Music 仅提供 preview 试听片段（完整曲为 DRM），不参与跨平台精确匹配
+  { id: 'apple', name: 'Apple Music', module: apple, noAggregate: true },
 ]
 
 const SOURCE_MODULES = Object.fromEntries(SUPPORTED_SOURCES.map((s) => [s.id, s.module]))
@@ -62,6 +81,12 @@ export const supportQuality: Record<string, string[]> = {
   me: meQualitys,
   qt: qtQualitys,
   lr: lrQualitys,
+  migu: miguQualitys,
+  qian: qianQualitys,
+  joox: jooxQualitys,
+  bili: biliQualitys,
+  '5sing': fivesingQualitys,
+  apple: appleQualitys,
 }
 
 const trimStr = (str: unknown): string => (typeof str === 'string' ? str.trim() : str as string)

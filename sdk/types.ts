@@ -2,7 +2,10 @@
 // 所有平台模块与根模块的类型锚点。类型只描述实际返回的数据形状，不改变运行时行为。
 
 /** 音乐平台标识 */
-export type Source = 'kw' | 'kg' | 'tx' | 'wy' | 'qs' | 'xm' | 'me' | 'qt' | 'lr'
+export type Source =
+  | 'kw' | 'kg' | 'tx' | 'wy' | 'qs'
+  | 'migu' | 'qian' | 'joox' | 'bili' | '5sing' | 'apple'
+  | 'xm' | 'me' | 'qt' | 'lr'
 
 /** 音质标识（wav 仅部分接口声明使用） */
 export type Quality = '128k' | '320k' | 'flac' | 'flac24bit' | 'wav'
@@ -71,6 +74,12 @@ export interface RequestObj<T> {
   cancelHttp(): void
 }
 
+/** 请求句柄的宽松形态：SDK 内 promise 会在 .then() 中改写为对应结果类型 */
+export interface AnyRequestObj {
+  promise: Promise<any>
+  cancelHttp(): void
+}
+
 /** 取流结果 */
 export interface MusicUrlResult {
   type: string
@@ -136,10 +145,10 @@ export interface PlatformModule {
   songList?: any
   hotSearch?: HotSearchModule
   comment?: CommentModule
-  getMusicUrl?(songInfo: SongInfo, type: Quality): HttpRequestObject
-  getLyric?(songInfo: SongInfo, ...rest: unknown[]): HttpRequestObject
-  getPic?(songInfo: SongInfo, ...rest: unknown[]): HttpRequestObject | Promise<any>
-  getMusicInfo?(songInfo: SongInfo): HttpRequestObject | Promise<any>
+  getMusicUrl?(songInfo: SongInfo, type: Quality): AnyRequestObj | Promise<any>
+  getLyric?(songInfo: SongInfo, ...rest: unknown[]): AnyRequestObj
+  getPic?(songInfo: SongInfo, ...rest: unknown[]): AnyRequestObj | Promise<any>
+  getMusicInfo?(songInfo: SongInfo): AnyRequestObj | Promise<any>
   getMusicDetailPageUrl?(songInfo: SongInfo): string
   [key: string]: any
 }
