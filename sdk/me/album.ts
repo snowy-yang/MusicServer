@@ -1,13 +1,16 @@
 // 猫耳FM 广播剧集列表（web 通道，匿名免签）
 // 接口: https://www.missevan.com/dramaapi/getdramaepisodes?drama_id=&season=&page=&order=0&pageSize=
 // 结果在 info.episodes.episode[]（name/sound_id/pay_type/vip）；剧名在 info.drama.name
-// 注意：getdrama（不带 episodes）必须带 type=2 且 seasons 只含各季首集，列表用本接口
+// 注意：getdrama（不带 type=2 时）的 info.episodes.episode 同样可用（MusicFree 插件用法），本接口支持翻页故用之
 import { httpFetch } from '../request.ts'
 import { formatPlayTime } from '../index.ts'
 
 const EPISODES_URL = 'https://www.missevan.com/dramaapi/getdramaepisodes'
 
-export const getAlbumDetail = async(dramaId: string, page = 1, limit = 30) => {
+export const getAlbumDetail = async(dramaIdRaw: string, page = 1, limit = 30) => {
+  // 搜索结果的剧条目带 d: 前缀（songmid="d:<id>"），这里剥掉
+  const dramaId = dramaIdRaw.startsWith('d:') ? dramaIdRaw.slice(2) : dramaIdRaw
+  if (!/^\d+$/.test(dramaId)) throw new Error('剧 id 无效')
   const { statusCode, body } = await httpFetch(
     `${EPISODES_URL}?drama_id=${dramaId}&season=1&page=${page}&order=0&pageSize=${Math.max(30, limit)}`,
     {
