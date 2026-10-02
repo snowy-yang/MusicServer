@@ -8,8 +8,13 @@ import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
 import singer from './singer.ts'
 import album from './album.ts'
+import { registerDfid } from '../auth/kg.ts'
 
 const kg = {
+  // 启动时注册正式 dfid（幂等；随机 dfid 匿名取流易撞 20028 验证，注册后显著降低）
+  async init() {
+    await registerDfid().catch((err: any) => console.log(`[kg/init] dfid 注册跳过: ${err.message}`))
+  },
   leaderboard,
   songList,
   musicSearch,
