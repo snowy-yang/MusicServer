@@ -136,9 +136,10 @@ export const musicRoutes = async(fastify: any) => {
     // 取流链：外部音源脚本（SOURCE_ENABLED 启用时）→ SDK 官方直连 → 酷我兜底（跨平台匹配）
     const finish = (res: any, via: string) => {
       if (!res?.url) throw new Error('获取播放地址失败')
-      // qs 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）
+      // qs 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）；
+      // 启用 AUTH_KEY 时附带 ?key=（播放器直接拉流无法携带自定义头）
       const url = String(res.url).startsWith('/')
-        ? `${request.protocol}://${request.headers.host}${res.url}`
+        ? `${request.protocol}://${request.headers.host}${res.url}${process.env.AUTH_KEY ? `${String(res.url).includes('?') ? '&' : '?'}key=${encodeURIComponent(process.env.AUTH_KEY)}` : ''}`
         : res.url
       // type 用实际音质（kw 等通道可能降级）；via 标记兜底链中真正命中的通道
       return { type: res.type || quality, url, ...(via !== source ? { via } : {}) }

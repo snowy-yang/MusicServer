@@ -74,6 +74,20 @@ pnpm typecheck   # 仅类型检查，不运行
 
 `/url` 在外部音源与平台直连都失败时，自动降级到**酷我**兜底：按歌名/歌手/时长匹配同一首歌后走 kw 通道（匿名可拿无损）。kg 可由 hash 反查歌曲信息；其它平台需要兜底时给 `/url` 传 `name`/`singer`/`interval` 查询参数。
 
+## 调用鉴权（AUTH_KEY）
+
+设置环境变量 `AUTH_KEY` 后，全部业务接口要求携带调用秘钥（未设置则不鉴权）：
+
+```
+Authorization: Bearer <AUTH_KEY>   # 亦接受裸值
+X-Api-Key: <AUTH_KEY>
+?key=<AUTH_KEY>                    # 查询参数（播放器直接拉流场景）
+```
+
+豁免路径：`/health`、`/`、`/docs`、`/redoc`、`/openapi.json`。秘钥错误返回 401。
+启用鉴权时 `/url` 返回的代理流地址（如 qs 解密流）会自动附带 `?key=`，播放器可直接拉流。
+
+
 ## 外部音源
 
 设置 `SOURCE_ENABLED=1` 后取流优先走外部音源（默认未设置时直接走 SDK 官方直连接口；是否启用由服务端在 `src/server.ts` 决策）。两种脚本都放 `sources/` 目录（不入库），按文件名混排成候选链：取流失败自动切换下一个，某平台连续失败 3 次的脚本降权冷却 5 分钟；整条音源链失败后回落 SDK 直连、再失败走酷我兜底（见上文取流链）。音源候选链只覆盖 kw/kg/tx/wy（音源脚本协议无 qs 平台，`/url/qs` 始终走 SDK）。音源模式下登录态不参与取流，登录自动续期不会启动（手动 `POST /login/refresh` 仍可用）。详见 [docs/source-ivm.md](docs/source-ivm.md) 与 [docs/source-simple.md](docs/source-simple.md)。

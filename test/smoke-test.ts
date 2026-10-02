@@ -76,12 +76,12 @@ const test = async(name: string, fn: () => Promise<any>) => {
 }
 
 /**
- * 启动本地服务器（指定端口）并返回进程句柄
+ * 启动本地服务器（指定端口，可覆盖环境变量）并返回进程句柄
  */
-const startLocalServer = (port: number) => new Promise((resolve, reject) => {
+const startLocalServer = (port: number, envExtra: Record<string, string> = {}) => new Promise((resolve, reject) => {
   const proc = spawn(process.execPath, ['src/server.ts'], {
     cwd: process.cwd(),
-    env: { ...process.env, PORT: String(port) },
+    env: { ...process.env, PORT: String(port), ...envExtra },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stdout = ''
@@ -94,7 +94,7 @@ const startLocalServer = (port: number) => new Promise((resolve, reject) => {
   }, 10000)
 
   const check = () => {
-    http.get(`${BASE}/health`, res => {
+    http.get(`http://localhost:${port}/health`, res => {
       res.resume()
       if (res.statusCode === 200) {
         clearTimeout(timer)
@@ -607,6 +607,54 @@ await test('登录状态含 xm 字段', async() => {
   if (!('xm' in (r.data ?? {})) || !('logged' in r.data.xm)) throw new Error('xm 登录状态缺失')
   return `xm.logged=${r.data.xm.logged}`
 })
+
+// ---- 调用秘钥鉴权（独立实例带 AUTH_KEY 起测；主实例未设 key 时本组自动跳过）----
+if (!externalServer && !process.env.AUTH_KEY) {
+  const AUTH_TEST_KEY = 'smoke-test-secret-key'
+  const authPort = await new Promise<number>(resolve => {
+    const srv = net.createServer()
+    srv.listen(0, '127.0.0.1', () => {
+      const p = (srv.address() as any).port
+      srv.close(() => resolve(p))
+    })
+  })
+  const authBase = `http://localhost:${authPort}`
+  const authServer: any = await startLocalServer(authPort, { AUTH_KEY: AUTH_TEST_KEY })
+  const authFetch = (path: string, init: RequestInit = {}) => fetch(authBase + path, init)
+
+  await test('AUTH_KEY 无秘钥 → 401', async() => {
+    const r = await authFetch('/sources')
+    if (r.status !== 401) throw new Error(`期望 401，实际 ${r.status}`)
+    return 'ok'
+  })
+  await test('AUTH_KEY 错误秘钥 → 401', async() => {
+    const r = await authFetch('/sources', { headers: { Authorization: 'Bearer wrong-key' } })
+    if (r.status !== 401) throw new Error(`期望 401，实际 ${r.status}`)
+    return 'ok'
+  })
+  await test('AUTH_KEY Bearer 通过', async() => {
+    const r = await authFetch('/sources', { headers: { Authorization: `Bearer ${AUTH_TEST_KEY}` } })
+    if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
+    return 'ok'
+  })
+  await test('AUTH_KEY X-Api-Key 通过', async() => {
+    const r = await authFetch('/sources', { headers: { 'X-Api-Key': AUTH_TEST_KEY } })
+    if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
+    return 'ok'
+  })
+  await test('AUTH_KEY ?key= 通过', async() => {
+    const r = await authFetch(`/sources?key=${encodeURIComponent(AUTH_TEST_KEY)}`)
+    if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
+    return 'ok'
+  })
+  await test('AUTH_KEY /health 豁免', async() => {
+    const r = await authFetch('/health')
+    if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
+    return 'ok'
+  })
+
+  authServer.kill()
+}
 
 // 汇总
 const passed = results.filter(r => r.ok).length
