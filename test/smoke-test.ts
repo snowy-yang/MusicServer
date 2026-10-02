@@ -130,7 +130,7 @@ if (externalServer) {
 // 搜索
 for (const source of ['kw', 'kg', 'tx', 'wy', 'qs']) {
   await test(`搜索 ${source}`, async() => {
-    const r = await get(`/search?source=${source}&name=${encodeURIComponent('稻香')}&limit=2`)
+    const r = await get(`/search/${source}/${encodeURIComponent('稻香')}?limit=2`)
     if (r.code != 0) throw new Error(r.msg)
     if (!r.data?.list?.length) throw new Error('空列表')
     return `${r.data.list[0].name} / ${r.data.list[0].singer}`
@@ -138,7 +138,7 @@ for (const source of ['kw', 'kg', 'tx', 'wy', 'qs']) {
 }
 
 await test('聚合搜索', async() => {
-  const r = await get(`/search?name=${encodeURIComponent('稻香')}&limit=2`)
+  const r = await get(`/search/all/${encodeURIComponent('稻香')}?limit=2`)
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return `${r.data.list.length} 条结果`
@@ -220,14 +220,14 @@ await test('URL qt 免费节目', async() => {
 
 // qt/lr 直查 + 聚合排除
 await test('搜索 qt 直查', async() => {
-  const r = await get(`/search?source=qt&name=${encodeURIComponent('郭德纲')}&limit=3`)
+  const r = await get(`/search/qt/${encodeURIComponent('郭德纲')}?limit=3`)
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('响应不完整')
   return `首条 ${r.data.list[0].name}`
 })
 
 await test('搜索 lr 直查', async() => {
-  const r = await get(`/search?source=lr&name=${encodeURIComponent('三体')}&limit=3`)
+  const r = await get(`/search/lr/${encodeURIComponent('三体')}?limit=3`)
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('响应不完整')
   return `首条 ${r.data.list[0].name}`
@@ -243,7 +243,7 @@ await test('URL lr 未登录 → 明确错误', async() => {
 
 // me 有声内容：直查可用、聚合排除
 await test('搜索 me 直查', async() => {
-  const r = await get(`/search?source=me&name=${encodeURIComponent('伪装学渣')}&limit=10`)
+  const r = await get(`/search/me/${encodeURIComponent('伪装学渣')}?limit=10`)
   if (r.code != 0) throw new Error(r.msg)
   const list = r.data?.list ?? []
   if (!list.length) throw new Error('响应不完整')
@@ -264,14 +264,14 @@ await test('URL me 剧条目 d: 前缀', async() => {
 
 // xm 有声内容：直查可用、聚合排除
 await test('搜索 xm 直查', async() => {
-  const r = await get(`/search?source=xm&name=${encodeURIComponent('郭德纲')}&limit=3`)
+  const r = await get(`/search/xm/${encodeURIComponent('郭德纲')}?limit=3`)
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('响应不完整')
   return `首条 ${r.data.list[0].name}`
 })
 
 await test('聚合搜索排除 xm', async() => {
-  const r = await get(`/search?name=${encodeURIComponent('郭德纲')}&limit=2`)
+  const r = await get(`/search/all/${encodeURIComponent('郭德纲')}?limit=2`)
   if (r.code != 0) throw new Error(r.msg)
   if (r.data?.list?.some((item: any) => ['xm', 'me', 'qt', 'lr'].includes(item.source))) throw new Error('聚合结果不应包含有声平台')
   return 'ok'
@@ -362,7 +362,7 @@ await test('榜单详情 路径风格 /boards/:source/:boardId', async() => {
 })
 
 await test('跨平台匹配 /find', async() => {
-  const r = await get(`/find?name=${encodeURIComponent('稻香')}&singer=${encodeURIComponent('周杰伦')}`)
+  const r = await get(`/find/all/${encodeURIComponent('稻香')}?singer=${encodeURIComponent('周杰伦')}`)
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return `${r.data.list[0].name} / ${r.data.list[0].singer}`
@@ -472,12 +472,20 @@ await test('专辑详情 /album/lr', async() => {
   return `${r.data.info.total} 节`
 })
 
-await test('参数校验 422（缺少 name）', async() => {
-  const r = await getRaw('/search')
+await test('参数校验 422（非法页码）', async() => {
+  const r = await getRaw(`/search/kw/${encodeURIComponent('稻香')}/0`)
   if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
   const body = JSON.parse(r.body)
   if (body.code !== 422 || !body.msg) throw new Error('响应体格式错误')
-  return body.msg
+  return body.msg.slice(0, 60)
+})
+
+// path 风格分页：第 2 页显式页码段
+await test('搜索分页 /search/kw/:kw/2', async() => {
+  const r = await get(`/search/kw/${encodeURIComponent('周杰伦')}/2?limit=5`)
+  if (r.code != 0) throw new Error(r.msg)
+  if (r.data?.page !== 2) throw new Error(`page 应为 2，实际 ${JSON.stringify(r.data?.page)}`)
+  return `第 ${r.data.page} 页 ${r.data.list.length} 条`
 })
 
 await test('参数校验 422（非法音质）', async() => {
@@ -501,7 +509,7 @@ await test('旧 query 路由已移除（404）', async() => {
 })
 
 await test('405 方法不允许（静态路由）', async() => {
-  const r = await postRaw('/search')
+  const r = await postRaw('/health')
   if (r.status !== 405) throw new Error(`期望 405，实际 ${r.status}`)
   if (!r.headers.allow) throw new Error('缺少 Allow 头')
   return `Allow: ${r.headers.allow}`
@@ -533,7 +541,7 @@ await test('OpenAPI 规范 /openapi.json', async() => {
   if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
   const spec = JSON.parse(r.body)
   if (!spec.openapi?.startsWith('3.')) throw new Error(`openapi 版本异常: ${spec.openapi}`)
-  if (!spec.paths?.['/search']) throw new Error('缺少 /search 定义')
+  if (!spec.paths?.['/search/{source}/{keyword}'] || !spec.paths?.['/search/{source}/{keyword}/{page}']) throw new Error('缺少 /search path 风格定义')
   if (!spec.paths?.['/url/{source}/{id}']) throw new Error('缺少路径参数路由定义')
   return `${Object.keys(spec.paths).length} 个路径`
 })

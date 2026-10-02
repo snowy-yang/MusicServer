@@ -61,70 +61,93 @@ const getSource = (musicSdk: any, name: string, capability?: string) => {
 export const musicRoutes = async(fastify: any) => {
   const musicSdk = fastify.musicSdk
 
-  // ---------- 搜索 ----------
+  // ---------- 搜索（path 风格：/search/:source/:keyword[/:page]，与 /url/:source/:id 同构） ----------
 
-  fastify.get('/search', {
-    schema: {
-      summary: '搜索歌曲',
-      description: 'source 省略时聚合全部平台（排除 xm/me/qt/lr 有声平台）搜索，失败的平台会被跳过。',
-      tags: ['搜索'],
-      querystring: qs({
-        name: { type: 'string', description: '歌名', example: '稻香' },
-        singer: { type: 'string', description: '歌手名', example: '周杰伦' },
-        source: pSource('search'),
-        page: pPage,
-        limit: pLimit,
-      }, ['name']),
-      response: responses('SearchResult', { notFoundDoc: false }),
-    },
-  }, async(request) => {
-    const { name, singer, source, page, limit } = request.query
+  const searchHandler = async(request) => {
+    const { source, keyword, page } = request.params
+    const { singer, limit } = request.query
+    const pageNo = Number(page) || 1
+    const word = `${keyword} ${singer || ''}`.trim()
 
+    if (source !== 'all') getSource(musicSdk, source, 'musicSearch')
     const doSearch = (id) => musicSdk[id].musicSearch
-      .search(`${name} ${singer || ''}`.trim(), page, limit)
+      .search(word, pageNo, limit)
       .then(r => r.list)
 
-    if (source) {
-      getSource(musicSdk, source, 'musicSearch')
-      try {
-        return { source, list: await doSearch(source), page, limit }
-      } catch (err: any) {
-        throw upstream(err.message)
+    try {
+      if (source !== 'all') {
+        return { source, list: await doSearch(source), page: pageNo, limit }
       }
+      // 聚合：排除 xm/me/qt/lr 有声平台，失败的平台跳过
+      const lists = await Promise.all(
+        musicSdk.sources
+          .filter(s => musicSdk[s.id]?.musicSearch && !(s as any).noAggregate)
+          .map(s => doSearch(s.id).catch(() => [])),
+      )
+      return { source: 'all', list: lists.flat(), page: pageNo, limit }
+    } catch (err: any) {
+      throw upstream(err.message)
     }
+  }
 
-    const lists = await Promise.all(
-      musicSdk.sources
-        .filter(s => musicSdk[s.id]?.musicSearch && !(s as any).noAggregate)
-        .map(s => doSearch(s.id).catch(() => [])),
-    )
-    return { source: 'all', list: lists.flat(), page, limit }
+  const searchSchema = (summary: string, withPage: boolean) => ({
+    summary,
+    description: 'source 为平台 id 或 all（聚合，排除 xm/me/qt/lr 有声平台，失败的平台跳过）。' +
+      'path 直接跟搜索内容，第 1 页可省略页码段；歌名含空格/斜杠时请拆分——歌手走 singer 查询参数。',
+    tags: ['搜索'],
+    params: params({
+      source: pSource('search'),
+      keyword: { type: 'string', description: '搜索关键词（URL 编码的中文可直接使用）', example: '稻香' },
+      page: { type: 'integer', minimum: 1, description: '页码（省略时为第 1 页）', example: 2 },
+    }, withPage ? undefined : ['source', 'keyword']),
+    querystring: qs({
+      singer: { type: 'string', description: '歌手名（与关键词拼接搜索）', example: '周杰伦' },
+      limit: pLimit,
+    }),
+    response: responses('SearchResult', { notFoundDoc: false }),
   })
 
-  fastify.get('/find', {
-    schema: {
-      summary: '跨平台精确匹配歌曲',
-      description: '按歌手、歌名、专辑、时长综合排序，返回最匹配的歌曲列表。',
-      tags: ['搜索'],
-      querystring: qs({
-        name: { type: 'string', description: '歌名', example: '稻香' },
-        singer: { type: 'string', description: '歌手名', example: '周杰伦' },
-        albumName: { type: 'string', description: '专辑名', example: '魔杰座' },
-        interval: { type: 'string', description: '时长（mm:ss），用于时长校验', example: '03:43' },
-        excludeSource: { type: 'string', description: '聚合结果中跳过该平台', example: 'kw' },
-      }, ['name']),
-      response: responses('FindResult', { notFoundDoc: false }),
-    },
-  }, async(request) => {
-    const { name, singer, albumName, interval, excludeSource } = request.query
+  fastify.get('/search/:source/:keyword', { schema: searchSchema('搜索歌曲（第 1 页）', false) }, searchHandler)
+  fastify.get('/search/:source/:keyword/:page', { schema: searchSchema('搜索歌曲（指定页）', true) }, searchHandler)
+
+  const findHandler = async(request) => {
+    const { source, keyword } = request.params
+    const { singer, albumName, interval, excludeSource } = request.query
     try {
       return {
-        list: await musicSdk.findMusic({ name, singer, albumName, interval, source: excludeSource }),
+        list: await musicSdk.findMusic({
+          name: keyword,
+          singer,
+          albumName,
+          interval,
+          ...(source !== 'all' ? { only: source } : {}),
+          ...(source === 'all' && excludeSource ? { source: excludeSource } : {}),
+        }),
       }
     } catch (err: any) {
       throw upstream(err.message)
     }
+  }
+
+  const findSchema = (summary: string) => ({
+    summary,
+    description: '按歌手、歌名、专辑、时长综合排序的精确匹配。source 为平台 id（只在单平台内匹配）或 all（跨平台聚合，' +
+      '可用 excludeSource 跳过某平台；聚合自动排除 xm/me/qt/lr 有声平台）。',
+    tags: ['搜索'],
+    params: params({
+      source: { type: 'string', description: '平台 id 或 all', example: 'all' },
+      keyword: { type: 'string', description: '歌名', example: '稻香' },
+    }),
+    querystring: qs({
+      singer: { type: 'string', description: '歌手名', example: '周杰伦' },
+      albumName: { type: 'string', description: '专辑名', example: '魔杰座' },
+      interval: { type: 'string', description: '时长（mm:ss），用于时长校验', example: '03:43' },
+      excludeSource: { type: 'string', description: 'source=all 时跳过该平台', example: 'kw' },
+    }),
+    response: responses('FindResult', { notFoundDoc: false }),
   })
+
+  fastify.get('/find/:source/:keyword', { schema: findSchema('精确匹配歌曲') }, findHandler)
 
   // ---------- 歌曲资源（路径参数风格） ----------
 

@@ -26,8 +26,8 @@ pnpm typecheck   # 仅类型检查，不运行
 
 | 接口 | 说明 |
 | --- | --- |
-| `GET /search?name=xxx&singer=xxx&source=kw&page=1&limit=20` | 搜索歌曲（source 省略则聚合所有音乐平台，xm 不参与聚合需显式指定） |
-| `GET /find?name=xxx&singer=xxx&albumName=xxx&interval=xxx` | 精确匹配搜索（跨平台去重排序） |
+| `GET /search/:source/:keyword[/:page]` | 搜索歌曲：平台 id 或 all（聚合，排除 xm/me/qt/lr）；第 1 页可省略页码段，下一页 `/search/kw/稻香/2`；?singer= 附加歌手、?limit= 每页条数 |
+| `GET /find/:source/:keyword` | 精确匹配搜索（source 为平台 id 或 all；?singer= ?albumName= ?interval= 辅助匹配，all 时 ?excludeSource= 跳过平台） |
 | `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 64k/128k/320k/flac/flac24bit）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（跨平台匹配，响应 `via` 字段标记实际命中通道） |
 | `GET /stream/qs/:id` | 汽水音乐解密流代理（登录态取流地址，服务端解密回明文音频） |
 | `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/yrc） |
