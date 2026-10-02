@@ -8,7 +8,7 @@
   "scripts": {
     "typecheck": "tsc",
     "start": "node src/server.ts",
-    "dev": "node --watch-path=./src --watch-path=./sdk --watch-path=./sources --watch --watch-preserve-output src/server.ts",
+    "dev": "node scripts/dev.mjs",
     "test": "pnpm run typecheck && node test/source-simple-test.ts && node test/smoke-test.ts"
   },
   "dependencies": {
