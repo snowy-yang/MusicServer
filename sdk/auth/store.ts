@@ -45,6 +45,28 @@ export interface TxCredentials {
   updatedAt?: string
 }
 
+export interface XmCredentials {
+  // www.ximalaya.com 登录 Cookie（须含 1&_token，从已登录浏览器请求头复制）
+  // baseInfo 付费内容授权依赖它；无法主动续期，失效后需重新复制绑定
+  cookie: string
+  updatedAt?: string
+}
+
+export interface MeCredentials {
+  // App 登录 Cookie（须含 token=，从猫耳 App 抓包或已登录 m.missevan.com 浏览器复制）
+  // App API 付费声音授权依赖它；无法主动续期
+  cookie: string
+  updatedAt?: string
+}
+
+export interface LrCredentials {
+  // m.lrts.me 登录会话 Cookie（/login/lr 账号密码登录后由服务端保存）
+  // 取流接口必须携带（免费章节也要求登录态）
+  cookie: string
+  phone?: string
+  updatedAt?: string
+}
+
 let cache: Record<string, any> = {}
 let loaded = false
 

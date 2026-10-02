@@ -194,6 +194,76 @@ await test('URL qs 试听 128k', async() => {
   return r.data.url.slice(0, 60)
 })
 
+// xm 匿名免费曲直链（12096669 = 苏荷酒吧我爱的人，免费，2026-10-02 实测可用）
+await test('URL xm 免费曲', async() => {
+  const r = await get('/url/xm/12096669?quality=128k')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url || !/xmcdn\.com/.test(r.data.url)) throw new Error('非 xmcdn 直链')
+  return `${r.data.type} ${r.data.url.slice(0, 60)}`
+})
+
+// me 匿名免费声音明文直链（1557130 = 穿堂惊掠琵琶声·总预告，App API 签名通道，2026-10-02 实测可用）
+await test('URL me 免费声音', async() => {
+  const r = await get('/url/me/1557130?quality=128k')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url || !/maoercdn\.com/.test(r.data.url)) throw new Error('非 maoercdn 直链')
+  return `${r.data.type} ${r.data.url.slice(0, 60)}`
+})
+
+// qt 匿名节目直链（304214:12302057 = 诡吹灯续·片花，audiostream 签名通道，2026-10-02 实测可用）
+await test('URL qt 免费节目', async() => {
+  const r = await get('/url/qt/304214:12302057?quality=64k')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url || !/audiostream\/redirect/.test(r.data.url)) throw new Error('非 audiostream 签名直链')
+  return `${r.data.type} ${r.data.url.slice(0, 70)}`
+})
+
+// qt/lr 直查 + 聚合排除
+await test('搜索 qt 直查', async() => {
+  const r = await get(`/search?source=qt&name=${encodeURIComponent('郭德纲')}&limit=3`)
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('响应不完整')
+  return `首条 ${r.data.list[0].name}`
+})
+
+await test('搜索 lr 直查', async() => {
+  const r = await get(`/search?source=lr&name=${encodeURIComponent('三体')}&limit=3`)
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('响应不完整')
+  return `首条 ${r.data.list[0].name}`
+})
+
+// lr 未登录取流应返回明确错误（502 上游）
+await test('URL lr 未登录 → 明确错误', async() => {
+  const r = await getRaw('/url/lr/50678018:1?quality=64k')
+  if (r.status !== 502) throw new Error(`期望 502，实际 ${r.status}`)
+  if (!JSON.parse(r.body).msg.includes('/login/lr')) throw new Error(`错误信息应引导登录，实际 ${JSON.parse(r.body).msg}`)
+  return JSON.parse(r.body).msg.slice(0, 40)
+})
+
+// me 有声内容：直查可用、聚合排除
+await test('搜索 me 直查', async() => {
+  const r = await get(`/search?source=me&name=${encodeURIComponent('广播剧')}&limit=3`)
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('响应不完整')
+  return `首条 ${r.data.list[0].name}`
+})
+
+// xm 有声内容：直查可用、聚合排除
+await test('搜索 xm 直查', async() => {
+  const r = await get(`/search?source=xm&name=${encodeURIComponent('郭德纲')}&limit=3`)
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length) throw new Error('响应不完整')
+  return `首条 ${r.data.list[0].name}`
+})
+
+await test('聚合搜索排除 xm', async() => {
+  const r = await get(`/search?name=${encodeURIComponent('郭德纲')}&limit=2`)
+  if (r.code != 0) throw new Error(r.msg)
+  if (r.data?.list?.some((item: any) => ['xm', 'me', 'qt', 'lr'].includes(item.source))) throw new Error('聚合结果不应包含有声平台')
+  return 'ok'
+})
+
 // 取流链兜底：平台直连失败后按 name/singer 匹配酷我（via=kw 标记实际命中通道）
 await test('URL wy 坏 id → 酷我兜底（via=kw）', async() => {
   const r = await get('/url/wy/not-exist-id?quality=128k&name=晴天&singer=周杰伦&interval=04:29')
@@ -357,6 +427,38 @@ await test('专辑详情 /album/tx', async() => {
   return `${r.data.info.name}（${r.data.list.length} 首）`
 })
 
+// xm 专辑（3595841 = 苏荷酒吧专辑，2026-10-02 实测可用）
+await test('专辑详情 /album/xm', async() => {
+  const r = await get('/album/xm/3595841')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name || !r.data?.list?.length) throw new Error('响应不完整')
+  return `${r.data.info.name}（${r.data.info.total} 集）`
+})
+
+// me 剧集（25276 = 穿堂惊掠琵琶声，2026-10-02 实测可用）
+await test('专辑详情 /album/me', async() => {
+  const r = await get('/album/me/25276')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.info?.name || !r.data?.list?.length) throw new Error('响应不完整')
+  return `${r.data.info.name}（${r.data.info.total} 集）`
+})
+
+// qt 频道（304214 = 诡吹灯续，2026-10-02 实测可用）
+await test('专辑详情 /album/qt', async() => {
+  const r = await get('/album/qt/304214')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length || !String(r.data.list[0].songmid).includes(':')) throw new Error('响应不完整或缺少复合 id')
+  return `${r.data.list.length} 节目，首条 ${r.data.list[0].name}`
+})
+
+// lr 书籍章节（50678018 = 三体广播剧，2026-10-02 实测可用）
+await test('专辑详情 /album/lr', async() => {
+  const r = await get('/album/lr/50678018')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.list?.length || !String(r.data.list[0].songmid).includes(':')) throw new Error('响应不完整或缺少复合 id')
+  return `${r.data.info.total} 节`
+})
+
 await test('参数校验 422（缺少 name）', async() => {
   const r = await getRaw('/search')
   if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
@@ -471,6 +573,28 @@ await test('kg 假 token 拒绝 POST /login/kg', async() => {
   const r = await postJson('/login/kg', { token: 'smoke_fake_token', userid: 0 })
   if (r.status !== 401) throw new Error(`期望 401，实际 ${r.status}`)
   return r.body?.msg
+})
+
+// xm cookie 绑定校验（缺 1&_token 拒绝）
+await test('xm 坏 cookie 拒绝 POST /login/xm', async() => {
+  const r = await postJson('/login/xm', { cookie: 'foo=bar; baz=1' })
+  if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
+  return `status ${r.status}`
+})
+
+// me cookie 绑定校验（缺 token 拒绝）
+await test('me 坏 cookie 拒绝 POST /login/me', async() => {
+  const r = await postJson('/login/me', { cookie: 'foo=bar; baz=1' })
+  if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
+  return `status ${r.status}`
+})
+
+// xm 登录状态展示
+await test('登录状态含 xm 字段', async() => {
+  const r = await get('/login/status')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!('xm' in (r.data ?? {})) || !('logged' in r.data.xm)) throw new Error('xm 登录状态缺失')
+  return `xm.logged=${r.data.xm.logged}`
 })
 
 // 汇总

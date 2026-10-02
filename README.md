@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、汽水音乐（qs）
+- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、汽水音乐（qs）+ 有声平台：喜马拉雅（xm）、猫耳FM（me）、蜻蜓FM（qt）、懒人听书（lr）（有声平台不参与聚合搜索）
 - **直连取流**：各平台播放地址获取（不依赖第三方 API 服务）
 - **完整链路**：搜索、播放地址、歌词（含各平台加密歌词解码）、封面、榜单、热搜、歌单
 
@@ -26,9 +26,9 @@ pnpm typecheck   # 仅类型检查，不运行
 
 | 接口 | 说明 |
 | --- | --- |
-| `GET /search?name=xxx&singer=xxx&source=kw&page=1&limit=20` | 搜索歌曲（source 省略则聚合所有平台） |
+| `GET /search?name=xxx&singer=xxx&source=kw&page=1&limit=20` | 搜索歌曲（source 省略则聚合所有音乐平台，xm 不参与聚合需显式指定） |
 | `GET /find?name=xxx&singer=xxx&albumName=xxx&interval=xxx` | 精确匹配搜索（跨平台去重排序） |
-| `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 128k/320k/flac/flac24bit）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（跨平台匹配，响应 `via` 字段标记实际命中通道） |
+| `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 64k/128k/320k/flac/flac24bit）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（跨平台匹配，响应 `via` 字段标记实际命中通道） |
 | `GET /stream/qs/:id` | 汽水音乐解密流代理（登录态取流地址，服务端解密回明文音频） |
 | `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/yrc） |
 | `GET /pic/:source/:id` | 获取封面 |
@@ -39,15 +39,20 @@ pnpm typecheck   # 仅类型检查，不运行
 | `GET /singer/:source/:id` | 歌手信息（kg/tx/wy） |
 | `GET /singer/:source/:id/songs?page=1&limit=30` | 歌手歌曲列表（kg/tx/wy） |
 | `GET /singer/:source/:id/albums?page=1&limit=10` | 歌手专辑列表（kg/tx/wy） |
-| `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/kw/tx） |
+| `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/kw/tx/xm） |
 | `POST /login/wy/qr` → `POST /login/wy/qr/check` | 网易云扫码登录（扫码后轮询完成登录） |
 | `POST /login/wy/cellphone` | 网易云手机号登录（password 或 captcha） |
 | `POST /login/kg/qr` → `POST /login/kg/qr/check` | 酷狗扫码登录（扫码后轮询完成登录） |
 | `POST /login/kg/captcha` → `POST /login/kg/cellphone` | 酷狗手机验证码登录 |
+| `POST /login/kg/password` | 酷狗账号密码登录（触发 20028 风控时返回 needVerify 挑战，配合 `/login/kg/verify` 提交图形/短信验证后重试） |
+| `POST /login/kg/verify` | 提交酷狗风控验证结果（verifycode 为图形验证凭证或短信码） |
 | `POST /login/kg` + `userid` | 绑定酷狗 token（App 抓包获取，服务端验证） |
 | `POST /login/tx/qr` → `POST /login/tx/qr/check` | QQ 音乐扫码登录（QQ/微信扫一扫，扫码后轮询完成登录） |
 | `POST /login/tx` | 绑定 QQ 音乐 cookie（y.qq.com 复制，可选 App 抓包字段供自动续期） |
 | `POST /login/qs/qr` → `POST /login/qs/qr/check` | 汽水音乐扫码登录（**抖音 App** 扫码，登录后解锁完整曲目与无损取流） |
+| `POST /login/xm` | 绑定喜马拉雅 cookie（www.ximalaya.com 复制，须含 `1&_token`，解锁付费/已购内容取流） |
+| `POST /login/me` | 绑定猫耳FM token（App 抓包或 m.missevan.com 复制，须含 `token=`，解锁付费声音取流） |
+| `POST /login/lr` | 懒人听书账号登录（account+password，懒人取流要求登录态，免费章节同样） |
 | `GET /login/status` | 登录状态（登录后取流/请求自动携带凭据） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
@@ -62,6 +67,10 @@ pnpm typecheck   # 仅类型检查，不运行
 - **kw / tx / wy**：`songmid`（如 `228908`、`0039MnYb0qxYhV`）
 - **kg**：`hash`（搜索结果的 `hash` 字段）；VIP/付费歌需 `/login/kg` 登录后取流
 - **qs**：track id（搜索结果的 `songmid` 字段）；匿名仅 30s 试听，`/login/qs/qr` 登录后走解密流代理取完整曲目
+- **xm**：track id（搜索/专辑结果的 `songmid` 字段）；匿名可取免费曲目（64k/128k 有声档位），付费/VIP 内容 `POST /login/xm` 绑定 cookie 后取流
+- **me**：声音 id（搜索结果的 `songmid` 字段）；走 App API 签名通道取免签名明文直链（m4a），匿名可取免费声音，付费内容 `POST /login/me` 绑定 token 后取流
+- **qt**：`<channelId>:<programId>` 复合 id（/album/qt 节目列表产出）；audiostream 签名直链（302 到华为云 CDN），匿名可取免费节目
+- **lr**：`<bookId>:<section>` 复合 id（/album/lr 章节列表产出）；取流必须 `POST /login/lr` 登录（免费章节同样要求登录态）
 
 `/url` 在外部音源与平台直连都失败时，自动降级到**酷我**兜底：按歌名/歌手/时长匹配同一首歌后走 kw 通道（匿名可拿无损）。kg 可由 hash 反查歌曲信息；其它平台需要兜底时给 `/url` 传 `name`/`singer`/`interval` 查询参数。
 
@@ -94,7 +103,7 @@ export async function getMusicUrl({ source, id, songInfo, quality, signal }) {
 src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源码）
   server.ts         HTTP 服务器入口（pnpm start 实际启动文件）
   routes.ts         业务路由（JSON Schema 校验 + OpenAPI 元数据）
-  routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/token、tx 扫码/cookie、qs 抖音扫码）
+  routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/账密+风控验证/token、tx 扫码/cookie、qs 抖音扫码、xm/me cookie 绑定）
   source.ts         外部音源候选链（SOURCE_ENABLED 时 /url 取流优先走 sources/ 脚本，失败回落 SDK）
   source-ivm.ts     社区音源脚本加载器（isolated-vm 硬隔离沙箱）
   source-simple.ts  简单 API 音源脚本加载器（.mjs 进程内直载）

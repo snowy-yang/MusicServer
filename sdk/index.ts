@@ -3,11 +3,19 @@ import kg from './kg/index.ts'
 import tx from './tx/index.ts'
 import wy from './wy/index.ts'
 import qs from './qs/index.ts'
+import xm from './xm/index.ts'
+import me from './me/index.ts'
+import qt from './qt/index.ts'
+import lr from './lr/index.ts'
 import { supportQualitys as kwQualitys } from './apis/kw.ts'
 import { supportQualitys as kgQualitys } from './apis/kg.ts'
 import { supportQualitys as txQualitys } from './apis/tx.ts'
 import { supportQualitys as wyQualitys } from './apis/wy.ts'
 import { supportQualitys as qsQualitys } from './apis/qs.ts'
+import { supportQualitys as xmQualitys } from './apis/xm.ts'
+import { supportQualitys as meQualitys } from './apis/me.ts'
+import { supportQualitys as qtQualitys } from './apis/qt.ts'
+import { supportQualitys as lrQualitys } from './apis/lr.ts'
 import type { PlatformModule, SearchResult, SongInfo } from './types.ts'
 import {
   sizeFormate,
@@ -22,17 +30,22 @@ import {
 export { sizeFormate, formatPlayTime, dateFormat, dateFormat2, formatPlayCount, decodeName }
 
 const SINGERS_SEPARATOR = /、|&|;|；|\/|,|，|\||\]|\[|!|！/g
-const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModule }> = [
+// noAggregate：有声/播客类平台不参与聚合搜索与跨平台匹配（xm/me），仅支持 source 直查
+const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModule; noAggregate?: boolean }> = [
   { id: 'kw', name: '酷我音乐', module: kw },
   { id: 'kg', name: '酷狗音乐', module: kg },
   { id: 'tx', name: 'QQ音乐', module: tx },
   { id: 'wy', name: '网易音乐', module: wy },
   { id: 'qs', name: '汽水音乐', module: qs },
+  { id: 'xm', name: '喜马拉雅', module: xm, noAggregate: true },
+  { id: 'me', name: '猫耳FM', module: me, noAggregate: true },
+  { id: 'qt', name: '蜻蜓FM', module: qt, noAggregate: true },
+  { id: 'lr', name: '懒人听书', module: lr, noAggregate: true },
 ]
 
 const SOURCE_MODULES = Object.fromEntries(SUPPORTED_SOURCES.map((s) => [s.id, s.module]))
 
-export const sources = SUPPORTED_SOURCES.map(({ id, name }) => ({ id, name }))
+export const sources = SUPPORTED_SOURCES.map(({ id, name, noAggregate }) => ({ id, name, ...(noAggregate ? { noAggregate: true } : {}) }))
 
 export const init = (): Promise<unknown[]> =>
   Promise.all(SUPPORTED_SOURCES.map((s) => s.module.init?.()).filter(Boolean))
@@ -45,6 +58,10 @@ export const supportQuality: Record<string, string[]> = {
   tx: txQualitys,
   wy: wyQualitys,
   qs: qsQualitys,
+  xm: xmQualitys,
+  me: meQualitys,
+  qt: qtQualitys,
+  lr: lrQualitys,
 }
 
 const trimStr = (str: unknown): string => (typeof str === 'string' ? str.trim() : str as string)
@@ -96,6 +113,8 @@ export const searchMusic = async (
   const tasks: Array<Promise<SearchResult | null>> = []
   for (const source of SUPPORTED_SOURCES) {
     if (!source.module.musicSearch) continue
+    // 有声平台（noAggregate）仅在显式 only 指定时参与搜索
+    if (source.noAggregate && source.id !== only) continue
     if (only ? source.id !== only : source.id === excludeSource) continue
     tasks.push(
       source.module.musicSearch

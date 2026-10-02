@@ -6,7 +6,7 @@
 import { notFound, upstream } from './http/api-error.ts'
 import { getMusicInfo } from '../sdk/kg/musicInfo.ts'
 
-const QUALITIES = ['128k', '320k', 'flac', 'flac24bit']
+const QUALITIES = ['64k', '128k', '320k', 'flac', 'flac24bit']
 
 /** 统一解包 SDK 返回值：{ promise, cancelHttp } 结构或裸 Promise 兼容 */
 const unwrap = (result: any): any => (
@@ -65,7 +65,7 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/search', {
     schema: {
       summary: '搜索歌曲',
-      description: 'source 省略时聚合全部平台（排除 xm）搜索，失败的平台会被跳过。',
+      description: 'source 省略时聚合全部平台（排除 xm/me/qt/lr 有声平台）搜索，失败的平台会被跳过。',
       tags: ['搜索'],
       querystring: qs({
         name: { type: 'string', description: '歌名', example: '稻香' },
@@ -94,7 +94,7 @@ export const musicRoutes = async(fastify: any) => {
 
     const lists = await Promise.all(
       musicSdk.sources
-        .filter(s => musicSdk[s.id]?.musicSearch)
+        .filter(s => musicSdk[s.id]?.musicSearch && !(s as any).noAggregate)
         .map(s => doSearch(s.id).catch(() => [])),
     )
     return { source: 'all', list: lists.flat(), page, limit }
@@ -188,7 +188,7 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/url/:source/:id', {
     schema: {
       summary: '获取播放地址',
-      description: 'id 为平台歌曲 id：kw/tx/wy 用 songmid，kg 用 hash，qs 用 track id。' +
+      description: 'id 为平台歌曲 id：kw/tx/wy 用 songmid，kg 用 hash，qs/xm/me 用声音 id，qt 为 <channelId>:<programId>（见 /album/qt），lr 为 <bookId>:<section>（见 /album/lr）。' +
         '取流按「外部音源脚本（SOURCE_ENABLED 启用时）→ SDK 官方直连 → 酷我兜底」顺序尝试，' +
         '酷我兜底按歌名/歌手/时长匹配同一首歌（匿名可用无损），kg 可由 hash 反查歌曲信息，' +
         '其它平台需要兜底时传 name/singer/interval。响应中的 via 字段标记实际命中通道（仅兜底时出现）。',
@@ -408,7 +408,7 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/album/:source/:id', {
     schema: {
       summary: '获取专辑详情与曲目列表',
-      description: '支持 kg/kw/mg（见 /sources 的 album 能力位）。kw 单页固定 1000 条、limit 不生效。',
+      description: '支持 kg/kw/tx/xm/me（见 /sources 的 album 能力位）。kw 单页固定 1000 条、xm/me 固定 30 条、limit 不生效。',
       tags: ['歌手专辑'],
       params: params({ source: pSource('album'), id: { type: 'string', description: '平台专辑 id（搜索结果中的 albumId）' } }),
       querystring: qs({ page: pPage, limit: pLimit }),

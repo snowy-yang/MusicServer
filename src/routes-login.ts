@@ -5,6 +5,9 @@ import * as wyAuth from '../sdk/auth/wy.ts'
 import * as kgAuth from '../sdk/auth/kg.ts'
 import * as txAuth from '../sdk/auth/tx.ts'
 import * as qsPassport from '../sdk/qs/passport.ts'
+import { status as xmStatus } from '../sdk/xm/index.ts'
+import { status as meStatus } from '../sdk/me/index.ts'
+import * as lrAuth from '../sdk/lr/auth.ts'
 import { clearCredentials, getCredentials, getTxAuth, setCredentials } from '../sdk/auth/store.ts'
 import { refreshAll } from './refresh.ts'
 
@@ -159,6 +162,59 @@ export const loginRoutes = async(fastify) => {
     }
   })
 
+  fastify.post('/login/kg/password', {
+    schema: {
+      summary: '酷狗账号密码登录',
+      description: '触发 20028 风控时返回 needVerify 挑战（含 eventid、验证类型与 sid/edt 指纹）：' +
+        '滑块类需浏览器完成图形验证（返回的 url/txappid 供前端加载腾讯验证码）后调 /login/kg/verify，' +
+        '再重试本接口；短信类（v_type=32）将收到的短信码先提交 /login/kg/verify，随后带 code 重试本接口完成登录。' +
+        '风控较严，频繁失败建议改用扫码或短信登录。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: {
+          username: { type: 'string' },
+          password: { type: 'string' },
+          code: { type: 'string', description: '短信验证码（20028 短信验证通过后重试登录时携带）' },
+        },
+        required: ['username', 'password'],
+      },
+    },
+  }, async(request, reply) => {
+    try {
+      return await kgAuth.passwordLogin(request.body)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/kg/verify', {
+    schema: {
+      summary: '提交酷狗风控验证结果',
+      description: '配合 /login/kg/password 的 needVerify 挑战使用：verifycode 为图形验证码凭证' +
+        '（格式 KGCodeXX|{ticket,randstr,txappid}）或短信验证码。sid/edt 省略时服务端自动生成行为指纹。' +
+        '验证通过后按挑战类型重试登录（短信码带 code 重试 /login/kg/password）。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: {
+          eventid: { type: 'string' },
+          v_type: { type: 'integer', description: '验证类型（needVerify 返回的 v_type）' },
+          verifycode: { type: 'string' },
+          sid: { type: 'string' },
+          edt: { type: 'string' },
+        },
+        required: ['eventid', 'v_type', 'verifycode'],
+      },
+    },
+  }, async(request, reply) => {
+    try {
+      return await kgAuth.verifyUserInfo(request.body)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
   fastify.delete('/login/kg', {
     schema: { summary: '退出酷狗登录', tags: ['登录'] },
   }, async() => {
@@ -266,6 +322,66 @@ export const loginRoutes = async(fastify) => {
     return { logged: false }
   })
 
+  // ---------- 喜马拉雅 ----------
+
+  fastify.post('/login/xm', {
+    schema: {
+      summary: '绑定喜马拉雅 cookie',
+      description: 'cookie 从已登录的 www.ximalaya.com 浏览器请求头复制（须含 1&_token 字段），' +
+        '用于解锁 xm 付费/已购内容取流。无法自动续期，失效后需重新复制绑定。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: { cookie: { type: 'string' } },
+        required: ['cookie'],
+      },
+    },
+  }, async(request, reply) => {
+    const cookie = String(request.body.cookie || '')
+    if (!/1&_token=\S+/.test(cookie)) {
+      return reply.code(422).send({ code: 422, msg: 'cookie 需包含 1&_token 字段' })
+    }
+    setCredentials('xm', { cookie })
+    return { logged: true }
+  })
+
+  fastify.delete('/login/xm', {
+    schema: { summary: '退出喜马拉雅登录', tags: ['登录'] },
+  }, async() => {
+    clearCredentials('xm')
+    return { logged: false }
+  })
+
+  // ---------- 猫耳FM ----------
+
+  fastify.post('/login/me', {
+    schema: {
+      summary: '绑定猫耳FM token',
+      description: 'cookie 从已登录的 m.missevan.com 浏览器请求头或猫耳 App 抓包复制（须含 token= 字段），' +
+        '用于解锁 me 付费声音取流（App API 签名通道会自动携带）。无法自动续期，失效后需重新绑定。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: { cookie: { type: 'string' } },
+        required: ['cookie'],
+      },
+    },
+  }, async(request, reply) => {
+    const cookie = String(request.body.cookie || '')
+    if (!/(?:^|;\s*)token=\S+/.test(cookie)) {
+      return reply.code(422).send({ code: 422, msg: 'cookie 需包含 token 字段' })
+    }
+    setCredentials('me', { cookie })
+    return { logged: true }
+  })
+
+  fastify.delete('/login/me', {
+    schema: { summary: '退出猫耳FM登录', tags: ['登录'] },
+  }, async() => {
+    clearCredentials('me')
+    return { logged: false }
+  })
+
   // ---------- 通用 ----------
 
   fastify.post('/login/refresh', {
@@ -280,7 +396,7 @@ export const loginRoutes = async(fastify) => {
   fastify.get('/login/status', {
     schema: {
       summary: '查看登录状态',
-      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx 为已存凭据（含 VIP 等级与最近更新时间）。',
+      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx 为已存凭据（含 VIP 等级与最近更新时间），qs/xm/me/lr 为已存凭据。',
       tags: ['登录'],
     },
   }, async() => {
@@ -293,6 +409,9 @@ export const loginRoutes = async(fastify) => {
       kg: kg ? { logged: true, ...kg, updatedAt: kgCred?.updatedAt } : { logged: false },
       tx: tx ? { logged: true, uin: tx.uin, vipType: txCred?.vipType ?? null, updatedAt: txCred?.updatedAt } : { logged: false },
       qs: qsPassport.status(),
+      xm: xmStatus(),
+      me: meStatus(),
+      lr: lrAuth.status(),
     }
   })
 }
