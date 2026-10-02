@@ -334,19 +334,24 @@ export const musicRoutes = async(fastify: any) => {
     return m.leaderboard.getList(boardId, page).catch(err => { throw upstream(err.message) })
   }
 
-  fastify.get('/boards/:source/:boardId', {
-    schema: {
-      summary: '获取榜单详情',
-      tags: ['榜单'],
-      params: params({
-        source: pSource('boards'),
-        boardId: { type: 'string', description: '榜单 id，兼容榜单列表返回的带前缀 id（kw__93）与裸 bangid（93）', example: 'kw__93' },
-      }),
-      querystring: qs({ page: pPage }),
-      response: responses('BoardDetailResult'),
-    },
-  }, async(request) => boardHandler(
-    request.params.source, request.params.boardId, request.query.page,
+  // 分页列表接口：页码为可选 path 段（第 1 页省略，下一页 /2），与 /search 同构
+  const pagedGet = (url: string, schemaFactory: (withPage: boolean) => any, handler: (request) => any) => {
+    fastify.get(url, { schema: schemaFactory(false) }, handler)
+    fastify.get(`${url}/:page`, { schema: schemaFactory(true) }, handler)
+  }
+
+  const boardDetailSchema = (withPage: boolean) => ({
+    summary: '获取榜单详情',
+    tags: ['榜单'],
+    params: params({
+      source: pSource('boards'),
+      boardId: { type: 'string', description: '榜单 id，兼容榜单列表返回的带前缀 id（kw__93）与裸 bangid（93）', example: 'kw__93' },
+      page: pPage,
+    }, withPage ? undefined : ['source', 'boardId']),
+    response: responses('BoardDetailResult'),
+  })
+  pagedGet('/boards/:source/:boardId', boardDetailSchema, async(request) => boardHandler(
+    request.params.source, request.params.boardId, Number(request.params.page) || 1,
   ))
 
   // ---------- 歌单 & 热搜 ----------
@@ -369,21 +374,23 @@ export const musicRoutes = async(fastify: any) => {
     return m.songList.getList(sortId ?? m.songList.sortList?.[0]?.id, tagId, page).catch(err => { throw upstream(err.message) })
   }
 
-  fastify.get('/song-list/:source', {
-    schema: {
-      summary: '获取歌单列表',
-      tags: ['歌单'],
-      params: params({ source: pSource('songList') }),
-      querystring: qs({
-        page: pPage,
-        sortId: { type: ['integer', 'string'], description: '排序 id（平台相关，见 /sources 对应平台文档；省略时用平台默认）' },
-        tagId: { type: ['integer', 'string'], description: '标签 id（平台相关，kw 为 `173-digest` 形态字符串；0 为全部）' },
-      }),
-      response: responses('SongListResult'),
-    },
-  }, async(request) => {
-    const { page, sortId, tagId } = request.query
-    return songListHandler(request.params.source, page, sortId, tagId)
+  const songListSchema = (withPage: boolean) => ({
+    summary: '获取歌单列表',
+    tags: ['歌单'],
+    params: params({
+      source: pSource('songList'),
+      page: pPage,
+    }, withPage ? undefined : ['source']),
+    querystring: qs({
+      limit: pLimit,
+      sortId: { type: ['integer', 'string'], description: '排序 id（平台相关，见 /sources 对应平台文档；省略时用平台默认）' },
+      tagId: { type: ['integer', 'string'], description: '标签 id（平台相关，kw 为 `173-digest` 形态字符串；0 为全部）' },
+    }),
+    response: responses('SongListResult'),
+  })
+  pagedGet('/song-list/:source', songListSchema, async(request) => {
+    const { sortId, tagId } = request.query
+    return songListHandler(request.params.source, Number(request.params.page) || 1, sortId, tagId)
   })
 
   // ---------- 歌手 & 专辑 ----------
@@ -402,50 +409,58 @@ export const musicRoutes = async(fastify: any) => {
       .getInfo(id).catch(err => { throw upstream(err.message) })
   })
 
-  fastify.get('/singer/:source/:id/songs', {
-    schema: {
-      summary: '获取歌手歌曲列表',
-      description: '支持 kg/tx/wy。',
-      tags: ['歌手专辑'],
-      params: params({ source: pSource('singer'), id: { type: 'string', description: '平台歌手 id' } }),
-      querystring: qs({ page: pPage, limit: pLimit }),
-      response: responses('SingerSongListResult'),
-    },
-  }, async(request) => {
+  const singerSongsSchema = (withPage: boolean) => ({
+    summary: '获取歌手歌曲列表',
+    description: '支持 kg/tx/wy。',
+    tags: ['歌手专辑'],
+    params: params({
+      source: pSource('singer'),
+      id: { type: 'string', description: '平台歌手 id' },
+      page: pPage,
+    }, withPage ? undefined : ['source', 'id']),
+    querystring: qs({ limit: pLimit }),
+    response: responses('SingerSongListResult'),
+  })
+  pagedGet('/singer/:source/:id/songs', singerSongsSchema, async(request) => {
     const { source, id } = request.params
-    const { page, limit } = request.query
     return getSource(musicSdk, source, 'singer').singer
-      .getSongList(id, page, limit).catch(err => { throw upstream(err.message) })
+      .getSongList(id, Number(request.params.page) || 1, request.query.limit).catch(err => { throw upstream(err.message) })
   })
 
-  fastify.get('/singer/:source/:id/albums', {
-    schema: {
-      summary: '获取歌手专辑列表',
-      description: '支持 kg/tx/wy。',
-      tags: ['歌手专辑'],
-      params: params({ source: pSource('singer'), id: { type: 'string', description: '平台歌手 id' } }),
-      querystring: qs({ page: pPage, limit: pLimit }),
-      response: responses('SingerAlbumListResult'),
-    },
-  }, async(request) => {
+  const singerAlbumsSchema = (withPage: boolean) => ({
+    summary: '获取歌手专辑列表',
+    description: '支持 kg/tx/wy。',
+    tags: ['歌手专辑'],
+    params: params({
+      source: pSource('singer'),
+      id: { type: 'string', description: '平台歌手 id' },
+      page: pPage,
+    }, withPage ? undefined : ['source', 'id']),
+    querystring: qs({ limit: pLimit }),
+    response: responses('SingerAlbumListResult'),
+  })
+  pagedGet('/singer/:source/:id/albums', singerAlbumsSchema, async(request) => {
     const { source, id } = request.params
-    const { page, limit } = request.query
     return getSource(musicSdk, source, 'singer').singer
-      .getAlbumList(id, page, limit).catch(err => { throw upstream(err.message) })
+      .getAlbumList(id, Number(request.params.page) || 1, request.query.limit).catch(err => { throw upstream(err.message) })
   })
 
-  fastify.get('/album/:source/:id', {
-    schema: {
-      summary: '获取专辑详情与曲目列表',
-      description: '支持 kg/kw/tx/xm/me（见 /sources 的 album 能力位）。kw 单页固定 1000 条、xm/me 固定 30 条、limit 不生效。',
-      tags: ['歌手专辑'],
-      params: params({ source: pSource('album'), id: { type: 'string', description: '平台专辑 id（搜索结果中的 albumId）' } }),
-      querystring: qs({ page: pPage, limit: pLimit }),
-      response: responses('AlbumDetailResult'),
-    },
-  }, async(request) => {
+  const albumSchema = (withPage: boolean) => ({
+    summary: '获取专辑详情与曲目列表',
+    description: '支持 kg/kw/tx/xm/me（见 /sources 的 album 能力位）。kw 单页固定 1000 条、xm/me 固定 30 条、limit 不生效。',
+    tags: ['歌手专辑'],
+    params: params({
+      source: pSource('album'),
+      id: { type: 'string', description: '平台专辑 id（搜索结果中的 albumId）' },
+      page: pPage,
+    }, withPage ? undefined : ['source', 'id']),
+    querystring: qs({ limit: pLimit }),
+    response: responses('AlbumDetailResult'),
+  })
+  pagedGet('/album/:source/:id', albumSchema, async(request) => {
     const { source, id } = request.params
-    const { page, limit } = request.query
+    const { limit } = request.query
+    const page = Number(request.params.page) || 1
     const album = getSource(musicSdk, source, 'album').album
     // 各平台适配器签名不同：kg 为 getAlbumDetail(id, page, limit)，
     // kw 为 getAlbumListDetail(id, page)——第三参数是 retryNum，不能透传 limit

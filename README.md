@@ -33,12 +33,12 @@ pnpm typecheck   # 仅类型检查，不运行
 | `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/yrc） |
 | `GET /pic/:source/:id` | 获取封面 |
 | `GET /boards/:source` | 榜单列表 |
-| `GET /boards/:source/:boardId` | 榜单详情 |
+| `GET /boards/:source/:boardId[/:page]` | 榜单详情（分页 path 段，第 1 页省略） |
 | `GET /hot-search/:source` | 热搜列表 |
-| `GET /song-list/:source?page=1` | 歌单列表 |
+| `GET /song-list/:source[/:page]` | 歌单列表（分页 path 段） |
 | `GET /singer/:source/:id` | 歌手信息（kg/tx/wy） |
-| `GET /singer/:source/:id/songs?page=1&limit=30` | 歌手歌曲列表（kg/tx/wy） |
-| `GET /singer/:source/:id/albums?page=1&limit=10` | 歌手专辑列表（kg/tx/wy） |
+| `GET /singer/:source/:id/songs[/:page]?limit=30` | 歌手歌曲列表（kg/tx/wy） |
+| `GET /singer/:source/:id/albums[/:page]?limit=10` | 歌手专辑列表（kg/tx/wy） |
 | `GET /album/:source/:id?page=1` | 专辑详情与曲目（kg/kw/tx/xm） |
 | `POST /login/wy/qr` → `POST /login/wy/qr/check` | 网易云扫码登录（扫码后轮询完成登录） |
 | `POST /login/wy/cellphone` | 网易云手机号登录（password 或 captcha） |

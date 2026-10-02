@@ -355,10 +355,17 @@ await test('平台列表 /sources', async() => {
 
 await test('榜单详情 路径风格 /boards/:source/:boardId', async() => {
   // 用列表返回的带前缀 id（回归：详情接口应自动归一化为裸 bangid）
-  const r = await get('/boards/kw/kw__93?page=1')
+  const r = await get('/boards/kw/kw__93')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return `${r.data.list.length} 首`
+})
+
+// 列表接口分页 path 段（pagedGet 风格：第 1 页省略段，下一页 /2）
+await test('榜单分页 /boards/:source/:boardId/:page', async() => {
+  const r = await get('/boards/kw/kw__93/2')
+  if (r.code != 0) throw new Error(r.msg)
+  return `${r.data?.list?.length} 首（第 2 页）`
 })
 
 await test('跨平台匹配 /find', async() => {
@@ -369,14 +376,14 @@ await test('跨平台匹配 /find', async() => {
 })
 
 await test('歌单 路径风格 /song-list/:source', async() => {
-  const r = await get('/song-list/kg?page=1')
+  const r = await get('/song-list/kg')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return `${r.data.list.length} 个歌单`
 })
 
 await test('歌单 默认排序 /song-list/kw', async() => {
-  const r = await get('/song-list/kw?page=1')
+  const r = await get('/song-list/kw')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表（sortId 默认值未适配平台）')
   return `${r.data.list.length} 个歌单`
@@ -406,14 +413,14 @@ await test('歌手信息 /singer/tx', async() => {
 })
 
 await test('歌手歌曲 /singer/tx/:id/songs', async() => {
-  const r = await get('/singer/tx/0025NhlN2yWrP4/songs?page=1&limit=3')
+  const r = await get('/singer/tx/0025NhlN2yWrP4/songs?limit=3')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return `${r.data.list.length} 首 / 共 ${r.data.total}`
 })
 
 await test('歌手专辑 /singer/kg/:id/albums', async() => {
-  const r = await get('/singer/kg/3062/albums?page=1&limit=3')
+  const r = await get('/singer/kg/3062/albums?limit=3')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.list?.length) throw new Error('空列表')
   return `${r.data.list.length} 张`
