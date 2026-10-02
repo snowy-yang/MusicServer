@@ -7,7 +7,9 @@ import { decodeName } from '../common/utils.ts'
 const enc_key = Buffer.from([0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69])
 
 const decodeLyric = str => new Promise((resolve, reject) => {
-  if (!str.length) return
+  // 空歌词必须显式 resolve：executor 里裸 return 会让 Promise 永久 pending，
+  // 调用方的 await 将一直挂起（连接与内存无法释放，只能等客户端超时）
+  if (!str.length) return resolve('')
   const buf_str = Buffer.from(str, 'base64').subarray(4)
   for (let i = 0, len = buf_str.length; i < len; i++) {
     buf_str[i] = buf_str[i] ^ enc_key[i % 16]

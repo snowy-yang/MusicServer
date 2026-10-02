@@ -50,5 +50,6 @@ const lr = {
   },
 }
 
-export { status } from './auth.ts'
+// login 一并导出：/login/lr 路由直接引用 sdk/lr/auth.ts，SDK 使用者也需要能拿到登录能力
+export { login, status } from './auth.ts'
 export default lr

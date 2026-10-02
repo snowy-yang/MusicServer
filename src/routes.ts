@@ -5,6 +5,7 @@
 
 import { notFound, upstream } from './http/api-error.ts'
 import { signStream } from './http/stream-sign.ts'
+import { registerMiguStream, takeMiguStream } from './http/migu-stream.ts'
 import { getMusicInfo } from '../sdk/kg/musicInfo.ts'
 
 const QUALITIES = ['64k', '128k', '320k', 'flac', 'flac24bit']
@@ -48,10 +49,27 @@ const pId = { type: 'string', description: '平台歌曲 id', example: '28423286
 const qs = (properties: any, required: string[] = []) => ({ type: 'object', properties, required })
 const params = (properties: any, required?: string[]) => qs(properties, required ?? Object.keys(properties))
 
+/** 能力位取值：支持 `album.searchAlbum` 形式的嵌套路径 */
+const capabilityOf = (m: any, capability?: string) => {
+  if (!m || !capability) return m
+  let cur = m
+  for (const key of capability.split('.')) {
+    if (cur == null) return undefined
+    cur = cur[key]
+  }
+  return cur
+}
+
 const getSource = (musicSdk: any, name: string, capability?: string) => {
   const m = musicSdk[name]
-  if (!m || (capability && !m[capability])) throw notFound(`不支持的平台: ${name}`)
+  if (!m || !capabilityOf(m, capability)) throw notFound(`不支持的平台: ${name}`)
   return m
+}
+
+/** 歌单分类返回形状不一（{list}/裸数组），统一为 { source, list } */
+const normalizeCategories = (source: string, res: any) => {
+  const list = Array.isArray(res) ? res : (res?.list ?? [])
+  return { source, list }
 }
 
 /**
@@ -160,9 +178,14 @@ export const musicRoutes = async(fastify: any) => {
     // 取流链：外部音源脚本（SOURCE_ENABLED 启用时）→ SDK 官方直连 → 酷我兜底（跨平台匹配）
     const finish = (res: any, via: string) => {
       if (!res?.url) throw new Error('获取播放地址失败')
+      // 加密流（migu 的 Z3D/I3D）：客户端无法自行解密，改指向服务端解密代理 /stream/migu/<票据>
+      let rawUrl = String(res.url)
+      if (res.encrypted && res.fileKey) {
+        rawUrl = `/stream/migu/${registerMiguStream(rawUrl, String(res.fileKey))}`
+      }
       // qs 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）；
       // 启用 AUTH_KEY 时附带短时签名（播放器拉流无法携带自定义头，签名不暴露秘钥本身）
-      let url = String(res.url)
+      let url = rawUrl
       if (url.startsWith('/')) {
         const suffix = process.env.AUTH_KEY
           ? `${url.includes('?') ? '&' : '?'}${signStream(process.env.AUTH_KEY, url.split('?')[0])}`
@@ -237,27 +260,69 @@ export const musicRoutes = async(fastify: any) => {
     },
   }, urlHandler)
 
-  // qs 解密流代理：登录态取流返回 /stream/qs/:id 相对地址，本端点完成"签名 track_v2 →
-  // 密音频下载 → spade key + AES-CTR 解密 → 回明文流"。raw 豁免 { code, data } 信封包装
-  fastify.get('/stream/qs/:id', {
+  // 加密流解密代理（qs 汽水解密流 / migu 咪咕 Z3D 加密流）：统一 /stream/:source/:id，用 path 段 source 区分平台。
+  // - qs：/url/qs 登录态取流返回相对地址 /stream/qs/<trackId>，本端点完成"签名 track_v2 →
+  //   密音频下载 → spade key + AES-CTR 解密 → 回明文流"
+  // - migu：/url/migu 命中 Z3D/I3D 加密候选时登记票据并返回 /stream/migu/<票据>，本端点凭票下载密流逐字节解密
+  // 两者均由 /url 产出相对地址，路由层负责补全 origin；raw 豁免 { code, data } 信封包装
+  fastify.get('/stream/:source/:id', {
     config: { raw: true },
     schema: {
-      summary: '汽水音乐解密流代理',
-      description: '登录态取流地址（/url/qs 返回的相对地址）。服务端完成 track_v2 签名请求与 cenc-aes-ctr 本地解密，返回明文音频。',
+      summary: '加密流解密代理（qs / migu）',
+      description: '取流响应中返回的相对地址（/url/qs 的流地址、/url/migu 命中加密流时的地址），' +
+        '服务端下载上游密流并在本地解密后返回明文音频；不接受客户端自行构造。' +
+        'source=qs 时 id 为汽水 track id（track_v2 签名 + cenc-aes-ctr 解密）；' +
+        'source=migu 时 id 为取流响应 url 中的票据段（票据 10 分钟内有效，过期请重新 /url/migu 取流）。',
       tags: ['歌曲资源'],
-      params: params({ id: pId }),
+      params: params({
+        source: { type: 'string', enum: ['qs', 'migu'], description: '平台 id：qs=汽水音乐解密流 / migu=咪咕加密流', example: 'qs' },
+        id: { type: 'string', description: 'qs: 汽水 track id；migu: 取流响应 url 中的票据段（无需自行构造）', example: '7123456789' },
+      }),
     },
   }, async(request, reply) => {
-    const { id } = request.params
-    try {
-      const entry = await fastify.musicSdk.qs.getStreamBuffer(id)
-      reply.type(entry.contentType || 'audio/mp4')
-      reply.header('Accept-Ranges', 'none')
-      reply.header('Content-Length', entry.buffer.length)
-      return reply.send(entry.buffer)
-    } catch (err: any) {
-      throw upstream(err.message)
+    const { source, id } = request.params
+
+    // 汽水：track id → 签名请求 → 下载密音频 → 本地解密为明文
+    if (source === 'qs') {
+      try {
+        const entry = await fastify.musicSdk.qs.getStreamBuffer(String(id))
+        reply.type(entry.contentType || 'audio/mp4')
+        reply.header('Accept-Ranges', 'none')
+        reply.header('Content-Length', entry.buffer.length)
+        return reply.send(entry.buffer)
+      } catch (err: any) {
+        throw upstream(err.message)
+      }
     }
+
+    // 咪咕：票据 → 逐块解密流
+    const ticket = takeMiguStream(String(id))
+    if (!ticket) throw notFound('解密票据不存在或已过期（请重新调用 /url/migu 取流）')
+    // 流式下载 + 逐块解密：咪咕 Z3D 密钥流按 32 字节循环，块内保持全局偏移即可，
+    // 避免把上百 MB 的 wav/flac 整段读进内存（httpFetch 有 64MB 缓冲上限）
+    const { miguZ3DStreamKey, isMiguAudioMagic } = await import('../sdk/migu/util.ts')
+    const { pipeDecryptedMiguStream, miguStreamContentType } = await import('./http/migu-stream.ts')
+    const streamKey = miguZ3DStreamKey(ticket.fileKey)
+    reply.raw.writeHead(200, {
+      'Content-Type': miguStreamContentType(ticket.url),
+      'Accept-Ranges': 'none',
+      'Transfer-Encoding': 'chunked',
+    })
+    try {
+      await pipeDecryptedMiguStream(ticket.url, (chunk, offset) => {
+        const plain = Buffer.alloc(chunk.length)
+        for (let i = 0; i < chunk.length; i++) plain[i] = chunk[i]! - streamKey[(offset + i) & 31]!
+        return plain
+      }, (plain, offset) => {
+        if (offset === 0 && !isMiguAudioMagic(plain)) throw new Error('解密结果不是有效音频')
+        reply.raw.write(plain)
+      })
+      reply.raw.end()
+    } catch (err: any) {
+      // 响应头已发出（流式），只能中断连接；未发出时走统一错误处理
+      reply.raw.destroy(new Error(err?.message || 'migu 解密流失败'))
+    }
+    return reply
   })
 
   const lyricHandler = async(request) => {
@@ -382,7 +447,8 @@ export const musicRoutes = async(fastify: any) => {
       page: pPage,
     }, withPage ? undefined : ['source']),
     querystring: qs({
-      limit: pLimit,
+      // 注：本接口无 limit —— 各平台的 getList 签名不一致（如 kw 为 (sortId, tagId, page, tryNum)），
+      // 条数由平台接口自身决定，无法统一透传；此前 schema 声明 limit 但实现忽略，属文档说谎
       sortId: { type: ['integer', 'string'], description: '排序 id（平台相关，见 /sources 对应平台文档；省略时用平台默认）' },
       tagId: { type: ['integer', 'string'], description: '标签 id（平台相关，kw 为 `173-digest` 形态字符串；0 为全部）' },
     }),
@@ -447,7 +513,8 @@ export const musicRoutes = async(fastify: any) => {
 
   const albumSchema = (withPage: boolean) => ({
     summary: '获取专辑详情与曲目列表',
-    description: '支持 kg/kw/tx/xm/me（见 /sources 的 album 能力位）。kw 单页固定 1000 条、xm/me 固定 30 条、limit 不生效。',
+    description: '支持 kg/kw/tx/wy/xm/me/qt/lr/migu/qian/joox/apple（见 /sources 的 album 能力位）。' +
+      'kw 单页固定 1000 条、xm/me 固定 30 条、limit 不生效。',
     tags: ['歌手专辑'],
     params: params({
       source: pSource('album'),
@@ -466,6 +533,205 @@ export const musicRoutes = async(fastify: any) => {
     // kw 为 getAlbumListDetail(id, page)——第三参数是 retryNum，不能透传 limit
     if (album.getAlbumDetail) return album.getAlbumDetail(id, page, limit).catch(err => { throw upstream(err.message) })
     return album.getAlbumListDetail(id, page).catch(err => { throw upstream(err.message) })
+  })
+
+  fastify.get('/album/:source/search/:keyword', {
+    schema: {
+      summary: '搜索专辑',
+      description: '支持 kg/kw/tx/wy/migu/qian/joox/apple（见 /sources 的 albumSearch 能力位）。',
+      tags: ['歌手专辑'],
+      params: params({ source: pSource('album.searchAlbum'), keyword: { type: 'string', description: '专辑名关键词', example: '魔杰座' } }),
+      querystring: qs({ page: pPage, limit: pLimit }),
+      response: responses('AlbumDetailResult', { notFoundDoc: false }),
+    },
+  }, async(request) => {
+    const { source, keyword } = request.params
+    const { page, limit } = request.query
+    const m = getSource(musicSdk, source, 'album.searchAlbum').album
+    try {
+      const res = await m.searchAlbum(keyword, page, limit)
+      // 各平台返回形状不一（有的 {list,total}，有的裸数组），统一成列表形状
+      if (Array.isArray(res)) return { source, list: res, page, limit, total: res.length }
+      return { source, ...res }
+    } catch (err: any) {
+      throw upstream(err.message)
+    }
+  })
+
+  // ---------- 歌单（搜索 / 详情 / 分类） ----------
+
+  fastify.get('/playlist/:source/search/:keyword', {
+    schema: {
+      summary: '搜索歌单',
+      description: '支持 kg/kw/tx/wy/migu/qian/joox/bili/5sing/apple（见 /sources 的 playlistSearch 能力位）。' +
+        '部分平台该能力受限（如 qian 歌单搜索接口已下线、bili 需登录），失败时返回 502。',
+      tags: ['歌单'],
+      params: params({ source: pSource('playlist.searchPlaylist'), keyword: { type: 'string', example: '华语' } }),
+      querystring: qs({ page: pPage, limit: pLimit }),
+      response: responses('PlaylistSearchResult'),
+    },
+  }, async(request) => {
+    const { source, keyword } = request.params
+    const { page, limit } = request.query
+    const m = getSource(musicSdk, source, 'playlist.searchPlaylist').playlist
+    try {
+      const res = await m.searchPlaylist(keyword, page, limit)
+      if (Array.isArray(res)) return { source, list: res, page, limit, total: res.length }
+      return { source, ...res }
+    } catch (err: any) {
+      throw upstream(err.message)
+    }
+  })
+
+  fastify.get('/playlist/:source/categories', {
+    schema: {
+      summary: '获取歌单分类',
+      description: '支持 kw/kg/tx/wy/migu/qian/joox/bili/5sing/apple（见 /sources 的 playlistCategories 能力位）。',
+      tags: ['歌单'],
+      params: params({ source: pSource('playlist.getCategories') }),
+      response: responses('PlaylistCategoriesResult'),
+    },
+  }, async(request) => {
+    const m = getSource(musicSdk, request.params.source, 'playlist.getCategories').playlist
+    try {
+      return normalizeCategories(request.params.source, await m.getCategories())
+    } catch (err: any) {
+      throw upstream(err.message)
+    }
+  })
+
+  const categoriesResult = async(source: string, categoryId: string, page: number, limit: number) => {
+    const m = getSource(musicSdk, source, 'playlist').playlist
+    if (typeof m.getCategoryPlaylists !== 'function') throw notFound(`平台 ${source} 不支持分类歌单`)
+    try {
+      const res = await m.getCategoryPlaylists(categoryId, page, limit)
+      if (Array.isArray(res)) return { source, list: res, page, limit, total: res.length }
+      return { source, ...res }
+    } catch (err: any) {
+      throw upstream(err.message)
+    }
+  }
+
+  fastify.get('/playlist/:source/categories/:categoryId', {
+    schema: {
+      summary: '获取分类下的歌单',
+      description: 'categoryId 为 /playlist/:source/categories 返回的分类 id（部分平台 id 即分类名）。',
+      tags: ['歌单'],
+      params: params({
+        source: pSource('playlist.getCategories'),
+        categoryId: { type: 'string', description: '分类 id（分类列表返回）', example: '华语' },
+      }),
+      querystring: qs({ page: pPage, limit: pLimit }),
+      response: responses('PlaylistSearchResult'),
+    },
+  }, async(request) => categoriesResult(
+    request.params.source, request.params.categoryId, request.query.page, request.query.limit,
+  ))
+
+  const playlistSchema = (withPage: boolean) => ({
+    summary: '获取歌单详情与曲目列表',
+    description: 'id 为歌单 id 或链接（部分平台支持链接/裸 id，如 bili 的 season:<id>:<mid>:<bvid>、' +
+      'joox/qian/migu 的网页链接）。列表按 page/limit 切片（聚合接口自身分页的平台由平台决定）。',
+    tags: ['歌单'],
+    params: params({
+      source: pSource('playlist'),
+      id: { type: 'string', description: '歌单 id（或平台歌单链接）', example: '123456789' },
+      page: pPage,
+    }, withPage ? undefined : ['source', 'id']),
+    querystring: qs({ limit: pLimit }),
+    response: responses('PlaylistDetailResult'),
+  })
+  pagedGet('/playlist/:source/:id', playlistSchema, async(request) => {
+    const { source, id } = request.params
+    const { limit } = request.query
+    const page = Number(request.params.page) || 1
+    const m = getSource(musicSdk, source, 'playlist').playlist
+    try {
+      // 上游/移植的详情接口普遍自带分页（page, limit）
+      return await m.getPlaylistDetail(id, page, limit)
+    } catch (err: any) {
+      // 部分平台详情签名只有 id：退化为取全量后本地切片
+      try {
+        const songs = await m.getPlaylistSongs(id)
+        if (!Array.isArray(songs)) throw err
+        const start = (page - 1) * limit
+        return {
+          source,
+          info: { name: id, img: '', desc: '', author: '' },
+          list: songs.slice(start, start + limit),
+          page,
+          limit,
+          total: songs.length,
+        }
+      } catch {
+        throw upstream(err.message)
+      }
+    }
+  })
+
+  // ---------- 链接解析（歌曲/专辑/歌单链接 → 结构化数据） ----------
+
+  const parseBodySchema = { type: 'object', properties: { link: { type: 'string', description: '平台链接或裸 id' } }, required: ['link'] }
+
+  const parseHandler = (kind: 'song' | 'album' | 'playlist') => async(request: any) => {
+    const { source } = request.params
+    const link = String(request.body?.link ?? '').trim()
+    const m = getSource(musicSdk, source, 'parse')
+    const impl = m.parse?.[`parse${kind[0]!.toUpperCase()}${kind.slice(1)}`]
+    if (typeof impl !== 'function') throw notFound(`平台 ${source} 不支持解析该类型链接`)
+    try {
+      const out = await impl(link)
+      // 统一响应：{ source, type, song | playlist+list }
+      if (kind === 'song') {
+        if (out?.list || out?.songs) {
+          const list = out.list ?? out.songs
+          return { source, type: 'playlist', playlist: out.info ?? out.playlist ?? null, list, total: list.length }
+        }
+        return { source, type: 'song', song: out }
+      }
+      const list = out?.list ?? out?.songs ?? []
+      return { source, type: kind, playlist: out?.info ?? out?.playlist ?? out, list, total: list.length }
+    } catch (err: any) {
+      throw upstream(err.message)
+    }
+  }
+
+  for (const kind of ['song', 'album', 'playlist'] as const) {
+    fastify.post(`/parse/${kind}/:source`, {
+      schema: {
+        summary: `解析${kind === 'song' ? '歌曲' : kind === 'album' ? '专辑' : '歌单'}链接`,
+        description: '把平台链接（或裸 id）解析成结构化歌曲/曲目数据。支持平台见 /sources 的 parse 能力位；' +
+          '5sing 歌曲/歌单、apple/bili/joox/qian/migu 三类、kw/kg/tx/wy 部分支持。',
+        tags: ['链接解析'],
+        params: params({ source: pSource('parse.parseSong') }),
+        body: parseBodySchema,
+        response: responses('ParseResult'),
+      },
+    }, parseHandler(kind))
+  }
+
+  // ---------- 个人歌单（需登录态） ----------
+
+  fastify.get('/user-playlist/:source', {
+    schema: {
+      summary: '获取个人歌单列表',
+      description: '需先登录（见 /login/*）。当前仅 tx/wy 有完整实现（见 /sources 的 userPlaylist 能力位）；' +
+        '未登录或平台不支持时返回 404/502。',
+      tags: ['歌单'],
+      params: params({ source: pSource('userPlaylist.getList') }),
+      querystring: qs({ page: pPage, limit: pLimit }),
+      response: responses('UserPlaylistResult'),
+    },
+  }, async(request) => {
+    const { source } = request.params
+    const { page, limit } = request.query
+    const m = getSource(musicSdk, source, 'userPlaylist.getList').userPlaylist
+    try {
+      const list = await m.getList(page, limit)
+      return { source, list: Array.isArray(list) ? list : (list?.list ?? []), page, limit }
+    } catch (err: any) {
+      throw upstream(err.message)
+    }
   })
 
   // ---------- 系统 ----------
@@ -494,22 +760,24 @@ export const musicRoutes = async(fastify: any) => {
     platforms: musicSdk.sources.map(({ id, name }) => {
       const m = musicSdk[id] || {}
       const qualities = musicSdk.supportQuality?.[id] ?? []
-      return {
-        id,
-        name,
-        qualities,
-        capabilities: {
-          search: Boolean(m.musicSearch),
-          url: Boolean(m.getMusicUrl),
-          lyric: Boolean(m.getLyric),
-          pic: Boolean(m.getPic),
-          boards: Boolean(m.leaderboard),
-          hotSearch: Boolean(m.hotSearch),
-          songList: Boolean(m.songList),
-          singer: Boolean(m.singer),
-          album: Boolean(m.album),
-        },
+      const caps = {
+        search: Boolean(m.musicSearch),
+        url: Boolean(m.getMusicUrl),
+        lyric: Boolean(m.getLyric),
+        pic: Boolean(m.getPic),
+        boards: Boolean(m.leaderboard),
+        hotSearch: Boolean(m.hotSearch),
+        songList: Boolean(m.songList),
+        singer: Boolean(m.singer),
+        album: Boolean(m.album?.getAlbumDetail || m.album?.getAlbumListDetail),
+        albumSearch: Boolean(m.album?.searchAlbum),
+        playlist: Boolean(m.playlist?.getPlaylistDetail),
+        playlistSearch: Boolean(m.playlist?.searchPlaylist),
+        playlistCategories: Boolean(m.playlist?.getCategories),
+        parse: Boolean(m.parse?.parseSong || m.parse?.parseAlbum || m.parse?.parsePlaylist),
+        userPlaylist: Boolean(m.userPlaylist?.getList),
       }
+      return { id, name, qualities, capabilities: caps }
     }),
   }))
 }

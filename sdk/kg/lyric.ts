@@ -69,7 +69,8 @@ export default {
     requestObj.promise = (requestObj.promise as any).then(({ body, statusCode }) => {
       if (statusCode !== 200) {
         if (tryNum > 5) return Promise.reject(new Error('歌词获取失败'))
-        let tryRequestObj = (this.getLyric as any)(id, accessKey, fmt, ++tryNum)
+        // 重试必须回到本方法 getLyricDownload；原先误调 getLyric（参数语义不同）导致重试恒失败
+        const tryRequestObj = this.getLyricDownload(id, accessKey, fmt, ++tryNum)
         requestObj.cancelHttp = tryRequestObj.cancelHttp.bind(tryRequestObj)
         return tryRequestObj.promise
       }

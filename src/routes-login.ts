@@ -5,8 +5,13 @@ import * as wyAuth from '../sdk/auth/wy.ts'
 import * as kgAuth from '../sdk/auth/kg.ts'
 import * as txAuth from '../sdk/auth/tx.ts'
 import * as qsPassport from '../sdk/qs/passport.ts'
+import * as biliAuth from '../sdk/bili/login.ts'
 import { status as xmStatus } from '../sdk/xm/index.ts'
 import { status as meStatus } from '../sdk/me/index.ts'
+import { status as qianStatus } from '../sdk/qian/index.ts'
+import { status as jooxStatus } from '../sdk/joox/index.ts'
+import { status as appleStatus } from '../sdk/apple/index.ts'
+import { status as fivesingStatus } from '../sdk/5sing/index.ts'
 import * as lrAuth from '../sdk/lr/auth.ts'
 import { clearCredentials, getCredentials, getTxAuth, setCredentials } from '../sdk/auth/store.ts'
 import { refreshAll } from './refresh.ts'
@@ -288,8 +293,11 @@ export const loginRoutes = async(fastify) => {
   fastify.post('/login/qs/qr', {
     schema: {
       summary: '获取汽水音乐扫码登录二维码',
-      description: '用「抖音 APP」扫码（汽水 App 扫可能不完成确认）后轮询 /login/qs/qr/check 完成登录。' +
-        '返回 qrimg（data URL）可直接展示，token 需原样回传。登录后 qs 取流走签名 track_v2，解锁完整曲目。',
+      description: '用「汽水音乐 APP」扫一扫（官方 PC 客户端同款文案：打开汽水音乐 APP → 搜索框右侧扫一扫；' +
+        '抖音 APP 扫可能不完成确认）后轮询 /login/qs/qr/check 完成登录。' +
+        '返回 qrimg（data URL）可直接展示，token 需原样回传；二维码内容为官方 PC 客户端同款扫码页' +
+        '（bff-pc.qishui.com/light/invoke/scan_login，另见 scanUrl 字段）。轮询间隔建议 ≥2 秒。' +
+        '登录后 qs 取流走签名 track_v2，解锁完整曲目。',
       tags: ['登录'],
     },
   }, async(_request, reply) => {
@@ -303,7 +311,7 @@ export const loginRoutes = async(fastify) => {
   fastify.post('/login/qs/qr/check', {
     schema: {
       summary: '轮询汽水音乐扫码状态',
-      description: 'code：800 二维码过期 / 801 等待扫码 / 802 已扫码待确认 / 803 登录成功（自动保存凭据）。',
+      description: 'code：800 二维码过期/被拒 / 801 等待扫码 / 802 已扫码待确认（含需二次验证）/ 803 登录成功（自动保存凭据）。',
       tags: ['登录'],
       body: { type: 'object', properties: { token: { type: 'string' } }, required: ['token'] },
     },
@@ -382,6 +390,78 @@ export const loginRoutes = async(fastify) => {
     return { logged: false }
   })
 
+  // ---------- 懒人听书 ----------
+
+  fastify.post('/login/lr', {
+    schema: {
+      summary: '懒人听书账号登录',
+      description: 'm.lrts.me 账号密码登录（密码按上游要求以 base64 提交）。成功后会话 Cookie 持久化到 data/auth.json，' +
+        '此后 lr 取流自动携带 —— 懒人听书要求登录态，免费章节同样如此。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: {
+          account: { type: 'string', description: '账号（手机号）' },
+          password: { type: 'string', description: '密码（明文传入，服务端自行编码）' },
+        },
+        required: ['account', 'password'],
+      },
+    },
+  }, async(request, reply) => {
+    const { account, password } = request.body
+    try {
+      return await lrAuth.login({ account, password })
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.delete('/login/lr', {
+    schema: { summary: '退出懒人听书登录', tags: ['登录'] },
+  }, async() => {
+    clearCredentials('lr')
+    return { logged: false }
+  })
+
+  // ---------- 哔哩哔哩 ----------
+
+  fastify.post('/login/bili/qr', {
+    schema: {
+      summary: '获取哔哩哔哩扫码登录二维码',
+      description: '用 B站 App 扫码后轮询 /login/bili/qr/check 完成登录。返回 key 需原样回传，qrimg 为 data URL 可直接展示。',
+      tags: ['登录'],
+    },
+  }, async(request, reply) => {
+    try {
+      return await biliAuth.createQRLogin()
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/bili/qr/check', {
+    schema: {
+      summary: '轮询哔哩哔哩扫码状态',
+      description: 'status：waiting 等待扫码 / scanned 已扫码待确认 / success 登录成功（自动保存凭据并返回账号资料）' +
+        '/ expired 二维码过期 / failed 失败。code 为 B站原始返回码（86101/86038/86090/0）。',
+      tags: ['登录'],
+      body: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
+    },
+  }, async(request, reply) => {
+    try {
+      return await biliAuth.checkQRLogin(request.body.key)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.delete('/login/bili', {
+    schema: { summary: '退出哔哩哔哩登录', tags: ['登录'] },
+  }, async() => {
+    clearCredentials('bili')
+    return { logged: false }
+  })
+
   // ---------- 通用 ----------
 
   fastify.post('/login/refresh', {
@@ -396,13 +476,14 @@ export const loginRoutes = async(fastify) => {
   fastify.get('/login/status', {
     schema: {
       summary: '查看登录状态',
-      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx 为已存凭据（含 VIP 等级与最近更新时间），qs/xm/me/lr 为已存凭据。',
+      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx/bili 为已存凭据（含 VIP 等级与最近更新时间），' +
+        'qs/xm/me/lr/qian/joox/apple/5sing 为已存凭据。',
       tags: ['登录'],
     },
   }, async() => {
     const [wy, kg] = await Promise.all([wyAuth.status().catch(() => null), Promise.resolve(kgAuth.status())])
     const tx = getTxAuth()
-    const txCred = getCredentials('tx') as { vipType?: string; updatedAt?: string } | null
+    const txCred = getCredentials('tx') as { vipType?: string, updatedAt?: string } | null
     const kgCred = getCredentials('kg') as { updatedAt?: string } | null
     return {
       wy: wy ? { logged: true, ...wy } : { logged: false },
@@ -412,6 +493,11 @@ export const loginRoutes = async(fastify) => {
       xm: xmStatus(),
       me: meStatus(),
       lr: lrAuth.status(),
+      bili: biliAuth.status(),
+      qian: qianStatus(),
+      joox: jooxStatus(),
+      apple: appleStatus(),
+      '5sing': fivesingStatus(),
     }
   })
 }

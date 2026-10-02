@@ -1,19 +1,26 @@
 // HTTP 服务器入口（Fastify）—— 多平台音乐聚合 API
 // 设计目标：标准 HTTP 语义 + FastAPI 风格的自动文档（校验与文档均由 JSON Schema 驱动）
 //
-//   GET /search?name=&singer=&source=&page=&limit=   搜索（source 省略时聚合全部平台）
-//   GET /find?name=&singer=&albumName=&interval=     跨平台精确匹配
+//   GET /search/:source/:keyword[/:page]             搜索（source 为平台 id 或 all 聚合）
+//   GET /find/:source/:keyword                       跨平台精确匹配
 //   GET /url/:source/:id                             播放地址
 //   GET /lyric/:source/:id                           歌词
 //   GET /pic/:source/:id                             封面
 //   GET /boards/:source                              榜单列表
-//   GET /boards/:source/:boardId                     榜单详情
+//   GET /boards/:source/:boardId[/:page]             榜单详情
 //   GET /hot-search/:source                          热搜词
-//   GET /song-list/:source                           歌单列表
+//   GET /song-list/:source[/:page]                   歌单列表
 //   GET /singer/:source/:id                          歌手信息（kg/tx/wy）
-//   GET /singer/:source/:id/songs                    歌手歌曲（kg/tx/wy）
-//   GET /singer/:source/:id/albums                   歌手专辑（kg/tx/wy）
-//   GET /album/:source/:id                           专辑详情+曲目（kg/kw）
+//   GET /singer/:source/:id/songs[/:page]            歌手歌曲（kg/tx/wy）
+//   GET /singer/:source/:id/albums[/:page]           歌手专辑（kg/tx/wy）
+//   GET /album/:source/:id[/:page]                   专辑详情+曲目
+//   GET /album/:source/search/:keyword               专辑搜索
+//   GET /playlist/:source/:id[/:page]                歌单详情+曲目
+//   GET /playlist/:source/search/:keyword            歌单搜索
+//   GET /playlist/:source/categories[/:categoryId]   歌单分类
+//   POST /parse/{song|album|playlist}/:source        链接解析
+//   GET /user-playlist/:source                       个人歌单
+//   GET /stream/:source/:id                          解密流代理（source: qs 汽水 / migu 咪咕）
 //   GET /sources /health              GET /docs /redoc /openapi.json
 //
 // 状态码语义：200 成功；422 参数校验失败；404 路由或平台不存在；405 方法不允许；502 上游平台失败；500 内部错误
@@ -40,8 +47,9 @@ import { redocHtml } from './openapi/ui.ts'
 const PORT = process.env.PORT || 16688
 const DOCS_PREFIX = '/docs'
 const API_TITLE = 'MusicServer 聚合音乐 API'
-const API_DESCRIPTION = '多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单。' +
-  '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）/ qs（汽水音乐）平台。'
+const API_DESCRIPTION = '多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单、专辑、歌手、链接解析。' +
+  '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）/ qs（汽水音乐）/ migu（咪咕）/ qian（千千）/ ' +
+  'joox / bili（哔哩哔哩）/ 5sing / apple（Apple Music，仅试听）与有声平台 xm（喜马拉雅）/ me（猫耳FM）/ qt（蜻蜓FM）/ lr（懒人听书）。'
 
 const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'))
 

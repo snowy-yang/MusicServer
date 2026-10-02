@@ -7,6 +7,7 @@
 
 import http from 'node:http'
 import net from 'node:net'
+import path from 'node:path'
 import { spawn } from 'node:child_process'
 
 // 端口策略：默认在随机空闲端口自起独立实例（避免连到 16688 等常驻实例——
@@ -75,13 +76,33 @@ const test = async(name: string, fn: () => Promise<any>) => {
   }
 }
 
+// 测试数据目录：与真实 data/ 隔离，避免 /login/refresh 等用例改写开发者的真实登录态
+const TEST_DATA_DIR = path.join(process.cwd(), 'tmp', 'test-data')
+
+// 已启动的全部子实例。无论脚本正常收尾还是中途抛错，退出时统一回收 ——
+// 否则异常路径会留下监听端口的孤儿 node（历史上曾累积 5 个泄漏实例）
+const spawned: any[] = []
+process.on('exit', () => {
+  for (const proc of spawned) {
+    try { proc.kill() } catch { /* 已自行退出 */ }
+  }
+})
+
 /**
  * 启动本地服务器（指定端口，可覆盖环境变量）并返回进程句柄
+ * 显式关闭外部音源（SOURCE_ENABLED=''）：本套用例验证的是 SDK 官方直连通道，
+ * 若继承开发者 .env 的 SOURCE_ENABLED=true，取流会先走 sources/ 脚本链，掩盖 SDK 侧回归。
  */
 const startLocalServer = (port: number, envExtra: Record<string, string> = {}) => new Promise((resolve, reject) => {
   const proc = spawn(process.execPath, ['src/server.ts'], {
     cwd: process.cwd(),
-    env: { ...process.env, PORT: String(port), ...envExtra },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      SOURCE_ENABLED: '',
+      DATA_DIR: TEST_DATA_DIR,
+      ...envExtra,
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stdout = ''
@@ -90,16 +111,22 @@ const startLocalServer = (port: number, envExtra: Record<string, string> = {}) =
 
   const timer = setTimeout(() => {
     proc.kill()
-    reject(new Error('启动本地服务器超时'))
-  }, 10000)
+    reject(new Error(`启动本地服务器超时（30s）\n--- 子进程输出（末 2000 字）---\n${stdout.slice(-2000) || '(无输出)'}`))
+  }, 30000)
 
   const check = () => {
+    // 子进程提前退出（端口占用 / 语法错误等）：立即带输出报错，不再空等到超时
+    if (proc.exitCode !== null) {
+      clearTimeout(timer)
+      return reject(new Error(`本地服务器进程已退出（code ${proc.exitCode}）\n--- 输出（末 2000 字）---\n${stdout.slice(-2000) || '(无输出)'}`))
+    }
     // 启用 AUTH_KEY 的实例全路径要求秘钥，探活也须携带
     const headers = envExtra.AUTH_KEY ? { 'X-Server-Key': envExtra.AUTH_KEY } : {}
     http.get(`http://localhost:${port}/health`, { headers }, res => {
       res.resume()
       if (res.statusCode === 200) {
         clearTimeout(timer)
+        spawned.push(proc)
         resolve(proc)
       } else {
         setTimeout(check, 200)
@@ -123,7 +150,8 @@ if (externalServer) {
   })
   const port = PORT || freePort
   BASE = `http://localhost:${port}`
-  localServer = await startLocalServer(port)
+  // 主实例关闭限流：用例数已超默认阈值（120/min），限流行为由下方独立低阈值实例专项验证
+  localServer = await startLocalServer(port, { RATE_LIMIT: '0' })
   console.log(`本地服务器已启动（:${port}）\n`)
 }
 
@@ -148,12 +176,19 @@ await test('聚合搜索', async() => {
 // kw 匿名通道 2026-10-01 接入 mobi.s convert_url_with_sign 主通道后：
 // 免费歌全档位可用，VIP 歌也放行真音频（320k/flac 实测与 N_MINFO 元数据逐字节吻合），
 // web playUrl 仅作回退（匿名恒 128k）
+// 酷我 CDN 回吐的 url query 用 $ 顶替 =（?bitrate$320&format$mp3…），非标准分隔符，
+// 取了 kw 的流就必须确认 SDK 已归正，否则播放器解析不出参数
+const assertKwUrl = (url: string): string => {
+  if (url.includes('$')) throw new Error(`URL 含未归正的 $ 分隔符: ${url}`)
+  return url.slice(0, 60)
+}
+
 await test('URL kw 128k 免费歌', async() => {
   const r = await get('/url/kw/151826618?quality=128k')
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   if (r.data.via !== undefined) throw new Error(`直接命中不应有 via 字段，实际 ${r.data.via}`)
-  return r.data.url.slice(0, 60)
+  return assertKwUrl(r.data.url)
 })
 
 await test('URL kw VIP 歌 320k（mobi 通道真音频）', async() => {
@@ -161,7 +196,7 @@ await test('URL kw VIP 歌 320k（mobi 通道真音频）', async() => {
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   // mobi 通道严格校验 bitrate==320 才放行，url 必然是 320k 档
-  return r.data.url.slice(0, 60)
+  return assertKwUrl(r.data.url)
 })
 
 await test('URL kw VIP 歌 flac 降级链', async() => {
@@ -169,7 +204,7 @@ await test('URL kw VIP 歌 flac 降级链', async() => {
   if (r.code != 0) throw new Error(r.msg)
   if (!r.data?.url) throw new Error('无 url')
   // 晴天无 hi-res 档，应逐级降级命中 2000k flac 而非报错
-  return r.data.url.slice(0, 60)
+  return assertKwUrl(r.data.url)
 })
 
 await test('URL wy 128k', async() => {
@@ -479,6 +514,202 @@ await test('专辑详情 /album/lr', async() => {
   return `${r.data.info.total} 节`
 })
 
+// ---- 新平台（migu/qian/joox/bili/5sing/apple 移植回归） ----
+
+for (const source of ['migu', 'qian', 'joox', 'bili', '5sing', 'apple']) {
+  await test(`搜索 ${source} 直查`, async() => {
+    const r = await get(`/search/${source}/${encodeURIComponent(source === '5sing' ? '董贞' : '周杰伦')}?limit=5`)
+    if (r.code != 0) throw new Error(r.msg)
+    if (!r.data?.list?.length) throw new Error('空列表')
+    return `${r.data.list.length} 条，首条 ${r.data.list[0].name}`
+  })
+}
+
+await test('URL migu（多档候选链）', async() => {
+  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+  if (r.code != 0 || !r.data?.list?.length) throw new Error('搜索失败，无法取流')
+  const song = r.data.list.find((s: any) => !s.payPlay) ?? r.data.list[0]
+  const u = await get(`/url/migu/${encodeURIComponent(song.songmid)}?quality=128k`)
+  if (u.code != 0) throw new Error(u.msg)
+  const url = String(u.data.url)
+  if (!url.startsWith('http') && !url.includes('/stream/migu/')) throw new Error('url 非法')
+  return `实际 ${u.data.type}，${url.slice(0, 60)}`
+})
+
+await test('URL qian 免费曲', async() => {
+  // qian 免费曲目少，用「SSR」（上游测试同款厂牌）搜到带直链的曲目
+  const r = await get(`/search/qian/${encodeURIComponent('SSR')}?limit=10`)
+  if (r.code != 0 || !r.data?.list?.length) throw new Error('搜索失败，无法取流')
+  const song = r.data.list.find((s: any) => !s.payPlay)
+  if (!song) throw new Error('未搜到免费曲目')
+  const u = await get(`/url/qian/${encodeURIComponent(song.songmid)}?quality=128k`)
+  if (u.code != 0) throw new Error(u.msg)
+  return `实际 ${u.data.type}，${String(u.data.url).slice(0, 60)}`
+})
+
+await test('URL 5sing（档位 sq/hq/lq）', async() => {
+  const r = await get(`/search/5sing/${encodeURIComponent('董贞')}?limit=5`)
+  if (r.code != 0 || !r.data?.list?.length) throw new Error('搜索失败，无法取流')
+  const u = await get(`/url/5sing/${encodeURIComponent(r.data.list[0].songmid)}?quality=128k`)
+  if (u.code != 0) throw new Error(u.msg)
+  return `实际 ${u.data.type}，${String(u.data.url).slice(0, 60)}`
+})
+
+await test('歌词 migu', async() => {
+  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+  const song = r.data?.list?.[0]
+  if (!song) throw new Error('搜索失败')
+  const l = await get(`/lyric/migu/${encodeURIComponent(song.songmid)}`)
+  if (l.code != 0) throw new Error(l.msg)
+  if (!l.data?.lyric) throw new Error('空歌词')
+  return l.data.lyric.slice(0, 40)
+})
+
+await test('歌词 5sing', async() => {
+  const r = await get(`/search/5sing/${encodeURIComponent('董贞')}?limit=5`)
+  const song = r.data?.list?.[0]
+  if (!song) throw new Error('搜索失败')
+  const l = await get(`/lyric/5sing/${encodeURIComponent(song.songmid)}`)
+  if (l.code != 0) throw new Error(l.msg)
+  if (!l.data?.lyric) throw new Error('空歌词')
+  return l.data.lyric.slice(0, 40)
+})
+
+await test('封面 migu', async() => {
+  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+  const song = r.data?.list?.[0]
+  if (!song) throw new Error('搜索失败')
+  const p = await get(`/pic/migu/${encodeURIComponent(song.songmid)}`)
+  if (p.code != 0) throw new Error(p.msg)
+  if (!String(p.data?.url ?? '').startsWith('http')) throw new Error('封面 url 非法')
+  return String(p.data.url).slice(0, 60)
+})
+
+for (const source of ['migu', 'qian', 'joox', 'apple']) {
+  await test(`专辑搜索 /album/${source}/search`, async() => {
+    const r = await get(`/album/${source}/search/${encodeURIComponent('Hello')}?limit=3`)
+    if (r.code != 0) throw new Error(r.msg)
+    if (!r.data?.list?.length) throw new Error('空列表')
+    return `${r.data.list.length} 张，首张 ${r.data.list[0].name}`
+  })
+}
+
+await test('专辑详情 /album/migu', async() => {
+  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+  const albumId = r.data?.list?.find((s: any) => s.albumId)?.albumId
+  if (!albumId) throw new Error('搜索结果未携带 albumId')
+  const a = await get(`/album/migu/${albumId}`)
+  if (a.code != 0) throw new Error(a.msg)
+  if (!a.data?.list?.length) throw new Error('专辑无曲目')
+  return `${a.data.info.name}（${a.data.total} 首）`
+})
+
+for (const source of ['migu', 'qian', 'joox', 'apple']) {
+  await test(`歌单分类 /playlist/${source}/categories`, async() => {
+    const r = await get(`/playlist/${source}/categories`)
+    if (r.code != 0) throw new Error(r.msg)
+    if (!r.data?.list?.length) throw new Error('空分类')
+    return `${r.data.list.length} 个分类`
+  })
+
+  await test(`分类歌单 /playlist/${source}/categories/:id`, async() => {
+    const c = await get(`/playlist/${source}/categories`)
+    const cat = c.data.list[0]
+    if (!cat) throw new Error('无分类')
+    const r = await get(`/playlist/${source}/categories/${encodeURIComponent(cat.id)}?limit=3`)
+    if (r.code != 0) throw new Error(r.msg)
+    if (!r.data?.list?.length) throw new Error('分类下无歌单')
+    return `${r.data.list.length} 个歌单`
+  })
+}
+
+await test('歌单详情 /playlist/migu', async() => {
+  const c = await get('/playlist/migu/categories')
+  const cat = c.data.list[0]
+  const pl = await get(`/playlist/migu/categories/${encodeURIComponent(cat.id)}?limit=3`)
+  const id = pl.data?.list?.[0]?.id
+  if (!id) throw new Error('未取到歌单 id')
+  const d = await get(`/playlist/migu/${id}?limit=5`)
+  if (d.code != 0) throw new Error(d.msg)
+  if (!d.data?.list?.length) throw new Error('歌单无曲目')
+  return `${d.data.total} 首，本页 ${d.data.list.length} 首`
+})
+
+await test('歌单详情 /playlist/bili（合集）', async() => {
+  const s = await get(`/playlist/bili/search/${encodeURIComponent('周杰伦')}?limit=3`)
+  const id = s.data?.list?.[0]?.id
+  if (!id) throw new Error('搜索无歌单')
+  const d = await get(`/playlist/bili/${encodeURIComponent(id)}?limit=5`)
+  if (d.code != 0) throw new Error(d.msg)
+  if (!d.data?.list?.length) throw new Error('歌单无曲目')
+  return `${d.data.total} 首`
+})
+
+await test('链接解析 /parse/song/migu', async() => {
+  const r = await postJson('/parse/song/migu', { link: 'https://music.migu.cn/v3/music/song/600913000002601091' })
+  if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
+  if (!r.body.data?.song?.songmid) throw new Error('缺少 song')
+  return `${r.body.data.song.name} / ${r.body.data.song.singer}`
+})
+
+await test('链接解析 /parse/playlist/qian', async() => {
+  const r = await postJson('/parse/playlist/qian', { link: 'https://music.91q.com/songlist/309735' })
+  if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
+  if (!r.body.data?.list?.length) throw new Error('无曲目')
+  return `${r.body.data.playlist?.name ?? ''}（${r.body.data.total} 首）`
+})
+
+await test('链接解析 /parse/album/apple', async() => {
+  const r = await postJson('/parse/album/apple', { link: 'https://music.apple.com/us/album/the-life-of-a-showgirl-the-encore/6814997249' })
+  if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
+  if (!r.body.data?.list?.length) throw new Error('无曲目')
+  return `${r.body.data.playlist?.name ?? ''}（${r.body.data.total} 首）`
+})
+
+await test('链接解析 不支持的平台 → 404', async() => {
+  // qs 无 parse 实现（以 /sources 的 parse 能力位为准）。
+  // 原先此处断言 kw 返回 404 —— 但 kw 的 parse 早已实现（sdk/kw/parse.ts），
+  // 该断言过期后恒失败，导致 pnpm test 永远无法全绿。
+  const r = await postJson('/parse/song/qs', { link: 'https://music.douyin.com/qishui/share/track?track_id=1' })
+  if (r.status !== 404) throw new Error(`期望 404，实际 ${r.status}`)
+  return 'qs 未实现 parse（按上游）'
+})
+
+await test('链接解析 /parse/song/kw（正向）', async() => {
+  const r = await postJson('/parse/song/kw', { link: 'https://www.kuwo.cn/play_detail/28423286' })
+  if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
+  if (!r.body.data?.song?.songmid) throw new Error('未返回 song.songmid')
+  return `kw 解析成功: ${r.body.data.song.name}`
+})
+
+await test('扫码二维码创建 POST /login/bili/qr', async() => {
+  const r = await postRaw('/login/bili/qr')
+  const body = JSON.parse(r.body)
+  if (r.status !== 200 || body.code != 0 || !body.data?.key) throw new Error(r.body.slice(0, 120))
+  return `key=${String(body.data.key).slice(0, 12)}…`
+})
+
+await test('扫码轮询 POST /login/bili/qr/check', async() => {
+  const created = JSON.parse((await postRaw('/login/bili/qr')).body)
+  const key = created.data?.key
+  if (!key) throw new Error('未取到 key')
+  const r = await postJson('/login/bili/qr/check', { key })
+  if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
+  return `status=${r.body.data.status} code=${r.body.data.code}`
+})
+
+await test('个人歌单 未支持的平台 → 502', async() => {
+  const r = await getRaw('/user-playlist/5sing')
+  if (r.status !== 502 && r.status !== 404) throw new Error(`期望 502/404，实际 ${r.status}`)
+  return JSON.parse(r.body).msg?.slice(0, 60)
+})
+
+await test('咪咕解密流代理 无票据 → 404', async() => {
+  const r = await getRaw('/stream/migu/ffffffffffffffffffffffffffffffff')
+  if (r.status !== 404) throw new Error(`期望 404，实际 ${r.status}`)
+  return JSON.parse(r.body).msg?.slice(0, 50)
+})
+
 await test('参数校验 422（非法页码）', async() => {
   const r = await getRaw(`/search/kw/${encodeURIComponent('稻香')}/0`)
   if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
@@ -594,6 +825,8 @@ await test('扫码二维码创建 POST /login/qs/qr', async() => {
   const r = await postJson('/login/qs/qr', {})
   if (r.status !== 200 || r.body?.code !== 0) throw new Error(r.body?.msg ?? `HTTP ${r.status}`)
   if (!r.body.data?.token || !r.body.data?.qrimg?.startsWith('data:image/')) throw new Error('响应不完整')
+  // 二维码必须是官方 PC 客户端同款扫码页（旧的 ucenter_web/app/sdk-next 已 404，抖音扫出「无法访问页面」）
+  if (!String(r.body.data?.scanUrl ?? '').includes('/light/invoke/scan_login')) throw new Error(`二维码内容非官方扫码页: ${r.body.data?.scanUrl}`)
   return `scanApp=${r.body.data.scanApp || '?'}`
 })
 
@@ -655,12 +888,15 @@ if (!externalServer && !process.env.AUTH_KEY) {
     if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
     return 'ok'
   })
-  // 防扫描：全部页面（含文档/健康检查/不存在的路径）无秘钥一律 401，无法探测接口存在性
-  for (const path of ['/health', '/docs', '/openapi.json', '/redoc', '/not-exist-path', '/login/status']) {
-    const r = await authFetch(path)
-    if (r.status !== 401) throw new Error(`${path} 期望 401，实际 ${r.status}（应全路径要求秘钥）`)
-  }
-  await test('AUTH_KEY 全路径防扫（文档/health/404 均 401）', async() => 'ok')
+  // 防扫描：全部页面（含文档/健康检查/不存在的路径）无秘钥一律 401，无法探测接口存在性。
+  // 断言必须包在 test() 内 —— 裸抛错会中断整个脚本，跳过后续用例与实例回收（留下孤儿进程）
+  await test('AUTH_KEY 全路径防扫（文档/health/404 均 401）', async() => {
+    for (const p of ['/health', '/docs', '/openapi.json', '/redoc', '/not-exist-path', '/login/status']) {
+      const r = await authFetch(p)
+      if (r.status !== 401) throw new Error(`${p} 期望 401，实际 ${r.status}（应全路径要求秘钥）`)
+    }
+    return '6 条路径均 401'
+  })
   // /stream/* 流代理：支持 X-Server-Key 头，或短时签名 ?exp=&sig=（不落裸秘钥到 URL）；裸 ?key= 已废弃
   await test('AUTH_KEY 流代理签名机制', async() => {
     // 裸秘钥 ?key= 已不生效
