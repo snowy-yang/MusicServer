@@ -2,40 +2,41 @@
 // 接口: https://u.y.qq.com/cgi-bin/musicu.fcg
 // 方法: vkey.GetVkeyServer.CgiGetVkey
 // 取流方案：
-//   按请求音质组 filename 链一次请求（M500{media_mid}.mp3 / M800{media_mid}.mp3 / F000{media_mid}.flac），
-//   响应 midurlinfo 与 filename 一一对应，取第一个有 purl 的（即最高可用音质）；
+//   按请求音质组 filename 候选链一次请求（命中第一个有 purl 的档位即最高可用音质）；
 //   始终附带 C400{songmid}.m4a 保底（匿名可取的 128k）。
-//   登录 cookie（uin + qm_keyst，见 /login/tx）可解锁 320k/无损。
+//   档位前缀（社区资料 2026-10 核对）：RS01 Hi-Res FLAC > Q000/AI00 大师/臻品母带 FLAC >
+//   F000 无损 FLAC > M800 320k MP3 > M500 128k MP3 > C400 128k AAC；
+//   VIP 档 filename 用 media_mid（非 songmid）。
+//   登录 cookie（uin + qm_keyst，见 /login/tx）可解锁 320k/无损/Hi-Res。
 // 统一接口约定：apis('tx').getMusicUrl(songInfo, type) → { promise, cancelHttp }
 // promise resolve → { type, url }（type 为实际命中的音质，可能低于请求值）
 
 import { httpFetch } from '../common/request.ts'
 import { getTxAuth } from '../auth/store.ts'
 
-// 音质 → [文件前缀, 扩展名]（flac24bit 暂走 flac 通道，命中即返回）
-const prefixMap = {
-  '128k': ['M500', 'mp3'],
-  '320k': ['M800', 'mp3'],
-  flac: ['F000', 'flac'],
-  flac24bit: ['F000', 'flac'],
+// 音质 → 候选档位链（[prefix, ext, 命中后展示的 type]，从高到低逐级回退）
+const candidateMap: Record<string, Array<[string, string, string]>> = {
+  '128k': [['M500', 'mp3', '128k']],
+  '320k': [['M800', 'mp3', '320k'], ['M500', 'mp3', '128k']],
+  flac: [['F000', 'flac', 'flac'], ['M800', 'mp3', '320k'], ['M500', 'mp3', '128k']],
+  flac24bit: [
+    ['RS01', 'flac', 'flac24bit'],
+    ['Q000', 'flac', 'flac24bit'],
+    ['AI00', 'flac', 'flac24bit'],
+    ['F000', 'flac', 'flac'],
+    ['M800', 'mp3', '320k'],
+    ['M500', 'mp3', '128k'],
+  ],
 }
 // 官方直连接口支持的音质（sdk/index.ts 汇总为 supportQuality）
-export const supportQualitys = Object.keys(prefixMap)
-// 降级链：高音质无版权/VIP 受限时逐级回退
-const chainMap = {
-  '128k': ['128k'],
-  '320k': ['320k', '128k'],
-  flac: ['flac', '320k', '128k'],
-  flac24bit: ['flac', '320k', '128k'],
-}
+export const supportQualitys = Object.keys(candidateMap)
 
 export const getMusicUrl = (songInfo, type) => {
   const requestObj = { cancelHttp() {}, promise: null as any }
   const mediaMid = songInfo.strMediaMid || songInfo.songmid
   const entries: any[] = []
-  for (const t of chainMap[type] || chainMap['128k']) {
-    const [prefix, ext] = prefixMap[t]
-    entries.push({ filename: `${prefix}${mediaMid}.${ext}`, type: t })
+  for (const [prefix, ext, hitType] of candidateMap[type] || candidateMap['128k']) {
+    entries.push({ filename: `${prefix}${mediaMid}.${ext}`, type: hitType })
   }
   entries.push({ filename: `C400${songInfo.songmid}.m4a`, type: '128k' })
 
