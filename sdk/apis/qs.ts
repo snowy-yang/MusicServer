@@ -3,20 +3,23 @@
 //   匿名（未登录）: seo_track → url_player_info（VOD GetPlayInfo 免登录）→ 未加密试听直链（30s 132k）
 //   登录态:         设备注册 + X-Argus/X-Ladon 自签 → /luna/pc/track_v2 → 加密音频（cenc-aes-ctr）
 //                   → spade key 解密 → /stream/qs/:id 代理端点回明文流（相对地址，路由层负责补全 origin）
-//   实测（2026-10-01）: track_v2 匿名=加密试听；完整曲目需登录 sessionid（抖音扫码 /login/qs/qr）。
+//   实测（2026-10-01）: track_v2 匿名=加密试听；完整曲目需登录 sessionid（汽水音乐 APP 扫码 /login/qs/qr）。
 //   登录请求失败自动降级匿名试听。
 // 统一接口约定：apis('qs').getMusicUrl(songInfo, type) → { promise, cancelHttp }
 // promise resolve → { type, url }
 
 import { httpFetch } from '../request.ts'
+import { createHash, randomBytes } from 'node:crypto'
 import musicInfo from '../qs/musicInfo.ts'
 import { getDevice } from '../qs/device.ts'
-import { getSessionId } from '../qs/passport.ts'
+import { getCookie, getSessionId } from '../qs/passport.ts'
+import { mssdkAvailable, signQishuiRequest, pcCommonParams, PC_UA } from '../qs/mssdk.ts'
 import { signRequest } from '../qs/crypto/sign.ts'
 import { decryptAudioBuffer, resolveAudioKey } from '../qs/crypto/audiodecrypt.ts'
 import type { HttpResponse } from '../types.ts'
 
-// 官方直连接口支持的音质：匿名只有 30 秒试听 128k；登录态取码率最高条目（324k/hi_res 视账号权益）
+// 官方直连接口支持的音质：授权曲匿名只有 30 秒试听 128k（登录态取码率最高条目，324k/hi_res 视权益）；
+// 用户上传曲匿名即可整曲（实测 2026-10-02：DJ 版整曲 204.84s / 三档 68k・132k・260k）
 export const supportQualitys = ['128k', '320k']
 
 const TRACK_V2_URL = 'https://api.qishui.com/luna/pc/track_v2'
@@ -117,32 +120,75 @@ const pickBestEntry = (playInfoList: any) => {
   return entries[0]
 }
 
-const resolveSignedStream = async (trackId: string): Promise<StreamEntry> => {
-  const device = await getDevice()
-  const sessionId = getSessionId()
-  const url = buildSignedUrl(device)
-  const requestBody = JSON.stringify({ track_id: trackId, media_type: 'track', queue_type: 'search_one_track', scene_name: 'search' })
-  const headers = await signRequest(url, requestBody)
+const fetchTrackPlayer = async (url: string, headers: Record<string, string>, requestBody: string) => {
   const { statusCode, body } = (await httpFetch(url, {
     method: 'post',
-    headers: {
-      ...headers,
-      'User-Agent': 'Luna/19.8.0 (com.luna.music/100198030);Android 15;ABR-AL80',
-      'Content-Type': 'application/json; charset=utf-8',
-      'X-Luna-Background-Type': 'foreground',
-      'X-Luna-Is-Background-Req': '0',
-      'X-Luna-Is-Local-User': '1',
-      ...(sessionId ? { Cookie: `sessionid=${sessionId}` } : {}),
-    },
+    headers,
     body: requestBody,
     timeout: 15000,
   }).promise) as HttpResponse
-
   const trackPlayer = (body as any)?.track_player
   if (statusCode != 200 || !trackPlayer?.url_player_info) {
     const errMsg = (body as any)?.status_info?.status_msg || (body as any)?.message || ''
     throw new Error(`track_v2 获取失败: HTTP ${statusCode} ${errMsg}`.trim())
   }
+  return trackPlayer as { url_player_info: string }
+}
+
+const TRACK_V2_BODY = (trackId: string) =>
+  JSON.stringify({ track_id: trackId, media_type: 'track', queue_type: 'search_one_track', scene_name: 'search' })
+
+// 通道 A（默认）：安卓 App 参数 + X-Argus/X-Ladon 自签
+const fetchTrackPlayerByApp = async (trackId: string) => {
+  const device = await getDevice()
+  const sessionId = getSessionId()
+  const url = buildSignedUrl(device)
+  const requestBody = TRACK_V2_BODY(trackId)
+  const headers = await signRequest(url, requestBody)
+  return fetchTrackPlayer(url, {
+    ...headers,
+    'User-Agent': 'Luna/19.8.0 (com.luna.music/100198030);Android 15;ABR-AL80',
+    'Content-Type': 'application/json; charset=utf-8',
+    'X-Luna-Background-Type': 'foreground',
+    'X-Luna-Is-Background-Req': '0',
+    'X-Luna-Is-Local-User': '1',
+    ...(sessionId ? { Cookie: getCookie() || `sessionid=${sessionId}` } : {}),
+  }, requestBody)
+}
+
+// 通道 B（降级）：官方 PC 客户端签名 X-Helios/X-Medusa（需 sdk/qs/mssdk.ts 的签名模块）
+const fetchTrackPlayerByPc = async (trackId: string) => {
+  const sessionId = getSessionId()
+  if (!mssdkAvailable()) throw new Error('官方签名模块不可用')
+  const url = `${TRACK_V2_URL}?${new URLSearchParams(pcCommonParams()).toString()}`
+  const requestBody = TRACK_V2_BODY(trackId)
+  const headers: Record<string, string> = {
+    'content-type': 'application/json; charset=utf-8',
+    'user-agent': PC_UA,
+    'x-luna-background-type': 'foreground',
+    'x-luna-is-background-req': '0',
+    'x-luna-is-local-user': '0',
+    'x-tt-trace-id': `00-${randomBytes(8).toString('hex')}-${randomBytes(8).toString('hex')}-01`,
+    'x-ss-stub': createHash('md5').update(requestBody).digest('hex').toUpperCase(),
+    ...(sessionId ? { cookie: getCookie() || `sessionid=${sessionId}` } : {}),
+  }
+  const signed = signQishuiRequest(url, headers)
+  if (!signed) throw new Error('官方签名失败')
+  return fetchTrackPlayer(url, { ...headers, ...signed }, requestBody)
+}
+
+const resolveTrackPlayer = async (trackId: string) => {
+  try {
+    return await fetchTrackPlayerByApp(trackId)
+  } catch (err: any) {
+    if (!mssdkAvailable()) throw err
+    console.log(`[qs/track_v2] 安卓自签通道失败（${err?.message ?? err}），降级官方 PC 签名`)
+    return fetchTrackPlayerByPc(trackId)
+  }
+}
+
+const resolveSignedStream = async (trackId: string): Promise<StreamEntry> => {
+  const trackPlayer = await resolveTrackPlayer(trackId)
 
   const playInfoRes = await httpFetch(trackPlayer.url_player_info, { method: 'get', timeout: 15000 }).promise
   const entry = pickBestEntry((playInfoRes.body as any)?.Result?.Data?.PlayInfoList)

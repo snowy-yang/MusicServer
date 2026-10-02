@@ -151,4 +151,21 @@ export const getDevice = async (): Promise<QsDevice> => {
 export const hasDevice = (): boolean =>
   Boolean(cachedDevice || (getCredentials('_qs_device') as QsDevice | null)?.device_id)
 
-export default { registerDevice, getDevice, hasDevice }
+/**
+ * 设备身份（同步读，不触发注册）：已注册设备优先；尚未注册时用独立生成的
+ * `_qs_passport_device`，避免覆盖注册记录。护照/签名模块共用，保证「同一设备」。
+ */
+export const getDeviceIds = (): { deviceId: string; installId: string } => {
+  const registered = getCredentials('_qs_device') as QsDevice | null
+  if (registered?.device_id && registered?.install_id) {
+    return { deviceId: String(registered.device_id), installId: String(registered.install_id) }
+  }
+  const existing = getCredentials('_qs_passport_device') as { deviceId?: string; installId?: string } | null
+  if (existing?.deviceId && existing.installId) return { deviceId: String(existing.deviceId), installId: String(existing.installId) }
+  const now = Date.now()
+  const ids = { deviceId: String(now), installId: String(now + 1) }
+  setCredentials('_qs_passport_device', ids)
+  return ids
+}
+
+export default { registerDevice, getDevice, hasDevice, getDeviceIds }

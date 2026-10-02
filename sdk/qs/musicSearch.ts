@@ -1,10 +1,13 @@
 // 汽水音乐搜索（App 搜索接口直连）
-// 接口: https://api.qishui.com/luna/search/track?<安卓设备参数>&q=<关键词>&cursor=&count=
-// 实测（2026-10-01）匿名可搜索；关键在安卓 App 的设备参数指纹——
-// 缺参数或用 PC 端参数（device_platform=windows）上游会静默风控，返回 200 + 空 body
+// 接口: https://api.qishui.com/luna/search/track?<公共参数>&q=<关键词>&cursor=
+// 两条通道（同一接口，差在公共参数与签名，返回结构一致）：
+//   官方 PC 通道: 装好官方签名模块（sdk/qs/mssdk.ts）时优先——luna_pc 参数 + X-Helios/X-Medusa；
+//   安卓指纹通道: 未装签名模块时回退——静态安卓设备参数，缺参数或用 PC 参数不签名会被静默风控
+//   （200 + 空 body）；被风控时需换新指纹。
 import { sizeFormate, formatPlayTime } from '../index.ts'
 import { httpFetch } from '../request.ts'
 import { coverUrl } from './musicInfo.ts'
+import { mssdkAvailable, signQishuiRequest, pcCommonParams, PC_UA } from './mssdk.ts'
 
 // 安卓 App 设备参数指纹（社区验证可用的静态设备 id，与 musicdl 一致；被风控时需换新）
 const SEARCH_DEVICE_PARAMS = {
@@ -54,15 +57,29 @@ const SEARCH_DEVICE_PARAMS = {
 }
 
 const SEARCH_UA = 'Luna/19.8.0 (com.luna.music/100198030);Android 15;ABR-AL80'
+const PC_PAGE_SIZE = 20
 
+// 有官方签名模块时走官方 PC 通道（PC 参数必须配 X-Helios/X-Medusa，否则上游 200 + 空 body）
 const buildSearchUrl = (str: string, cursor: number, count: number) => {
-  const params = new URLSearchParams({
-    ...SEARCH_DEVICE_PARAMS,
-    _rticket: String(Date.now()),
-    q: str,
-    cursor: String(cursor),
-    count: String(count),
-  })
+  const params = mssdkAvailable()
+    ? new URLSearchParams({
+      ...pcCommonParams(),
+      q: str,
+      cursor: String(cursor),
+      search_id: '',
+      search_method: 'input',
+      debug_params: '',
+      from_search_id: '',
+      search_scene: 'normal',
+      scene_name: 'search',
+    })
+    : new URLSearchParams({
+      ...SEARCH_DEVICE_PARAMS,
+      _rticket: String(Date.now()),
+      q: str,
+      cursor: String(cursor),
+      count: String(count),
+    })
   return `https://api.qishui.com/luna/search/track?${params.toString()}`
 }
 
@@ -103,13 +120,16 @@ export default {
   },
   search(str, page = 1, limit, retryNum = 0) {
     if (++retryNum > 3) return Promise.reject(new Error('try max num'))
-    if (limit == null) limit = this.limit
-    const cursor = limit * (page - 1)
-    const searchRequest = httpFetch(buildSearchUrl(str, cursor, limit), {
-      method: 'get',
-      headers: { 'User-Agent': SEARCH_UA },
-      timeout: 15000,
-    })
+    const pcChannel = mssdkAvailable()
+    // PC 通道每页固定 20 条（上游默认、不接受 count），cursor 必须按 20 步进，否则翻页与 limit 错位重叠
+    const pageSize = pcChannel ? PC_PAGE_SIZE : (limit ?? this.limit)
+    const cursor = pageSize * (page - 1)
+    const url = buildSearchUrl(str, cursor, pageSize)
+    // 签名覆盖真实发出的头：先定头、再签、再发
+    const headers: Record<string, string> = { 'User-Agent': pcChannel ? PC_UA : SEARCH_UA }
+    const signed = signQishuiRequest(url, headers)
+    if (signed) Object.assign(headers, signed)
+    const searchRequest = httpFetch(url, { method: 'get', headers, timeout: 15000 })
     return searchRequest.promise.then(({ body }) => {
       // 被风控/无结果时上游不返回 result_groups（200 + {"extra":{"empty_search":1}}），重试
       if (!body?.result_groups) return this.search(str, page, limit, retryNum)
