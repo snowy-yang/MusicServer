@@ -6,11 +6,14 @@
 //       文档页、旧 query 路由移除回归
 
 import http from 'node:http'
+import net from 'node:net'
 import { spawn } from 'node:child_process'
 
-// 本地默认 16688（避开 1024~15000 的动态端口冲突区），可用 PORT/BASE_URL 覆盖
-const PORT = process.env.PORT || 16688
-const BASE = process.env.BASE_URL || `http://localhost:${PORT}`
+// 端口策略：默认在随机空闲端口自起独立实例（避免连到 16688 等常驻实例——
+// 旧代码会让新用例误报失败）；显式设置 BASE_URL 时测试该外部实例、不再自动启动
+const PORT = Number(process.env.PORT || 0)
+let BASE = process.env.BASE_URL || ''
+const externalServer = Boolean(BASE)
 const results: { name: string; ok: boolean; detail?: any }[] = []
 
 const get = (path: string): Promise<any> => new Promise((resolve, reject) => {
@@ -73,25 +76,12 @@ const test = async(name: string, fn: () => Promise<any>) => {
 }
 
 /**
- * 检查本地服务器是否已在运行
+ * 启动本地服务器（指定端口）并返回进程句柄
  */
-const isServerRunning = () => new Promise(resolve => {
-  if (!BASE.startsWith('http://localhost:') && !BASE.startsWith('http://127.0.0.1:')) return resolve(true)
-  const req = http.get(`${BASE}/health`, res => {
-    res.resume()
-    resolve(res.statusCode === 200)
-  })
-  req.on('error', () => resolve(false))
-  req.setTimeout(2000, () => { req.destroy(); resolve(false) })
-})
-
-/**
- * 启动本地服务器并返回关闭句柄
- */
-const startLocalServer = () => new Promise((resolve, reject) => {
+const startLocalServer = (port: number) => new Promise((resolve, reject) => {
   const proc = spawn(process.execPath, ['src/server.ts'], {
     cwd: process.cwd(),
-    env: { ...process.env, PORT: String(PORT) },
+    env: { ...process.env, PORT: String(port) },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stdout = ''
@@ -118,13 +108,21 @@ const startLocalServer = () => new Promise((resolve, reject) => {
 })
 
 let localServer: any = null
-const running = await isServerRunning()
-if (!running) {
-  console.log('本地服务器未运行，正在自动启动...')
-  localServer = await startLocalServer()
-  console.log('本地服务器已启动\n')
+if (externalServer) {
+  console.log(`测试外部实例 ${BASE}\n`)
 } else {
-  console.log('使用已运行的服务器\n')
+  // 未显式指定 BASE_URL/PORT 时取随机空闲端口
+  const freePort = await new Promise<number>(resolve => {
+    const srv = net.createServer()
+    srv.listen(0, '127.0.0.1', () => {
+      const p = (srv.address() as any).port
+      srv.close(() => resolve(p))
+    })
+  })
+  const port = PORT || freePort
+  BASE = `http://localhost:${port}`
+  localServer = await startLocalServer(port)
+  console.log(`本地服务器已启动（:${port}）\n`)
 }
 
 // 搜索
@@ -243,10 +241,23 @@ await test('URL lr 未登录 → 明确错误', async() => {
 
 // me 有声内容：直查可用、聚合排除
 await test('搜索 me 直查', async() => {
-  const r = await get(`/search?source=me&name=${encodeURIComponent('广播剧')}&limit=3`)
+  const r = await get(`/search?source=me&name=${encodeURIComponent('伪装学渣')}&limit=10`)
   if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.list?.length) throw new Error('响应不完整')
-  return `首条 ${r.data.list[0].name}`
+  const list = r.data?.list ?? []
+  if (!list.length) throw new Error('响应不完整')
+  // 搜索结构对齐网页版：正剧（dramaapi/search 的 d: 前缀条目）应置顶
+  if (!String(list[0].songmid).startsWith('d:') || !String(list[0].name).includes('伪装学渣')) {
+    throw new Error(`首条应为正剧条目，实际 ${JSON.stringify(list[0]?.songmid)} ${list[0]?.name}`)
+  }
+  return `首条 ${list[0].name}（d: 剧条目置顶）`
+})
+
+// me 剧条目 d:<id> 取流：自动选首个免费集（58262 = 伪装学渣第一季，2026-10-02 实测可用）
+await test('URL me 剧条目 d: 前缀', async() => {
+  const r = await get('/url/me/d:58262?quality=128k')
+  if (r.code != 0) throw new Error(r.msg)
+  if (!r.data?.url || !/maoercdn\.com/.test(r.data.url)) throw new Error('非 maoercdn 直链')
+  return `${r.data.type} ${r.data.url.slice(0, 60)}`
 })
 
 // xm 有声内容：直查可用、聚合排除
