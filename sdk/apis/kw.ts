@@ -15,6 +15,7 @@
 //        不匹配视为未命中、沿降级链换档重试；
 //      - 此前「mobi.s 吐 11 秒蜜罐假 MP3」的结论仅适用于其它 type/source 参数组合，
 //        本组合已验证为真音频。
+//      - 返回 url 的 query 用 `$` 顶替 `=`，统一还原后对外返回（见 normalizeUrl）。
 //   2) www.kuwo.cn/api/v1/www/music/playUrl（回退通道，web 端官方接口，需 Secret 签名头）
 //      签名：GET https://www.kuwo.cn/ 首页拿动态 cookie（Hm_Iuvt_*，名字与值均随机下发），
 //      以「cookie 值为消息、cookie 名为密钥」跑异或哈希得 Secret 头（酷我 web 端算法，
@@ -48,6 +49,11 @@ const fallbackChain: Record<string, string[]> = {
 // 明文音频格式白名单；mgg/mflac/mmp4/zp 等为加密格式，拿到也不能播
 const plainFormats = new Set(['mp3', 'flac', 'ogg', 'aac', 'm4a'])
 
+// 酷我 CDN 回吐的 query 用 `$` 顶替 `=`（`?bitrate$320&format$mp3&…&loginUid$`，实为酷我客户端
+// 自有写法，签名 token 在 path 里、query 无 sign 参数），`$` 非标准分隔符，播放器与 URL
+// 解析器普遍不认，统一还原成 `=` 再对外返回
+const normalizeUrl = (url: string) => url.replace(/\$/g, '=')
+
 // 匿名通道实际可用音质（sdk/index.ts 汇总为 supportQuality）
 export const supportQualitys = ['128k', '320k', 'flac', 'flac24bit']
 
@@ -68,7 +74,7 @@ const getUrlByMobi = (songmid: string, tier: { br: string, bitrate: number }): P
     const data = body?.data
     if (statusCode != 200 || !data?.url) return null
     if (Number(data.bitrate) != tier.bitrate || !plainFormats.has(String(data.format))) return null
-    return { url: data.url }
+    return { url: normalizeUrl(data.url) }
   }).catch(() => null)
 }
 
@@ -156,7 +162,7 @@ const getUrlByPlayUrl = (songmid: string, t: KwToken, retryNum = 0) => {
       return Promise.reject(new Error(msg || '获取失败'))
     }
     // 服务器无视 br，匿名实际只回 128k，如实上报
-    return { type: '128k', url: body.data.url }
+    return { type: '128k', url: normalizeUrl(body.data.url) }
   })
   return requestObj
 }

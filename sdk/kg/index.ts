@@ -8,6 +8,8 @@ import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
 import singer from './singer.ts'
 import album from './album.ts'
+import playlist from './playlist.ts'
+import parse from './parse.ts'
 import { registerDfid } from '../auth/kg.ts'
 
 const kg = {
@@ -22,6 +24,8 @@ const kg = {
   comment,
   singer,
   album,
+  playlist,
+  parse,
   getMusicUrl(songInfo, type) {
     return kgApi.getMusicUrl(songInfo, type)
   },

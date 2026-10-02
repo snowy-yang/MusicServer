@@ -7,6 +7,10 @@ import songList from './songList.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
 import singer from './singer.ts'
+import album from './album.ts'
+import playlist from './playlist.ts'
+import parse from './parse.ts'
+import userPlaylist from './userPlaylist.ts'
 
 const wy = {
   leaderboard,
@@ -15,6 +19,10 @@ const wy = {
   hotSearch,
   comment,
   singer,
+  album,
+  playlist,
+  parse,
+  userPlaylist,
   getMusicUrl(songInfo, type) {
     return wyApi.getMusicUrl(songInfo, type)
   },

@@ -9,6 +9,8 @@ import songList from './songList.ts'
 import hotSearch from './hotSearch.ts'
 import comment from './comment.ts'
 import album from './album.ts'
+import playlist from './playlist.ts'
+import parse from './parse.ts'
 import type { HttpRequestObject } from '../types.ts'
 
 const kw = {
@@ -17,6 +19,8 @@ const kw = {
   _musicPicRequestObj: null as HttpRequestObject | null,
   _musicPicPromiseCancelFn: null,
   album,
+  playlist,
+  parse,
   // context: null,
 
 
