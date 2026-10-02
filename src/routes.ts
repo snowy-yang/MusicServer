@@ -4,6 +4,7 @@
 // 抛出 ApiError → 由全局 setErrorHandler 转为对应 HTTP 状态码
 
 import { notFound, upstream } from './http/api-error.ts'
+import { signStream } from './http/stream-sign.ts'
 import { getMusicInfo } from '../sdk/kg/musicInfo.ts'
 
 const QUALITIES = ['64k', '128k', '320k', 'flac', 'flac24bit']
@@ -137,10 +138,14 @@ export const musicRoutes = async(fastify: any) => {
     const finish = (res: any, via: string) => {
       if (!res?.url) throw new Error('获取播放地址失败')
       // qs 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）；
-      // 启用 AUTH_KEY 时附带 ?key=（播放器直接拉流无法携带自定义头）
-      const url = String(res.url).startsWith('/')
-        ? `${request.protocol}://${request.headers.host}${res.url}${process.env.AUTH_KEY ? `${String(res.url).includes('?') ? '&' : '?'}key=${encodeURIComponent(process.env.AUTH_KEY)}` : ''}`
-        : res.url
+      // 启用 AUTH_KEY 时附带短时签名（播放器拉流无法携带自定义头，签名不暴露秘钥本身）
+      let url = String(res.url)
+      if (url.startsWith('/')) {
+        const suffix = process.env.AUTH_KEY
+          ? `${url.includes('?') ? '&' : '?'}${signStream(process.env.AUTH_KEY, url.split('?')[0])}`
+          : ''
+        url = `${request.protocol}://${request.headers.host}${url}${suffix}`
+      }
       // type 用实际音质（kw 等通道可能降级）；via 标记兜底链中真正命中的通道
       return { type: res.type || quality, url, ...(via !== source ? { via } : {}) }
     }

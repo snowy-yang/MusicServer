@@ -646,14 +646,28 @@ if (!externalServer && !process.env.AUTH_KEY) {
     if (r.status !== 401) throw new Error(`${path} 期望 401，实际 ${r.status}（应全路径要求秘钥）`)
   }
   await test('AUTH_KEY 全路径防扫（文档/health/404 均 401）', async() => 'ok')
-  // /stream/* 流代理额外接受 ?key=（播放器拉流兼容），其它路径 ?key= 无效
-  await test('AUTH_KEY ?key= 仅限 /stream/*', async() => {
-    const normal = await authFetch(`/sources?key=${AUTH_TEST_KEY}`)
-    if (normal.status !== 401) throw new Error(`普通路径 ?key= 应 401，实际 ${normal.status}`)
-    const stream = await authFetch(`/stream/qs/123?key=${AUTH_TEST_KEY}`)
-    // 带对 key 的 stream 请求应通过鉴权（后续业务可能 502，但不能是 401）
-    if (stream.status === 401) throw new Error('stream ?key= 应通过鉴权')
-    return `stream 状态 ${stream.status}（过鉴权）`
+  // /stream/* 流代理：支持 X-Server-Key 头，或短时签名 ?exp=&sig=（不落裸秘钥到 URL）；裸 ?key= 已废弃
+  await test('AUTH_KEY 流代理签名机制', async() => {
+    // 裸秘钥 ?key= 已不生效
+    const rawKey = await authFetch(`/stream/qs/123?key=${AUTH_TEST_KEY}`)
+    if (rawKey.status !== 401) throw new Error(`裸 ?key= 应 401，实际 ${rawKey.status}`)
+    // X-Server-Key 头可通过鉴权（后续业务可能 502，但不能是 401）
+    const withHeader = await authFetch('/stream/qs/123', { headers: keyHeaders })
+    if (withHeader.status === 401) throw new Error('X-Server-Key 应通过流代理鉴权')
+    // 正确签名通过；错签名 401
+    const exp = Math.floor(Date.now() / 1000) + 600
+    const crypto = await import('node:crypto')
+    const sig = crypto.createHmac('sha256', AUTH_TEST_KEY).update(`/stream/qs/123:${exp}`).digest('hex').slice(0, 32)
+    const signed = await authFetch(`/stream/qs/123?exp=${exp}&sig=${sig}`)
+    if (signed.status === 401) throw new Error('有效签名应通过流代理鉴权')
+    const badSig = await authFetch(`/stream/qs/123?exp=${exp}&sig=${'0'.repeat(32)}`)
+    if (badSig.status !== 401) throw new Error(`错签名应 401，实际 ${badSig.status}`)
+    // 过期签名 401
+    const oldExp = Math.floor(Date.now() / 1000) - 10
+    const oldSig = crypto.createHmac('sha256', AUTH_TEST_KEY).update(`/stream/qs/123:${oldExp}`).digest('hex').slice(0, 32)
+    const expired = await authFetch(`/stream/qs/123?exp=${oldExp}&sig=${oldSig}`)
+    if (expired.status !== 401) throw new Error(`过期签名应 401，实际 ${expired.status}`)
+    return '头/签名通过，裸key/错签/过期签均 401'
   })
 
   // 限流（独立低阈值实例验证 429）
