@@ -22,6 +22,10 @@ Thumbs.db
 # ZCode 本地目录
 .zcode/
 
+# Agent 工作目录（本机记忆日志、工具权限配置；含本机绝对路径，不入库）
+.workbuddy/
+.claude/
+
 # IDE
 .vscode/
 .idea/
@@ -38,3 +42,6 @@ coverage/
 # 以下规则仅作保险，防止旧的发射产物被误生成后提交。
 src/**/*.js
 sdk/**/*.js
+
+# 汽水官方签名原生模块（专有二进制，不入库；QS_MSSDK_DIR 亦可指向别处）
+soda-mssdk/

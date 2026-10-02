@@ -1,2 +1,4 @@
+# isolated-vm 的原生构建脚本需显式放行（pnpm 12 要求），
+# 否则加载失败会降级为「未安装 isolated-vm」，社区 .js 音源脚本被静默跳过。
 allowBuilds:
   isolated-vm: true
