@@ -94,7 +94,9 @@ const startLocalServer = (port: number, envExtra: Record<string, string> = {}) =
   }, 10000)
 
   const check = () => {
-    http.get(`http://localhost:${port}/health`, res => {
+    // 启用 AUTH_KEY 的实例全路径要求秘钥，探活也须携带
+    const headers = envExtra.AUTH_KEY ? { 'X-Server-Key': envExtra.AUTH_KEY } : {}
+    http.get(`http://localhost:${port}/health`, { headers }, res => {
       res.resume()
       if (res.statusCode === 200) {
         clearTimeout(timer)
@@ -608,7 +610,7 @@ await test('登录状态含 xm 字段', async() => {
   return `xm.logged=${r.data.xm.logged}`
 })
 
-// ---- 调用秘钥鉴权（独立实例带 AUTH_KEY 起测；主实例未设 key 时本组自动跳过）----
+// ---- 调用秘钥鉴权 + 限流（独立实例带 AUTH_KEY/RATE_LIMIT 起测；主实例未设时本组自动跳过）----
 if (!externalServer && !process.env.AUTH_KEY) {
   const AUTH_TEST_KEY = 'smoke-test-secret-key'
   const authPort = await new Promise<number>(resolve => {
@@ -621,38 +623,54 @@ if (!externalServer && !process.env.AUTH_KEY) {
   const authBase = `http://localhost:${authPort}`
   const authServer: any = await startLocalServer(authPort, { AUTH_KEY: AUTH_TEST_KEY })
   const authFetch = (path: string, init: RequestInit = {}) => fetch(authBase + path, init)
+  const keyHeaders = { 'X-Server-Key': AUTH_TEST_KEY }
 
   await test('AUTH_KEY 无秘钥 → 401', async() => {
     const r = await authFetch('/sources')
     if (r.status !== 401) throw new Error(`期望 401，实际 ${r.status}`)
     return 'ok'
   })
-  await test('AUTH_KEY 错误秘钥 → 401', async() => {
-    const r = await authFetch('/sources', { headers: { Authorization: 'Bearer wrong-key' } })
-    if (r.status !== 401) throw new Error(`期望 401，实际 ${r.status}`)
+  await test('AUTH_KEY 旧方式(Bearer/X-Api-Key)不再生效 → 401', async() => {
+    const r = await authFetch('/sources', { headers: { Authorization: `Bearer ${AUTH_TEST_KEY}`, 'X-Api-Key': AUTH_TEST_KEY } })
+    if (r.status !== 401) throw new Error(`期望 401（只认 X-Server-Key），实际 ${r.status}`)
     return 'ok'
   })
-  await test('AUTH_KEY Bearer 通过', async() => {
-    const r = await authFetch('/sources', { headers: { Authorization: `Bearer ${AUTH_TEST_KEY}` } })
+  await test('AUTH_KEY X-Server-Key 通过', async() => {
+    const r = await authFetch('/sources', { headers: keyHeaders })
     if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
     return 'ok'
   })
-  await test('AUTH_KEY X-Api-Key 通过', async() => {
-    const r = await authFetch('/sources', { headers: { 'X-Api-Key': AUTH_TEST_KEY } })
-    if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
-    return 'ok'
-  })
-  await test('AUTH_KEY ?key= 通过', async() => {
-    const r = await authFetch(`/sources?key=${encodeURIComponent(AUTH_TEST_KEY)}`)
-    if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
-    return 'ok'
-  })
-  await test('AUTH_KEY /health 豁免', async() => {
-    const r = await authFetch('/health')
-    if (r.status !== 200) throw new Error(`期望 200，实际 ${r.status}`)
-    return 'ok'
+  // 防扫描：全部页面（含文档/健康检查/不存在的路径）无秘钥一律 401，无法探测接口存在性
+  for (const path of ['/health', '/docs', '/openapi.json', '/redoc', '/not-exist-path', '/login/status']) {
+    const r = await authFetch(path)
+    if (r.status !== 401) throw new Error(`${path} 期望 401，实际 ${r.status}（应全路径要求秘钥）`)
+  }
+  await test('AUTH_KEY 全路径防扫（文档/health/404 均 401）', async() => 'ok')
+  // /stream/* 流代理额外接受 ?key=（播放器拉流兼容），其它路径 ?key= 无效
+  await test('AUTH_KEY ?key= 仅限 /stream/*', async() => {
+    const normal = await authFetch(`/sources?key=${AUTH_TEST_KEY}`)
+    if (normal.status !== 401) throw new Error(`普通路径 ?key= 应 401，实际 ${normal.status}`)
+    const stream = await authFetch(`/stream/qs/123?key=${AUTH_TEST_KEY}`)
+    // 带对 key 的 stream 请求应通过鉴权（后续业务可能 502，但不能是 401）
+    if (stream.status === 401) throw new Error('stream ?key= 应通过鉴权')
+    return `stream 状态 ${stream.status}（过鉴权）`
   })
 
+  // 限流（独立低阈值实例验证 429）
+  const rlPort = authPort + 1
+  const rlBase = `http://localhost:${rlPort}`
+  const rlServer: any = await startLocalServer(rlPort, { AUTH_KEY: AUTH_TEST_KEY, RATE_LIMIT: '3' })
+  await test('RATE_LIMIT 超限 → 429', async() => {
+    const statuses: number[] = []
+    for (let i = 0; i < 6; i++) {
+      const r = await fetch(`${rlBase}/sources`, { headers: { 'X-Server-Key': AUTH_TEST_KEY } })
+      statuses.push(r.status)
+    }
+    if (!statuses.some(s => s === 429)) throw new Error(`6 连发应触发 429，实际 ${statuses.join(',')}`)
+    return `状态序列 ${statuses.join(',')}`
+  })
+
+  rlServer.kill()
   authServer.kill()
 }
 

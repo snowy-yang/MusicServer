@@ -1,14 +1,10 @@
 // 全局调用秘钥鉴权 —— AUTH_KEY 环境变量启用（未设置则完全不鉴权）
-// 客户端携带方式（任一即可）：
-//   Authorization: Bearer <AUTH_KEY>（也接受裸值不带 Bearer 前缀）
-//   X-Api-Key: <AUTH_KEY>
-//   ?key=<AUTH_KEY>（查询参数，兼容播放器/下载器直接拉流无法带自定义头的场景）
-// 豁免：/health、文档（/、/docs*、/redoc、/openapi.json）与 CORS 预检
+// 验证头统一为 X-Server-Key: <AUTH_KEY>；全部路径（含文档页/健康检查/404）都要求秘钥，
+// 未授权请求一律 401，避免被扫描器区分出接口存在性（404/401 差异）。
+// 唯一例外：/stream/* 代理流额外接受 ?key=（播放器直接拉流无法携带自定义头）。
+// CORS 预检（OPTIONS）无响应体、不泄露内容，豁免。
 import crypto from 'node:crypto'
 import type { FastifyRequest, FastifyReply } from 'fastify'
-
-// 无敏感信息且会被监控系统高频探测的路径豁免鉴权
-const PUBLIC_PATHS = [/^\/health$/, /^\/$/, /^\/docs(\/|$)/, /^\/redoc$/, /^\/openapi\.json$/]
 
 const safeEqual = (a: string, b: string) => {
   const bufA = Buffer.from(a)
@@ -19,22 +15,15 @@ const safeEqual = (a: string, b: string) => {
 export const registerAuth = (fastify: any, authKey: string) => {
   fastify.addHook('onRequest', async(request: FastifyRequest, reply: FastifyReply) => {
     if (request.method === 'OPTIONS') return
+    // /stream/* 流媒体代理：X-Server-Key 或 ?key=（播放器拉流兼容）
     const pathname = new URL(request.url, 'http://localhost').pathname
-    if (PUBLIC_PATHS.some(re => re.test(pathname))) return
-
-    const authorization = String(request.headers.authorization || '')
-    const bearer = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : authorization.trim()
-    const provided = [
-      bearer,
-      String(request.headers['x-api-key'] || ''),
-      String((request.query as any)?.key || ''),
-    ].find(Boolean)
+    const provided = pathname.startsWith('/stream/')
+      ? (String(request.headers['x-server-key'] || '') || String((request.query as any)?.key || ''))
+      : String(request.headers['x-server-key'] || '')
 
     if (!provided || !safeEqual(provided, authKey)) {
-      return reply.code(401).send({
-        code: 401,
-        msg: '无效或缺少调用秘钥：请在 Authorization: Bearer <key>、X-Api-Key 头或 ?key= 参数中携带',
-      })
+      // 统一 401 文案（不区分路径存在与否，防扫描探测）
+      return reply.code(401).send({ code: 401, msg: '无效或缺少调用秘钥：请在 X-Server-Key 请求头携带（流代理可用 ?key=）' })
     }
   })
 }

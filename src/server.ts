@@ -80,8 +80,16 @@ fastify.addHook('onRoute', (routeOptions) => {
 
 fastify.register(cors, { origin: '*' })
 
+// ---- 全局限流（per-IP 滑动窗口，RATE_LIMIT=每分钟请求数，0 关闭；默认 120）----
+// 先于鉴权计数：401 爆破秘钥同样受限
+const rateLimit = Number(process.env.RATE_LIMIT ?? 120)
+if (rateLimit > 0) {
+  const { registerRateLimit } = await import('./http/rate-limit.ts')
+  registerRateLimit(fastify, rateLimit)
+}
+
 // ---- 调用秘钥（AUTH_KEY 环境变量启用；未设置则不鉴权）----
-// 详见 src/http/auth-gate.ts；文档/健康检查豁免，业务接口要求 Bearer / X-Api-Key / ?key=
+// 统一 X-Server-Key 头，全部路径（含文档/健康检查/404）均要求秘钥，防扫描探测；详见 src/http/auth-gate.ts
 const authKey = process.env.AUTH_KEY
 if (authKey) {
   const { registerAuth } = await import('./http/auth-gate.ts')
@@ -212,7 +220,8 @@ if (!useSource) {
 export const startServer = async(port = PORT) => {
   await fastify.listen({ port: Number(port), host: '0.0.0.0' })
   console.log(`音乐服务器已启动: http://localhost:${port}`)
-  console.log(`调用鉴权:   ${authKey ? `已启用（AUTH_KEY，Bearer / X-Api-Key / ?key=）` : '未启用（设置 AUTH_KEY 环境变量开启）'}`)
+  console.log(`调用鉴权:   ${authKey ? '已启用（AUTH_KEY，X-Server-Key 头）' : '未启用（设置 AUTH_KEY 环境变量开启）'}`)
+  console.log(`限流:       ${rateLimit > 0 ? `${rateLimit} 次/分钟/IP（RATE_LIMIT 可调，0 关闭）` : '未启用'}`)
   console.log(`取流通道:   ${useSource ? '外部音源脚本（sources/，SOURCE_ENABLED）' : 'SDK 官方直连接口'}`)
   console.log(`接口文档:   http://localhost:${port}/docs (Swagger UI)`)
   console.log(`ReDoc 文档: http://localhost:${port}/redoc`)
