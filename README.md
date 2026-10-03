@@ -129,6 +129,19 @@ X-Server-Key: <AUTH_KEY>      # 统一验证头（全部路径）
 
 per-IP 滑动窗口限流，`RATE_LIMIT` 为每 IP 每分钟允许的请求数（默认 120，设 0 关闭）。超限返回 429 + Retry-After；鉴权失败的请求同样计数（防秘钥爆破）。
 
+## 汽水 PC 签名（可选增强）
+
+汽水（`qs`）的 PC 通道（搜索优先走、取流降级走）依赖 `X-Helios`/`X-Medusa` 两个加密签名头，按优先级两种供给方式；都没有时 PC 通道自动关闭，只走安卓自签通道（匿名搜索/试听不受影响）：
+
+1. **签名服务器**：环境变量 `QS_SIGN_SERVER`（如 `http://127.0.0.1:8899`，可选 `QS_SIGN_TOKEN` 配 Bearer 鉴权）。契约兼容独立仓库 **qs-signer**（`gitea.4i.hk/hhhge/qs-signer`，本地与 MusicServer 同级）的两个服务——`server.mjs`（Wine + bdms.node）与 `mssdk-sign`（metasecml.dll 独立进程，见其 README），跨平台部署无需在本机安装官方客户端。
+2. **固定值**：无签名服务器时，两个加密头直接用抓包固定值，写入 `data/qs-sign.json`（已 gitignore）：
+
+   ```json
+   { "helios": "…", "medusa": "…", "device_id": "…", "install_id": "…" }
+   ```
+
+   `device_id`/`install_id` 必须与抓包时同一套（签名与设备绑定，会自动对齐 URL 参数）；也可用环境变量 `QS_HELIOS`/`QS_MEDUSA`（配套 `QS_SIGN_DEVICE_ID`/`QS_SIGN_INSTALL_ID`）。固定值时效自负，被风控时搜索/取流自动回落安卓通道。
+
 ## 外部音源
 
 设置 `SOURCE_ENABLED=1` 后取流优先走外部音源（默认未设置时直接走 SDK 官方直连接口；是否启用由服务端在 `src/server.ts` 决策）。两种脚本都放 `sources/` 目录（不入库），按文件名混排成候选链：取流失败自动切换下一个，某平台连续失败 3 次的脚本降权冷却 5 分钟；整条音源链失败后回落 SDK 直连、再失败走酷我兜底（见上文取流链）。音源候选链只覆盖 kw/kg/tx/wy（音源脚本协议无 qs 平台，`/url/qs` 始终走 SDK）。音源模式下登录态不参与取流，登录自动续期不会启动（手动 `POST /login/refresh` 仍可用）。详见 [docs/source-ivm.md](docs/source-ivm.md) 与 [docs/source-simple.md](docs/source-simple.md)。

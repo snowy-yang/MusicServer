@@ -1,107 +1,141 @@
-// 汽水官方 PC 客户端签名（X-Helios / X-Medusa）—— 可选增强，缺原生模块时整体降级
-//
-// 原理：直接复用官方客户端自带的原生模块 bdms.node（官方 main 进程就是
-//   bdms.init({ deviceId }) → generateHttpSignatureHeaders(url, "名字\r\n值\r\n…")，
-//   把返回的 name/value 成对写回请求头）。与 sodahub-org/libmssdk 同一套做法，
-//   区别是我们进程内加载，不另起 HTTP 签名服务。
+// 汽水 PC 通道签名（X-Helios / X-Medusa）—— 两种供给方式，按优先级：
+//   1) 签名服务器：环境变量 QS_SIGN_SERVER 指向签名服务（如 http://127.0.0.1:8899，
+//      可选 QS_SIGN_TOKEN 配 Bearer 鉴权），HTTP POST /sign。
+//      契约同时兼容独立仓库 qs-signer（gitea.4i.hk/hhhge/qs-signer，本地与 MusicServer 同级）
+//      的两个服务（请求 {url, headers, body?}，响应 {ok, headers, added?}）：
+//        - server.mjs   （Wine + bdms.node）
+//        - mssdk-sign/  （metasecml.dll 独立进程，见其 README）
+//   2) 固定值兜底：无签名服务器时，两个加密头直接用抓包固定值 ——
+//      环境变量 QS_HELIOS / QS_MEDUSA，或 data/qs-sign.json：
+//        { "helios": "…", "medusa": "…", "device_id": "…", "install_id": "…" }
+//      签名与设备/URL 绑定：固定值必须搭配抓包时的同一套 device_id/install_id
+//      （json 里带上即自动对齐 URL 参数），时效自负，被风控时走安卓通道兜底。
+//   两者都没有：PC 通道不可用，搜索/取流自动走安卓自签通道。
 // 官方只对 qishui.com 且 **非** /passport/、非 /ttwid/ 的请求签名 —— 登录链路用不到本模块。
 // 签名覆盖 URL + 全部请求头；POST 的 x-ss-stub（body 的 MD5 大写）既是签名输入也要随请求发出。
-//
-// 原生文件（官方客户端二进制，专有、不入库、不再分发）放置位置任选其一：
-//   1) 环境变量 QS_MSSDK_DIR 指向同时含 bdms.node 与 metasecml.dll 的目录
-//   2) 仓库根 soda-mssdk/（已 gitignore）
-//   3) 本机已安装的官方客户端：%LOCALAPPDATA%\Programs\Soda Music\<版本>\resources\app.asar.unpacked
-// 从安装包提取：官方 SodaMusic-v*-official-win32_x64.exe → Bandizip 解 NSIS →
-//   $Var31/app.7z → resources/app.asar.unpacked/{bdms.node, metasecml.dll}
-import { createRequire } from 'node:module'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getDeviceIds } from './device.ts'
 
-const require = createRequire(import.meta.url)
-
-const MODULE_NAME = 'bdms.node'
-const CLIENT_DIR_NAMES = ['Soda Music', 'SodaMusic', '汽水音乐']
 // 仓库根（本文件在 sdk/qs/ 下）——不依赖 process.cwd()，从任何目录启动都能找到
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const FIXED_SIGN_FILE = join(REPO_ROOT, 'data', 'qs-sign.json')
+const SIGN_TIMEOUT = 5000
 
-const findModuleDir = (): string | null => {
-  const candidates: string[] = []
-  if (process.env.QS_MSSDK_DIR) candidates.push(process.env.QS_MSSDK_DIR)
-  candidates.push(join(REPO_ROOT, 'soda-mssdk'))
-  const localAppData = process.env.LOCALAPPDATA
-  if (localAppData) {
-    for (const name of CLIENT_DIR_NAMES) {
-      const root = join(localAppData, 'Programs', name)
-      if (!existsSync(root)) continue
-      try {
-        for (const ver of readdirSync(root)) candidates.push(join(root, ver, 'resources', 'app.asar.unpacked'))
-      } catch {
-        // 读不到目录就跳过
+/** 固定值配置（helios/medusa 必填；device_id/install_id 应与抓包时同一套） */
+interface FixedSignConfig {
+  helios: string
+  medusa: string
+  deviceId: string
+  installId: string
+}
+
+let fixedConfigWarned = false
+
+/** 读固定值：环境变量 QS_HELIOS/QS_MEDUSA 优先，其次 data/qs-sign.json；没有返回 null */
+const readFixedConfig = (): FixedSignConfig | null => {
+  const envHelios = process.env.QS_HELIOS?.trim()
+  const envMedusa = process.env.QS_MEDUSA?.trim()
+  if (envHelios && envMedusa) {
+    return {
+      helios: envHelios,
+      medusa: envMedusa,
+      deviceId: process.env.QS_SIGN_DEVICE_ID?.trim() ?? '',
+      installId: process.env.QS_SIGN_INSTALL_ID?.trim() ?? '',
+    }
+  }
+  if (!existsSync(FIXED_SIGN_FILE)) return null
+  try {
+    const data = JSON.parse(readFileSync(FIXED_SIGN_FILE, 'utf8')) as Record<string, unknown>
+    const helios = String(data.helios ?? '').trim()
+    const medusa = String(data.medusa ?? '').trim()
+    if (helios && medusa) {
+      return {
+        helios,
+        medusa,
+        deviceId: String(data.device_id ?? '').trim(),
+        installId: String(data.install_id ?? '').trim(),
       }
     }
-  }
-  return candidates.find(dir => dir && existsSync(join(dir, MODULE_NAME))) ?? null
-}
-
-interface BdmsModule {
-  init: (options: { deviceId: string }) => unknown
-  generateHttpSignatureHeaders: (url: string, headersLines: string) => string
-}
-
-let signer: { module: BdmsModule; deviceId: string; dir: string } | null | undefined
-
-/** 懒加载官方签名模块（失败只提示一次，之后一律按不可用处理） */
-const loadSigner = () => {
-  if (signer !== undefined) return signer
-  signer = null
-  try {
-    const dir = findModuleDir()
-    if (!dir) return signer
-    const mod = require(join(dir, MODULE_NAME)) as BdmsModule
-    if (typeof mod?.init !== 'function' || typeof mod?.generateHttpSignatureHeaders !== 'function') {
-      console.log(`[qs/mssdk] ${MODULE_NAME} 导出不符合预期，按不可用处理`)
-      return signer
+    if (!fixedConfigWarned) {
+      fixedConfigWarned = true
+      console.log(`[qs/mssdk] ${FIXED_SIGN_FILE} 缺少 helios/medusa 字段，固定值模式不启用`)
     }
-    const { deviceId } = getDeviceIds()
-    mod.init({ deviceId })
-    signer = { module: mod, deviceId, dir }
-    console.log(`[qs/mssdk] 官方签名模块已加载: ${dir} (device_id=${deviceId})`)
   } catch (err: any) {
-    console.log(`[qs/mssdk] 官方签名模块不可用，降级: ${err?.message ?? err}`)
+    if (!fixedConfigWarned) {
+      fixedConfigWarned = true
+      console.log(`[qs/mssdk] 固定值配置解析失败: ${err?.message ?? err}`)
+    }
   }
-  return signer
+  return null
 }
 
-/** 官方签名是否可用（不影响主流程，仅决定走 PC 通道还是安卓通道） */
-export const mssdkAvailable = (): boolean => Boolean(loadSigner())
+type SignMode =
+  | { kind: 'server'; server: string; token: string }
+  | { kind: 'fixed'; fixed: FixedSignConfig }
 
-/** 签名时绑定的设备（与请求 URL 里的 device_id/iid 必须一致） */
-export const mssdkDeviceId = (): string => loadSigner()?.deviceId ?? ''
+/** 当前签名供给方式：签名服务器 > 固定值 > 不可用（null） */
+const loadSignMode = (): SignMode | null => {
+  const server = process.env.QS_SIGN_SERVER?.trim().replace(/\/+$/, '')
+  if (server) return { kind: 'server', server, token: process.env.QS_SIGN_TOKEN?.trim() ?? '' }
+  const fixed = readFixedConfig()
+  return fixed ? { kind: 'fixed', fixed } : null
+}
+
+/** PC 签名是否可用（只看配置；服务器宕机等运行期失败由签名调用返回 null、调用方降级处理） */
+export const mssdkAvailable = (): boolean => Boolean(loadSignMode())
+
+const signViaServer = async (
+  server: string,
+  token: string,
+  url: string,
+  headers: Record<string, string>,
+  body?: string,
+): Promise<Record<string, string> | null> => {
+  try {
+    const res = await fetch(`${server}/sign`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ url, headers, body }),
+      signal: AbortSignal.timeout(SIGN_TIMEOUT),
+    })
+    const json = await res.json().catch(() => null) as any
+    if (!res.ok || !json?.ok) {
+      console.log(`[qs/mssdk] 签名服务返回异常: HTTP ${res.status} ${json?.error ?? ''}`.trim())
+      return null
+    }
+    // signer/server.mjs 把 x-ss-stub 并进 headers，mssdk-sign 放 added —— 合并即可
+    const signed: Record<string, string> = { ...(json.headers ?? {}), ...(json.added ?? {}) }
+    if (!signed['X-Helios'] && !signed['x-helios']) {
+      console.log('[qs/mssdk] 签名结果缺少 X-Helios')
+      return null
+    }
+    return signed
+  } catch (err: any) {
+    console.log(`[qs/mssdk] 签名服务不可达: ${err?.message ?? err}`)
+    return null
+  }
+}
 
 /**
  * 给一个 qishui.com 请求签名
  * @param headers 必须是「真实要发出去的那一份」（含 cookie / x-ss-stub）
- * @returns 需追加的头；不可用时返回 null（调用方走原通道）
+ * @param body    POST body（给了且 headers 没带 x-ss-stub 时服务端会自动补）
+ * @returns 需追加的头；不可用时返回 null（调用方走安卓通道）
  */
-export const signQishuiRequest = (url: string, headers: Record<string, string>): Record<string, string> | null => {
-  const current = loadSigner()
-  if (!current) return null
-  try {
-    const lines = Object.entries(headers)
-      .filter(([name, value]) => name && value != null)
-      .map(([name, value]) => `${name}\r\n${value}`)
-      .join('\r\n')
-    const fields = String(current.module.generateHttpSignatureHeaders(url, lines)).split('\r\n').filter(Boolean)
-    const signed: Record<string, string> = {}
-    for (let i = 0; i + 1 < fields.length; i += 2) signed[fields[i]] = fields[i + 1]
-    if (!signed['X-Helios'] && !signed['x-helios']) return null
-    return signed
-  } catch (err: any) {
-    console.log(`[qs/mssdk] 签名失败，本次降级: ${err?.message ?? err}`)
-    return null
-  }
+export const signQishuiRequest = async (
+  url: string,
+  headers: Record<string, string>,
+  body?: string,
+): Promise<Record<string, string> | null> => {
+  const mode = loadSignMode()
+  if (!mode) return null
+  if (mode.kind === 'fixed') return { 'X-Helios': mode.fixed.helios, 'X-Medusa': mode.fixed.medusa }
+  return signViaServer(mode.server, mode.token, url, headers, body)
 }
 
 /** 官方 PC 端 UA（签名与 UA 绑定同一客户端版本） */
@@ -109,7 +143,12 @@ export const PC_UA = 'LunaPC/3.7.0(452316191)'
 
 /** 官方 PC 端公共查询参数（与签名设备成套；track_v2 / search 等 luna_pc 接口共用） */
 export const pcCommonParams = (): Record<string, string> => {
-  const { deviceId, installId } = getDeviceIds()
+  const mode = loadSignMode()
+  // 固定值是针对抓包设备签的，必须用配套设备；服务器现签则用本地设备（URL 带什么签什么）
+  const fixedDevice = mode?.kind === 'fixed' && mode.fixed.deviceId ? mode.fixed : null
+  const { deviceId, installId } = fixedDevice
+    ? { deviceId: fixedDevice.deviceId, installId: fixedDevice.installId }
+    : getDeviceIds()
   return {
     aid: '386088',
     app_name: 'luna_pc',
@@ -135,4 +174,4 @@ export const pcCommonParams = (): Record<string, string> => {
   }
 }
 
-export default { mssdkAvailable, mssdkDeviceId, signQishuiRequest, pcCommonParams, PC_UA }
+export default { mssdkAvailable, signQishuiRequest, pcCommonParams, PC_UA }

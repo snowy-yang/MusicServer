@@ -1,11 +1,12 @@
 // 汽水音乐搜索（App 搜索接口直连）
 // 接口: https://api.qishui.com/luna/search/track?<公共参数>&q=<关键词>&cursor=
 // 两条通道（同一接口，差在公共参数与签名，返回结构一致）：
-//   官方 PC 通道: 装好官方签名模块（sdk/qs/mssdk.ts）时优先——luna_pc 参数 + X-Helios/X-Medusa；
-//   安卓指纹通道: 未装签名模块时回退——静态安卓设备参数，缺参数或用 PC 参数不签名会被静默风控
-//   （200 + 空 body）；被风控时需换新指纹。
+//   官方 PC 通道: PC 签名可用（签名服务器或固定值，见 sdk/qs/mssdk.ts）时优先——
+//                 luna_pc 参数 + X-Helios/X-Medusa；签名失败/被风控自动降级安卓通道；
+//   安卓指纹通道: 静态安卓设备参数，缺参数或用 PC 参数不签名会被静默风控（200 + 空 body）；
+//                 被风控时需换新指纹。
 import { sizeFormate, formatPlayTime } from '../index.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { coverUrl } from './musicInfo.ts'
 import { mssdkAvailable, signQishuiRequest, pcCommonParams, PC_UA } from './mssdk.ts'
 
@@ -59,9 +60,9 @@ const SEARCH_DEVICE_PARAMS = {
 const SEARCH_UA = 'Luna/19.8.0 (com.luna.music/100198030);Android 15;ABR-AL80'
 const PC_PAGE_SIZE = 20
 
-// 有官方签名模块时走官方 PC 通道（PC 参数必须配 X-Helios/X-Medusa，否则上游 200 + 空 body）
-const buildSearchUrl = (str: string, cursor: number, count: number) => {
-  const params = mssdkAvailable()
+// PC 通道必须配 X-Helios/X-Medusa（否则上游 200 + 空 body）；安卓通道用静态设备指纹
+const buildSearchUrl = (str: string, cursor: number, count: number, pcChannel: boolean) => {
+  const params = pcChannel
     ? new URLSearchParams({
       ...pcCommonParams(),
       q: str,
@@ -118,34 +119,56 @@ export default {
       }
     }).filter(Boolean)
   },
-  search(str, page = 1, limit, retryNum = 0) {
+  handleSearchBody(rawBody, cursor, page) {
+    const group = rawBody.result_groups.find(g => g?.data?.length) || { data: [], has_more: false }
+    const list = this.handleResult(group.data)
+    const total = group.has_more ? cursor + list.length + 1 : cursor + list.length
+    this.total = total
+    this.page = page
+    this.allPage = group.has_more ? page + 1 : page
+    return {
+      list,
+      allPage: this.allPage,
+      limit: this.limit,
+      total,
+      source: 'qs',
+    }
+  },
+  async search(str, page = 1, limit, retryNum = 0, forceAndroid = false) {
     if (++retryNum > 3) return Promise.reject(new Error('try max num'))
-    const pcChannel = mssdkAvailable()
-    // PC 通道每页固定 20 条（上游默认、不接受 count），cursor 必须按 20 步进，否则翻页与 limit 错位重叠
-    const pageSize = pcChannel ? PC_PAGE_SIZE : (limit ?? this.limit)
-    const cursor = pageSize * (page - 1)
-    const url = buildSearchUrl(str, cursor, pageSize)
-    // 签名覆盖真实发出的头：先定头、再签、再发
-    const headers: Record<string, string> = { 'User-Agent': pcChannel ? PC_UA : SEARCH_UA }
-    const signed = signQishuiRequest(url, headers)
-    if (signed) Object.assign(headers, signed)
-    const searchRequest = httpFetch(url, { method: 'get', headers, timeout: 15000 })
-    return searchRequest.promise.then(({ body }) => {
-      // 被风控/无结果时上游不返回 result_groups（200 + {"extra":{"empty_search":1}}），重试
-      if (!body?.result_groups) return this.search(str, page, limit, retryNum)
-      const group = body.result_groups.find(g => g?.data?.length) || { data: [], has_more: false }
-      const list = this.handleResult(group.data)
-      const total = group.has_more ? cursor + list.length + 1 : cursor + list.length
-      this.total = total
-      this.page = page
-      this.allPage = group.has_more ? page + 1 : page
-      return {
-        list,
-        allPage: this.allPage,
-        limit: this.limit,
-        total,
-        source: 'qs',
+    const pcChannel = !forceAndroid && mssdkAvailable()
+    if (pcChannel) {
+      // PC 通道每页固定 20 条（上游默认、不接受 count），cursor 必须按 20 步进，否则翻页与 limit 错位重叠
+      const pageSize = PC_PAGE_SIZE
+      const cursor = pageSize * (page - 1)
+      const url = buildSearchUrl(str, cursor, pageSize, true)
+      // 签名覆盖真实发出的头：先定头、再签、再发
+      const headers: Record<string, string> = { 'User-Agent': PC_UA }
+      const fallbackToAndroid = (reason: string) => {
+        console.log(`[qs/search] PC 通道${reason}，降级安卓通道`)
+        return this.search(str, page, limit, retryNum, true)
       }
-    })
+      let body: any = null
+      try {
+        // 签名失败（服务器宕机/固定值被风控）与请求异常都降级安卓通道
+        const signed = await signQishuiRequest(url, headers)
+        if (!signed) return fallbackToAndroid('签名不可用')
+        const searchRequest = await httpFetch(url, { method: 'get', headers: { ...headers, ...signed }, timeout: 15000 }).promise
+        body = searchRequest.body
+      } catch (err: any) {
+        return fallbackToAndroid(`请求失败: ${err?.message ?? err}`)
+      }
+      // 被风控/无结果时上游不返回 result_groups（200 + {"extra":{"empty_search":1}}）
+      if (!body?.result_groups) return fallbackToAndroid('空结果（疑似风控）')
+      return this.handleSearchBody(body, cursor, page)
+    }
+    // 安卓指纹通道：无签名直发，空结果时换 _rticket 重试
+    const pageSize = limit ?? this.limit
+    const cursor = pageSize * (page - 1)
+    const url = buildSearchUrl(str, cursor, pageSize, false)
+    const headers: Record<string, string> = { 'User-Agent': SEARCH_UA }
+    const { body } = await httpFetch(url, { method: 'get', headers, timeout: 15000 }).promise
+    if (!body?.result_groups) return this.search(str, page, limit, retryNum)
+    return this.handleSearchBody(body, cursor, page)
   },
 }

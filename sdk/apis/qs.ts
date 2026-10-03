@@ -8,7 +8,7 @@
 // 统一接口约定：apis('qs').getMusicUrl(songInfo, type) → { promise, cancelHttp }
 // promise resolve → { type, url }
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { createHash, randomBytes } from 'node:crypto'
 import musicInfo from '../qs/musicInfo.ts'
 import { getDevice } from '../qs/device.ts'
@@ -156,10 +156,10 @@ const fetchTrackPlayerByApp = async (trackId: string) => {
   }, requestBody)
 }
 
-// 通道 B（降级）：官方 PC 客户端签名 X-Helios/X-Medusa（需 sdk/qs/mssdk.ts 的签名模块）
+// 通道 B（降级）：官方 PC 客户端签名 X-Helios/X-Medusa（签名服务器或固定值，见 sdk/qs/mssdk.ts）
 const fetchTrackPlayerByPc = async (trackId: string) => {
   const sessionId = getSessionId()
-  if (!mssdkAvailable()) throw new Error('官方签名模块不可用')
+  if (!mssdkAvailable()) throw new Error('PC 签名不可用')
   const url = `${TRACK_V2_URL}?${new URLSearchParams(pcCommonParams()).toString()}`
   const requestBody = TRACK_V2_BODY(trackId)
   const headers: Record<string, string> = {
@@ -172,7 +172,7 @@ const fetchTrackPlayerByPc = async (trackId: string) => {
     'x-ss-stub': createHash('md5').update(requestBody).digest('hex').toUpperCase(),
     ...(sessionId ? { cookie: getCookie() || `sessionid=${sessionId}` } : {}),
   }
-  const signed = signQishuiRequest(url, headers)
+  const signed = await signQishuiRequest(url, headers, requestBody)
   if (!signed) throw new Error('官方签名失败')
   return fetchTrackPlayer(url, { ...headers, ...signed }, requestBody)
 }
