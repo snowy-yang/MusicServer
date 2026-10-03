@@ -2,7 +2,7 @@
 // 接口: https://www.ximalaya.com/revision/album/getTracksList?albumId=&pageNum=&sort=0
 // 实测（2026-10-02）匿名可翻全部页（固定每页 30 条）；仅曲目元信息（trackId/title/isPaid），
 // 播放地址需另走 baseInfo。注意 v1 版接口（/revision/album/v1/getTracksList）需要 webtk 签名且有风控。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { XM_UA } from './sign.ts'
 
 const TRACKS_URL = 'https://www.ximalaya.com/revision/album/getTracksList'

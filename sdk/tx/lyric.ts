@@ -1,5 +1,4 @@
-import type { HttpRequestObject } from '../types.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import getMusicInfo from './musicInfo.ts'
 import { decodeQrc } from './qrcDecode.ts'
 
@@ -111,8 +110,6 @@ const parseTools = {
     return parseInt(m) * 3600000 + parseInt(s) * 1000 + parseInt(ms)
   },
   fixRlrcTimeTag(rlrc, lrc) {
-    // console.log(lrc)
-    // console.log(rlrc)
     const rlrcLines = rlrc.split('\n')
     let lrcLines = lrc.split('\n')
     // let temp: string[] = []
@@ -141,8 +138,6 @@ const parseTools = {
     return newLrc.join('\n')
   },
   fixTlrcTimeTag(tlrc, lrc) {
-    // console.log(lrc)
-    // console.log(tlrc)
     const tlrcLines = tlrc.split('\n')
     let lrcLines = lrc.split('\n')
     // let temp: string[] = []
@@ -185,14 +180,9 @@ const parseTools = {
       let { lyric, yrc } = this.parseLyric(this.removeTag(lrc))
       info.lyric = lyric
       info.yrc = yrc
-      // console.log(lyric)
-      // console.log(yrc)
     }
     if (rlrc) info.rlyric = this.fixRlrcTimeTag(this.parseRlyric(this.removeTag(rlrc)), info.lyric)
     if (tlrc) info.tlyric = this.fixTlrcTimeTag(tlrc, info.lyric)
-    // console.log(info.lyric)
-    // console.log(info.tlyric)
-    // console.log(info.rlyric)
 
     return info
   },
@@ -218,9 +208,6 @@ export default {
     // return {
 
     // }
-    // console.log(lyric)
-    // console.log(tlyric)
-    // console.log(rlyric)
     return parseTools.parse(lyric, tlyric, rlyric)
   },
   getLyric(mInfo, retryNum = 0) {
@@ -266,7 +253,6 @@ export default {
           },
         })
         return requestObj.promise.then(({ body }) => {
-          // console.log(body)
           if (body.code != this.successCode || body.req.code != this.successCode) return this.getLyric(songId, ++retryNum)
           const data = body.req.data
           return this.parseLyric(data.lyric, data.trans, data.roma)
@@ -276,23 +262,3 @@ export default {
   },
 }
 
-// export default {
-//   regexps: {
-//     matchLrc: /.+"lyric":"([\w=+/]*)".+/,
-//   },
-//   getLyric(songmid) {
-//     const requestObj = httpFetch(`https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=${songmid}&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&platform=yqq`, {
-//       headers: {
-//         Referer: 'https://y.qq.com/portal/player.html',
-//       },
-//     })
-//     requestObj.promise = requestObj.promise.then(({ body }) => {
-//       if (body.code != 0 || !body.lyric) return Promise.reject(new Error('Get lyric failed'))
-//       return {
-//         lyric: decodeName(b64DecodeUnicode(body.lyric)),
-//         tlyric: decodeName(b64DecodeUnicode(body.trans)),
-//       }
-//     })
-//     return requestObj
-//   },
-// }

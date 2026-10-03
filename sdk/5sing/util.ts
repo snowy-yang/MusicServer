@@ -4,7 +4,7 @@
 // 上游 New(cookie) 的 cookie 实际参与请求（搜索/getSongUrl/newget/歌单页），
 // 这里按约定从 sdk/auth/store.ts 的 getCredentials('5s') 读取（无则匿名）。
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getCredentials } from '../auth/store.ts'
 
 export const UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36'

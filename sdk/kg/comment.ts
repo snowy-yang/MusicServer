@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeName, dateFormat2 } from '../index.ts'
 import { signatureParams } from './util.ts'
 // import { getMusicInfoRaw } from './musicInfo.ts'
@@ -22,13 +22,11 @@ export default {
       },
     })
     const { body, statusCode } = await _requestObj.promise
-    // console.log(body)
     if (statusCode != 200 || body.err_code !== 0) throw new Error('获取评论失败')
     const total = body.count ?? 0
     return { source: 'kg', comments: this.filterComment(body.list || []), total, page, limit, maxPage: Math.ceil(total / limit) || 1 }
   },
   async getHotComment({ hash }, page = 1, limit = 20) {
-    // console.log(songmid)
     if (this._requestObj2) this._requestObj2.cancelHttp()
     let timestamp = Date.now()
     const params = `dfid=0&mid=16249512204336365674023395779019&clienttime=${timestamp}&uuid=0&extdata=${hash}&appid=1005&code=fc4be23b4e972707f36b8a828a93ba8a&schash=${hash}&clientver=11409&p=${page}&clienttoken=&pagesize=${limit}&ver=10&kugouid=0`
@@ -39,7 +37,6 @@ export default {
       },
     })
     const { body, statusCode } = await _requestObj2.promise
-    // console.log(body)
     if (statusCode != 200 || body.err_code !== 0) throw new Error('获取热门评论失败')
     const total = body.count ?? 0
     return { source: 'kg', comments: this.filterComment(body.list || []), total, page, limit, maxPage: Math.ceil(total / limit) || 1 }
@@ -57,7 +54,6 @@ export default {
       },
     })
     const { body, statusCode } = await _requestObj2.promise
-    // console.log(body)
     if (statusCode != 200 || body.err_code !== 0) throw new Error('获取回复评论失败')
     return { source: 'kg', comments: this.filterComment(body.list || []) }
   },

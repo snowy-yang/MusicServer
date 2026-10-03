@@ -2,7 +2,7 @@
 // 接口: https://www.missevan.com/dramaapi/getdramaepisodes?drama_id=&season=&page=&order=0&pageSize=
 // 结果在 info.episodes.episode[]（name/sound_id/pay_type/vip）；剧名在 info.drama.name
 // 注意：getdrama（不带 type=2 时）的 info.episodes.episode 同样可用（MusicFree 插件用法），本接口支持翻页故用之
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime } from '../index.ts'
 
 const EPISODES_URL = 'https://www.missevan.com/dramaapi/getdramaepisodes'

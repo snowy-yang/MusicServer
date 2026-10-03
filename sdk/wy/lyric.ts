@@ -1,39 +1,6 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { eapi } from './utils/crypto.ts'
-import type { LyricInfo, HttpRequestObject } from '../types.ts'
-// import { decodeName } from '../...ts'
-
-// const parseLyric = (str, lrc) => {
-//   if (!str) return ''
-
-//   str = str.replace(/\r/g, '')
-
-//   let yrc = str.replace(/\[((\d+),\d+)\].*/g, str => {
-//     let result = str.match(/\[((\d+),\d+)\].*/)
-//     let time = parseInt(result[2])
-//     let ms = time % 1000
-//     time /= 1000
-//     let m = parseInt(time / 60).toString().padStart(2, '0')
-//     time %= 60
-//     let s = parseInt(time).toString().padStart(2, '0')
-//     time = `${m}:${s}.${ms}`
-//     str = str.replace(result[1], time)
-
-//     let startTime = 0
-//     str = str.replace(/\(0,1\) /g, ' ').replace(/\(\d+,\d+\)/g, time => {
-//       const [start, end] = time.replace(/^\((\d+,\d+)\)$/, '$1').split(',')
-
-//       time = `<${parseInt(startTime + parseInt(start))},${end}>`
-//       startTime = parseInt(startTime + parseInt(end))
-//       return time
-//     })
-
-//     return str
-//   })
-
-//   yrc = decodeName(yrc)
-//   return yrc.trim()
-// }
+import type { HttpRequestObject } from '../types.ts'
 
 const eapiRequest = (url: string, data: object) => {
   return httpFetch('https://interface3.music.163.com/eapi/song/lyric/v1', {
@@ -41,18 +8,9 @@ const eapiRequest = (url: string, data: object) => {
     headers: {
       'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36',
       origin: 'https://music.163.com',
-      // cookie: 'os=pc; deviceId=A9C064BB4584D038B1565B58CB05F95290998EE8B025AA2D07AE; osver=Microsoft-Windows-10-Home-China-build-19043-64bit; appver=2.5.2.197409; channel=netease; MUSIC_A=37a11f2eb9de9930cad479b2ad495b0e4c982367fb6f909d9a3f18f876c6b49faddb3081250c4980dd7e19d4bd9bf384e004602712cf2b2b8efaafaab164268a00b47359f85f22705cc95cb6180f3aee40f5be1ebf3148d888aa2d90636647d0c3061cd18d77b7a0; __csrf=05b50d54082694f945d7de75c210ef94; mode=Z7M-KP5(7)GZ; NMTID=00OZLp2VVgq9QdwokUgq3XNfOddQyIAAAF_6i8eJg; ntes_kaola_ad=1',
     },
     form: eapi(url, data),
   })
-  // requestObj.promise = requestObj.promise.then(({ body }) => {
-  //   // console.log(raw)
-  //   console.log(body)
-  //   // console.log(eapiDecrypt(raw))
-  //   // return eapiDecrypt(raw)
-  //   return body
-  // })
-  // return requestObj
 }
 
 const parseTools = {
@@ -218,35 +176,6 @@ const parseTools = {
 }
 
 
-// https://github.com/Binaryify/NeteaseCloudMusicApi/pull/1523/files
-// export default songmid => {
-//   const requestObj = httpFetch('https://music.163.com/api/linux/forward', {
-//     method: 'post',
-//     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36',
-//     form: linuxapi({
-//       method: 'POST',
-//       url: 'https://music.163.com/api/song/lyric?_nmclfl=1',
-//       params: {
-//         id: songmid,
-//         tv: -1,
-//         lv: -1,
-//         rv: -1,
-//         kv: -1,
-//       },
-//     }),
-//   })
-//   requestObj.promise = requestObj.promise.then(({ body }) => {
-//     if (body.code !== 200 || !body?.lrc?.lyric) return Promise.reject(new Error('Get lyric failed'))
-//     // console.log(body)
-//     return {
-//       lyric: body.lrc.lyric,
-//       tlyric: body.tlyric?.lyric ?? '',
-//       rlyric: body.romalrc?.lyric ?? '',
-//       // yrc: parseLyric(body.klyric.lyric),
-//     }
-//   })
-//   return requestObj
-// }
 
 // 参考社区通用的歌词时间标签修正思路
 const fixTimeLabel = (lrc: string, tlrc?: string, romalrc?: string) => {
@@ -277,11 +206,9 @@ export default (songmid: string): HttpRequestObject => {
     yrv: 0,
   })
   requestObj.promise = requestObj.promise.then(({ body }) => {
-    // console.log(body)
     if (body.code !== 200 || !body?.lrc?.lyric) return Promise.reject(new Error('Get lyric failed'))
     const fixTimeLabelLrc = fixTimeLabel(body.lrc.lyric, body.tlyric?.lyric, body.romalrc?.lyric)
     const info = parseTools.parse(body.yrc?.lyric, body.ytlrc?.lyric, body.yromalrc?.lyric, fixTimeLabelLrc.lrc, fixTimeLabelLrc.tlrc, fixTimeLabelLrc.romalrc)
-    // console.log(info)
     if (!info.lyric) return Promise.reject(new Error('Get lyric failed'))
     return info
   }) as any

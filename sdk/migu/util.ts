@@ -2,7 +2,7 @@
 // 上游对应：music-lib/migu/migu.go（convertItemToSong*、collectMiguFormats、pickMiguImage 等）
 // 说明：匿名态 listen-url 仅放行 PQ(128k mp3)；HQ/SQ/ZQ 各档需携带登录 Cookie（对话框「登录后免费试听」）。
 import crypto from 'node:crypto'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getCredentials } from '../auth/store.ts'
 import type { SongType } from '../types.ts'
 
@@ -328,7 +328,6 @@ export const convertItemToSong = (item: MiguSongItem, allowPaid = true): MiguSon
   const best = candidates[0]!
   const bestFormat = rateFormats[best.index]!
 
-  const bitrate = duration > 0 && best.size > 0 ? Math.floor(best.size * 8 / 1000 / duration) : 0
   const coverURL = normalizeMiguImageURL(firstNonEmpty(
     pickMiguImage(item.imgItems), pickMiguImage(item.albumImgs), item.img1, item.img2, item.img3,
   ))

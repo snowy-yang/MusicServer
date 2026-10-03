@@ -1,4 +1,4 @@
-// import { httpFetch } from '../request.ts'
+// import { httpFetch } from '../common/request.ts'
 // import { weapi } from './utils/crypto.ts'
 import { sizeFormate, formatPlayTime } from '../index.ts'
 // import musicDetailApi from './musicDetail.ts'
@@ -36,7 +36,6 @@ export default {
     return arr.join('、')
   },
   handleResult(rawList) {
-    // console.log(rawList)
     if (!rawList) return []
     return rawList.map(item => {
       item = item.baseInfo.simpleSongData
@@ -95,10 +94,8 @@ export default {
     if (++retryNum > 3) return Promise.reject(new Error('try max num'))
     if (limit == null) limit = this.limit
     return this.musicSearch(str, page, limit).then(result => {
-      // console.log(result)
       if (!result || result.code !== 200) return this.search(str, page, limit, retryNum)
       let list = this.handleResult(result.data.resources || [])
-      // console.log(list)
 
       if (list == null) return this.search(str, page, limit, retryNum)
 

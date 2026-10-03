@@ -1,12 +1,8 @@
-import type { HttpRequestObject } from '../../types.ts'
-
-import { httpFetch } from '../../request.ts'
+import { httpFetch } from '../../common/request.ts'
 import { zzcSign } from './crypto.ts'
 
 export const signRequest = async(data) => {
-  // console.log(data)
   const sign = await zzcSign(JSON.stringify(data))
-  // console.log('sign', sign)
   return httpFetch(`https://u.y.qq.com/cgi-bin/musics.fcg?sign=${sign}`, {
     method: 'post',
     headers: {
@@ -36,7 +32,7 @@ export const createMusicuFetch = async(data, retryNum = 0) => {
       },
     }).promise
   } catch (err) {
-    console.log(err)
+    console.warn(`[tx] musicu 请求失败将重试(${retryNum + 1}/3): ${(err as Error).message}`)
     return createMusicuFetch(data, ++retryNum)
   }
   if (result.statusCode !== 200 || result.body.code != 0) return createMusicuFetch(data, ++retryNum)

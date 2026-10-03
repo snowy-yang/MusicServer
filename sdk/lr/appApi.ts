@@ -5,7 +5,7 @@
 // 端点：/yyting/search/searchBatch.action（q=2150）
 // 注意：章节/取流 App 端点（q=1930/2224）游客 token 已失效（482 请登录），取流走 web 通道（见 apis/lr.ts）
 import crypto from 'node:crypto'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 
 const DOMAIN = 'http://dapis.mting.info'
 const SECRET = 'iJ0DgxmdC83#I&j@iwg'

@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { weapi } from './utils/crypto.ts'
 import { formatPlayTime, sizeFormate } from '../index.ts'
 // https://github.com/Binaryify/NeteaseCloudMusicApi/blob/master/module/song_detail.js
@@ -12,7 +12,6 @@ export default {
     return arr.join('、')
   },
   filterList({ songs, privileges }) {
-    // console.log(songs, privileges)
     const list: any[] = []
     songs.forEach((item, index) => {
       const types: Array<{ type: string, size: string | null }> = []
@@ -87,7 +86,6 @@ export default {
         })
       }
     })
-    // console.log(list)
     return list
   },
   async getList(ids = [], retryNum = 0) {
@@ -106,7 +104,6 @@ export default {
     })
     const { body, statusCode } = await requestObj.promise
     if (statusCode != 200 || body.code !== 200) throw new Error('获取歌曲详情失败')
-    // console.log(body)
     return { source: 'wy', list: this.filterList(body) }
   },
 }

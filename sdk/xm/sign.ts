@@ -7,7 +7,7 @@
 
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { DEVICE_INFO } from './deviceInfo.ts'
 
 const SIGN_KEY = 'm9ZtRrz:qujT8@da'

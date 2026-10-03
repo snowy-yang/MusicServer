@@ -5,15 +5,13 @@
 import lrApi from '../apis/lr.ts'
 import musicSearch from './musicSearch.ts'
 import { getBookMenu } from './menu.ts'
-import { getLrCookie } from './auth.ts'
 
 const lr = {
   musicSearch,
   getMusicUrl(songInfo, type) {
     return lrApi.getMusicUrl(songInfo, type)
   },
-  getPic(songInfo) {
-    const bookId = String(songInfo.songmid ?? '').split(':')[0]
+  getPic() {
     // 书籍封面无独立免签接口；搜索结果的 img 字段已带封面（这里返回空由调用方回退）
     return Promise.resolve(null)
   },

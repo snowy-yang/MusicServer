@@ -1,5 +1,5 @@
 import type { HttpRequestObject, SongType, Quality, QualityInfo } from '../types.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeName, formatPlayTime, sizeFormate, dateFormat, formatPlayCount } from '../index.ts'
 import { formatSingerName } from '../utils.ts'
 
@@ -120,7 +120,6 @@ export default {
     this._requestObj_list = httpFetch(
       this.getListUrl(sortId, tagId, page),
     )
-    // console.log(this.getListUrl(sortId, tagId, page))
     return this._requestObj_list!.promise.then(({ body }) => {
       if (body.code !== this.successCode) return this.getList(sortId, tagId, page, ++tryNum)
       return tagId ? this.filterList2(body.playlist.data, page) : this.filterList(body.playlist.data, page)
@@ -148,7 +147,6 @@ export default {
     }
   },
   filterList2({ content }, page) {
-    // console.log(content.v_item)
     return {
       list: content.v_item.map(({ basic }) => ({
         play_count: formatPlayCount(basic.play_cnt),
@@ -173,7 +171,6 @@ export default {
 
     const requestObj_listDetailLink = httpFetch(link)
     const { headers: { location }, statusCode } = await requestObj_listDetailLink.promise
-    // console.log(headers)
     if (statusCode > 400) return this.handleParseId(link, ++retryNum)
     return location == null ? link : location
   },
@@ -189,7 +186,6 @@ export default {
         if (!result) throw new Error('failed')
       }
       id = result[1]
-      // console.log(id)
     }
     return id
   },
@@ -225,7 +221,6 @@ export default {
     }
   },
   filterListDetail(rawList) {
-    // console.log(rawList)
     return rawList.map(item => {
       let types: SongType[] = []
       let _types: Partial<Record<Quality, QualityInfo>> = {}
@@ -300,7 +295,6 @@ export default {
     })
       .promise.then(({ body }) => {
         if (body.code != 0) return this.search(text, page, limit, ++retryNum)
-        // console.log(body.data.list)
         return {
           list: body.data.list.map(item => {
             return {

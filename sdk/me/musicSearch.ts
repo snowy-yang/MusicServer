@@ -3,7 +3,7 @@
 //   ——网页版搜索排前面的正剧来自这里；getsearch 的 type 参数只有 1UP主/2音单/3声音/4声优，没有剧集类型
 // 声音（补足）:   https://www.missevan.com/sound/getsearch?s=&p=&type=3&page_size=&sort=2 → info.Datas[]
 // 剧条目 songmid 用 "d:<drama_id>" 前缀（取流时自动取首个免费集，见 apis/me.ts）；声音条目为裸 sound_id
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime } from '../index.ts'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'

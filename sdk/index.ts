@@ -176,10 +176,6 @@ export const findMusic = async (
 
   const isEqualsInterval = (intv: number) =>
     Math.abs((fInterval || intv) - (intv || fInterval)) < 5
-  const isIncludesName = (n: string) => fMusicName.includes(n) || n.includes(fMusicName)
-  const isIncludesSinger = (sng: string) =>
-    fSinger ? fSinger.includes(sng) || sng.includes(fSinger) : true
-  const isEqualsAlbum = (alb: string) => (fAlbumName ? fAlbumName === alb : true)
 
   let candidates: MatchCandidate[] = []
   for (const source of lists) {

@@ -4,7 +4,7 @@
 // 逐字歌词（lyric.content）与试听播放信息（track_player.url_player_info / video_model）
 // 注意：seo_track 属分享页/SEO 数据面，track_player 里只有 30 秒试听资源；
 // 完整音频需真机凭证走 /luna/pc/track_v2，且音频经 CENC 加密，见 apis/qs.ts 头注释
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import type { RequestObj } from '../types.ts'
 
 export default (trackId: string): RequestObj<any> => {

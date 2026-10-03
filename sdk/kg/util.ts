@@ -1,9 +1,8 @@
 import { toMD5 } from '../utils.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import type { HttpOptions } from '../types.ts'
 
 // s.content[0].lyricContent.forEach(([str]) => {
-//   console.log(str)
 // })
 
 /**
@@ -32,10 +31,9 @@ export const createHttpFetch = async(url: string, options?: HttpOptions, retryNu
   try {
     result = await httpFetch(url, options).promise
   } catch (err) {
-    console.log(err)
+    console.warn(`[kg] 请求失败将重试(${retryNum + 1}/3) ${url}: ${(err as Error).message}`)
     return createHttpFetch(url, options, ++retryNum)
   }
-  // console.log(result.statusCode, result.body)
   if (result.statusCode !== 200 ||
     (
       result.body.error_code ??

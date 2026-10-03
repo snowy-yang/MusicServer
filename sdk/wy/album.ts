@@ -2,7 +2,7 @@
 // 搜索：cloudsearch pc type=10（eapi 通道，与现有 songList.search 同一通路）
 // 详情/曲目：weapi/v1/album/<id>（匿名可用；登录 cookie 可选）
 // 链接解析：#/album?id= / /album?id= / /album/<id>（上游 parseNeteaseLink）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { weapi } from './utils/crypto.ts'
 import { formatPlayTime, sizeFormate } from '../index.ts'
 import { formatSingerName } from '../utils.ts'

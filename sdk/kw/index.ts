@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import musicSearch from './musicSearch.ts'
 import { formatSinger } from './util.ts'
 import leaderboard from './leaderboard.ts'
@@ -21,22 +21,6 @@ const kw = {
   album,
   playlist,
   parse,
-  // context: null,
-
-
-  // init(context) {
-  //   if (this.isInited) return
-  //   this.isInited = true
-  //   this.context = context
-
-  //   // this.musicSearch.search('我又想你了').then(res => {
-  //   //   console.log(res)
-  //   // })
-
-  //   // this.getMusicUrl('62355680', '320k').then(url => {
-  //   //   console.log(url)
-  //   // })
-  // },
 
   musicSearch,
   leaderboard,
@@ -49,7 +33,6 @@ const kw = {
   },
   handleMusicInfo(songInfo) {
     return this.getMusicInfo(songInfo).then(info => {
-      // console.log(JSON.stringify(info))
       songInfo.name = info.name
       songInfo.singer = formatSinger(info.artist)
       songInfo.img = info.pic
@@ -99,9 +82,6 @@ const kw = {
     return `http://www.kuwo.cn/play_detail/${songInfo.songmid}`
   },
 
-  // init() {
-  //   return getToken()
-  // },
 }
 
 export default kw

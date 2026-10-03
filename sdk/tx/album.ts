@@ -3,7 +3,7 @@
 // 曲目：music.musichallAlbum.AlbumSongList GetAlbumSongList 按 100 一批翻页（上游 fetchAlbumDetail 的曲目段）
 // 详情：GetAlbumInfo 详情接口已停用：专辑名取自曲目自带的 album 信息，作者由曲目歌手去重合成，封面走平台固定 URL 规则
 // 链接解析：albumDetail/<mid>、album/<mid>、albummid=<mid>（上游 ParseAlbum）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { filterMusicInfoItem } from './singer.ts'
 import { createMusicuFetch } from './utils/index.ts'
 

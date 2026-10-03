@@ -2,7 +2,7 @@
 // 参考社区下载器（yoval/lrts 等）：POST form {account, pwd: base64(password)}，
 // 成功响应 json.phone 非空，Set-Cookie 种下会话；取流接口必须携带该会话
 // （免费章节匿名也返回"收费章节未购买"，2026-10-02 实测）。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getCredentials, setCredentials } from '../auth/store.ts'
 
 const UA_MI = 'Mozilla/5.0 (Linux; U; Android 4.1.1; zh-cn; MI2 Build/JRO03L) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30 XiaoMi/MiuiBrowser/1.0'

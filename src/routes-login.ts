@@ -431,7 +431,7 @@ export const loginRoutes = async(fastify) => {
       description: '用 B站 App 扫码后轮询 /login/bl/qr/check 完成登录。返回 key 需原样回传，qrimg 为 data URL 可直接展示。',
       tags: ['登录'],
     },
-  }, async(request, reply) => {
+  }, async(_request, reply) => {
     try {
       return await biliAuth.createQRLogin()
     } catch (err) {

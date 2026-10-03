@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime, decodeName } from '../index.ts'
 import { formatSinger, objStr2JSON } from './util.ts'
 import album from './album.ts'
@@ -147,7 +147,6 @@ export default {
     }))
   },
   filterList2(rawData) {
-    // console.log(rawData)
     const list: any[] = []
     rawData.forEach(item => {
       if (!item.label) return
@@ -196,7 +195,6 @@ export default {
       // 本方法须返回 detailId（调用方据此再查曲目），失败时应重试自身；
       // 原先误调 getListDetail（返回歌单详情对象、且把 tryNum 当 page）导致返回类型错位
       if (statusCode != 200 || !body.child) return this.getListDetailDigest5Info(id, ++tryNum)
-      // console.log(body)
       return body.child.length ? body.child[0].sourceid : null
     })
   },
@@ -204,7 +202,6 @@ export default {
     if (tryNum > 2) return Promise.reject(new Error('try max num'))
     const requestObj = httpFetch(`http://nplserver.kuwo.cn/pl.svc?op=getlistinfo&pid=${id}&pn=${page - 1}&rn=${this.limit_song}&encode=utf-8&keyset=pl2012&identity=kuwo&pcmp4=1`)
     return requestObj.promise.then(({ body }) => {
-      // console.log(body)
       if (body.result !== 'ok') return this.getListDetail(id, page, ++tryNum)
       return {
         list: this.filterListDetail(body.musiclist),
@@ -314,7 +311,6 @@ export default {
 
     if (infoData.code != 200) return null
 
-    // console.log(infoData)
     return {
       name: infoData.data.userInfo.nickname + '喜欢的音乐',
       img: infoData.data.userInfo.headImg,
@@ -367,13 +363,11 @@ export default {
       author: '',
       play_count: '',
     }
-    // console.log(listData)
     return listData
   },
 
   // 获取歌曲列表内的音乐
   getListDetail(id, page, retryNum = 0) {
-    // console.log(id)
     // https://h5app.kuwo.cn/m/bodian/collection.html?uid=000&playlistId=000&source=5&ownerId=000
     // https://h5app.kuwo.cn/m/bodian/collection.html?uid=000&playlistId=000&source=4&ownerId=
     if (/\/bodian\//.test(id)) return this.getListDetailMusicListByBD(id, page)
@@ -393,7 +387,6 @@ export default {
     return this.getListDetailDigest8(id, page, retryNum)
   },
   filterListDetail(rawData) {
-    // console.log(rawData)
     return rawData.map(item => {
       let infoArr = item.N_MINFO.split(';')
       let types: SongType[] = []
@@ -464,7 +457,6 @@ export default {
     return httpFetch(`http://search.kuwo.cn/r.s?all=${encodeURIComponent(text)}&pn=${page - 1}&rn=${limit}&rformat=json&encoding=utf8&ver=mbox&vipver=MUSIC_8.7.7.0_BCS37&plat=pc&devid=28156413&ft=playlist&pay=0&needliveshow=0`)
       .promise.then(({ body }) => {
         body = objStr2JSON(body)
-        // console.log(body)
         return {
           list: body.abslist.map(item => {
             return {

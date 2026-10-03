@@ -1,6 +1,6 @@
 // 蜻蜓FM SSR 请求助手 —— 域名迁移（www.qingting.fm → www.qtfm.cn）伴随华为 WAF 会话，
 // 302 时需带上 Set-Cookie 的 HWWAFSESID/HWWAFSESTIME 再请求 Location，否则可能被 WAF 拦
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
 

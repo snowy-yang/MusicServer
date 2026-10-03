@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeName } from '../index.ts'
 import type { HttpRequestObject } from '../types.ts'
 
@@ -21,7 +21,6 @@ export default {
     })
     const { body, statusCode } = await _requestObj.promise
     if (statusCode != 200 || body.errcode !== 0) throw new Error('获取热搜词失败')
-    // console.log(body, statusCode)
     return { source: 'kg', list: this.filterList(body.data.list) }
   },
   filterList(rawList) {

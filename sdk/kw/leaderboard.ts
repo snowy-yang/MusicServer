@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime, decodeName } from '../index.ts'
 import { formatSinger, wbdCrypto } from './util.ts'
 import type { HttpRequestObject, Quality, QualityInfo, SongType } from '../types.ts'
@@ -167,7 +167,6 @@ export default {
   },
 
   filterBoardsData(rawList) {
-    // console.log(rawList)
     let list: any[] = []
     for (const board of rawList) {
       if (board.source != '1') continue
@@ -179,24 +178,7 @@ export default {
     }
     return list
   },
-  async getBoards(retryNum = 0) {
-    // if (++retryNum > 3) return Promise.reject(new Error('try max num'))
-    // let response
-    // try {
-    //   response = await this.getBoardsData()
-    // } catch (error) {
-    //   return this.getBoards(retryNum)
-    // }
-    // console.log(response.body)
-    // if (response.statusCode !== 200 || !response.body.child) return this.getBoards(retryNum)
-    // const list = this.filterBoardsData(response.body.child)
-    // // console.log(list)
-    // console.log(JSON.stringify(list))
-    // this.list = list
-    // return {
-    //   list,
-    //   source: 'kw',
-    // }
+  async getBoards() {
     this.list = boardList
     return {
       list: boardList,
@@ -213,7 +195,6 @@ export default {
 
     return request.then(({ statusCode, body }) => {
       const rawData = wbdCrypto.decodeData(body)
-      // console.log(rawData)
       const data = rawData.data
       if (statusCode !== 200 || rawData.code != 200 || !data.musiclist) return this.getList(id, page, retryNum)
 
@@ -230,7 +211,4 @@ export default {
     })
   },
 
-  // getDetailPageUrl(id) {
-  //   return `http://www.kuwo.cn/rankList/${id}`
-  // },
 }

@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeName, formatPlayTime, sizeFormate } from '../index.ts'
 import { formatSingerName } from '../utils.ts'
 import type { SongType, QualityInfo } from '../types.ts'

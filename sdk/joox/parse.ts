@@ -6,8 +6,8 @@
 import { normalizeJooxID } from './util.ts'
 import { getTrackDetail, pickTrackUrl } from './musicInfo.ts'
 import { jooxSongFromDetail } from './song.ts'
-import { getAlbumDetail, parseAlbum } from './album.ts'
-import { getPlaylistDetail, parsePlaylist } from './playlist.ts'
+import { parseAlbum } from './album.ts'
+import { parsePlaylist } from './playlist.ts'
 
 /** 歌曲链接 → Song（上游 Parse 的正则与裸 ID 规则） */
 export const parseSong = async(link: string) => {

@@ -11,7 +11,6 @@ import { generateSimulate } from './kgSimulate.ts'
 import type { KgCredentials } from './store.ts'
 
 const md5 = s => crypto.createHash('md5').update(s).digest('hex')
-const SALT_KEY = '57ae12eb6890223e355ccfcb74edf70d'
 const SALT_SIGN = 'OIlwieks28dk2k092lksi2UIkp'
 const APPID = 1005
 const CLIENTVER = 11430

@@ -1,7 +1,7 @@
 // 千千音乐歌词
 // 链路：/v1/song/info → data[0].lyric 为歌词文本 URL（static-qianqian.taihe.com/*.txt）→ 直接下载文本。
 // 返回 { lyric, tlyric: '' }（千千只有原文歌词，无翻译）。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getSongInfo } from './musicInfo.ts'
 import { requestHeaders } from './util.ts'
 

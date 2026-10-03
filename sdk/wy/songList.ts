@@ -4,7 +4,7 @@
 // https://github.com/Binaryify/NeteaseCloudMusicApi/blob/master/module/playlist_detail.js
 
 import { weapi, linuxapi } from './utils/crypto.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime, sizeFormate, dateFormat, formatPlayCount } from '../index.ts'
 import musicDetailApi from './musicDetail.ts'
 import { eapiRequest } from './utils/index.ts'
@@ -39,7 +39,6 @@ export default {
 
     const requestObj_listDetailLink = httpFetch(link)
     const { headers: { location }, statusCode } = await requestObj_listDetailLink.promise
-    // console.log(headers)
     if (statusCode > 400) return this.handleParseId(link, ++retryNum)
     const url = location == null ? link : location
     return this.regExps.listDetailLink.test(url)
@@ -62,7 +61,6 @@ export default {
       } else {
         id = await this.handleParseId(id)
       }
-      // console.log(id)
     }
     return { id, cookie }
   },
@@ -92,7 +90,6 @@ export default {
     if (statusCode !== 200 || body.code !== this.successCode) return this.getListDetail(id, page, ++tryNum)
     let limit = 1000
     let rangeStart = (page - 1) * limit
-    // console.log(body)
     let list
     if (body.playlist.trackIds.length == body.privileges.length) {
       list = this.filterListDetail(body)
@@ -100,7 +97,7 @@ export default {
       try {
         list = (await (musicDetailApi as any).getList(body.playlist.trackIds.slice(rangeStart, limit * page).map(trackId => trackId.id))).list
       } catch (err: any) {
-        console.log(err)
+        console.warn(`[wy] 歌单歌曲详情获取失败将重试(${tryNum + 1}): ${err.message}`)
         if (err.message == 'try max num') {
           throw err
         } else {
@@ -108,7 +105,6 @@ export default {
         }
       }
     }
-    // console.log(list)
     return {
       list,
       page,
@@ -125,7 +121,6 @@ export default {
     }
   },
   filterListDetail({ playlist: { tracks }, privileges }) {
-    // console.log(tracks, privileges)
     const list: any[] = []
     tracks.forEach((item, index) => {
       const types: Array<{ type: string, size: string | null }> = []
@@ -218,7 +213,6 @@ export default {
       }),
     })
     return this._requestObj_list!.promise.then(({ body }) => {
-      // console.log(body)
       if (body.code !== this.successCode) return this.getList(sortId, tagId, page, ++tryNum)
       return {
         list: this.filterList(body.playlists),
@@ -230,7 +224,6 @@ export default {
     })
   },
   filterList(rawData) {
-    // console.log(rawData)
     return rawData.map(item => ({
       play_count: formatPlayCount(item.playCount),
       id: String(item.id),
@@ -254,7 +247,6 @@ export default {
       form: weapi({}),
     })
     return this._requestObj_tags!.promise.then(({ body }) => {
-      // console.log(JSON.stringify(body))
       if (body.code !== this.successCode) return this.getTag(++tryNum)
       return this.filterTagInfo(body)
     })
@@ -292,7 +284,6 @@ export default {
       form: weapi({}),
     })
     return this._requestObj_hotTags!.promise.then(({ body }) => {
-      // console.log(JSON.stringify(body))
       if (body.code !== this.successCode) return this.getTag(++tryNum)
       return this.filterHotTagInfo(body.tags)
     })
@@ -324,7 +315,6 @@ export default {
     })
       .promise.then(({ body }) => {
         if (body.code != this.successCode) throw new Error('filed')
-        // console.log(body)
         return {
           list: this.filterList(body.result.playlists),
           limit,

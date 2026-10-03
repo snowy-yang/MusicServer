@@ -1,5 +1,5 @@
 import { weapi } from './utils/crypto.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import musicDetailApi from './musicDetail.ts'
 import type { HttpRequestObject } from '../types.ts'
 
@@ -129,7 +129,6 @@ export default {
   },
 
   filterBoardsData(rawList) {
-    // console.log(rawList)
     let list: any[] = []
     for (const board of rawList) {
       // 排除 MV榜
@@ -142,24 +141,7 @@ export default {
     }
     return list
   },
-  async getBoards(retryNum = 0) {
-    // if (++retryNum > 3) return Promise.reject(new Error('try max num'))
-    // let response
-    // try {
-    //   response = await this.getBoardsData()
-    // } catch (error) {
-    //   return this.getBoards(retryNum)
-    // }
-    // console.log(response.body)
-    // if (response.statusCode !== 200 || response.body.code !== 200) return this.getBoards(retryNum)
-    // const list = this.filterBoardsData(response.body.list)
-    // console.log(list)
-    // console.log(JSON.stringify(list))
-    // this.list = list
-    // return {
-    //   list,
-    //   source: 'wy',
-    // }
+  async getBoards() {
     this.list = topList
     return {
       list: topList,
@@ -168,7 +150,6 @@ export default {
   },
   async getList(bangid, page, retryNum = 0) {
     if (++retryNum > 6) return Promise.reject(new Error('try max num'))
-    // console.log(bangid)
     let resp
     try {
       resp = await this.getData(bangid)
@@ -180,19 +161,17 @@ export default {
       }
     }
     if (resp.statusCode !== 200 || resp.body.code !== 200) return this.getList(bangid, page, retryNum)
-    // console.log(resp.body)
     let musicDetail
     try {
       musicDetail = await (musicDetailApi as any).getList(resp.body.playlist.trackIds.map(trackId => trackId.id))
     } catch (err: any) {
-      console.log(err)
+      console.warn(`[wy] 榜单歌曲详情获取失败将重试(${retryNum + 1}): ${err.message}`)
       if (err.message == 'try max num') {
         throw err
       } else {
         return this.getList(bangid, page, retryNum)
       }
     }
-    // console.log(musicDetail)
     return {
       total: musicDetail.list.length,
       list: musicDetail.list,

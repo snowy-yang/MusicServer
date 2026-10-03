@@ -7,7 +7,7 @@
 //   - ampGet/ampHeaders：amp-api 请求（httpFetch 不自动跟 302，首页跳转用 fetchFollow 手动跟）
 //   - 模型转换：appleSongFromCatalog / appleAlbumToPlaylist / applePlaylistToPlaylist（字段映射同上游）
 //   - ID 提取：extractAppleID / extractAppleIDFromPath / isAppleRawID（apple_test.go 的断言全部逐条保留）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime } from '../common/utils.ts'
 import { getCredentials } from '../auth/store.ts'
 

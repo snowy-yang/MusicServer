@@ -6,7 +6,7 @@
 //   2) fcg_get_profile_order_asset reqtype=3 → 收藏歌单
 //   3) fcg_get_profile_order_asset reqtype=1 → 「我喜欢的歌曲」虚拟歌单摘要（有歌才附上）
 // 说明：虚拟条目的 id 为 profile:favorites（与上游一致），歌曲需凭 cookie 走同一接口拉取
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayCount } from '../index.ts'
 import { getCredentials } from '../auth/store.ts'
 import type { TxCredentials } from '../auth/store.ts'

@@ -3,7 +3,7 @@
 //   未登录抛出清晰错误，不返回空列表
 //   1) weapi/nuser/account/get → 当前用户 userId
 //   2) weapi/user/playlist    → 用户歌单列表（分页 limit/offset）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { weapi } from './utils/crypto.ts'
 import { formatPlayCount } from '../index.ts'
 import { getCredentials, getWyCookie } from '../auth/store.ts'

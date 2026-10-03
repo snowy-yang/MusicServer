@@ -1,5 +1,5 @@
-import type { HttpRequestObject, SongInfo, SongType, Quality, QualityInfo } from '../types.ts'
-import { httpFetch } from '../request.ts'
+import type { HttpRequestObject, SongType, Quality, QualityInfo } from '../types.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime, sizeFormate } from '../index.ts'
 import { formatSingerName } from '../utils.ts'
 
@@ -65,7 +65,6 @@ export default {
     },
   ],
   listDetailRequest(id, period, limit) {
-    // console.log(id, period, limit)
     return httpFetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
       method: 'post',
       headers: {
@@ -107,7 +106,6 @@ export default {
     return requestDataObj.promise
   },
   filterData(rawList) {
-    // console.log(rawList)
     return rawList.map(item => {
       let types: SongType[] = []
       let _types: Partial<Record<Quality, QualityInfo>> = {}
@@ -180,7 +178,6 @@ export default {
     })
   },
   filterBoardsData(rawList) {
-    // console.log(rawList)
     let list: any[] = []
     for (const board of rawList) {
       // 排除 MV榜
@@ -198,24 +195,7 @@ export default {
     }
     return list
   },
-  async getBoards(retryNum = 0) {
-    // if (++retryNum > 3) return Promise.reject(new Error('try max num'))
-    // let response
-    // try {
-    //   response = await this.getBoardsData()
-    // } catch (error) {
-    //   return this.getBoards(retryNum)
-    // }
-    // // console.log(response.body)
-    // if (response.statusCode !== 200 || response.body.code !== 0) return this.getBoards(retryNum)
-    // const list = this.filterBoardsData(response.body.data.topList)
-    // console.log(list)
-    // console.log(JSON.stringify(list))
-    // this.list = list
-    // return {
-    //   list,
-    //   source: 'tx',
-    // }
+  async getBoards() {
     this.list = boardList
     return {
       list: boardList,

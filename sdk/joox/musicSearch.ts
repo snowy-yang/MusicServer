@@ -4,13 +4,13 @@
 // 该接口无分页参数（上游也未分页），page 参数仅为统一契约保留；allPage 恒为 1。
 // 实测（2026-10-02）：英文/中文关键词均 HTTP 200。
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { jooxHeaders } from './util.ts'
 import { jooxSongFromSearch } from './song.ts'
 
 const SEARCH_URL = 'https://cache.api.joox.com/openjoox/v3/search'
 
-export const search = async(keyword: string, page = 1, limit = 20) => {
+export const search = async(keyword: string, _page = 1, limit = 20) => {
   const url = `${SEARCH_URL}?country=sg&lang=zh_cn&keyword=${encodeURIComponent(String(keyword ?? ''))}`
   const { statusCode, body } = await httpFetch(url, { headers: jooxHeaders(), timeout: 20000 }).promise as any
   if (statusCode != 200 || !body?.section_list) {

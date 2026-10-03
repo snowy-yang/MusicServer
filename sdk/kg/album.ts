@@ -1,6 +1,6 @@
 import { getMusicInfosByList } from './musicInfo.ts'
 import { createHttpFetch } from './util.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 
 const albumCover = (url: any): string => String(url ?? '').replace('{size}', '240')
 

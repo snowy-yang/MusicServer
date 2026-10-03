@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeName, formatPlayTime, sizeFormate, dateFormat, formatPlayCount } from '../index.ts'
 import { toMD5 } from '../utils.ts'
 import { signatureParams } from './util.ts'
@@ -66,51 +66,6 @@ export default {
     // https://www.kugou.com/yy/special/single/1067062.html
     listDetailLink: /^.+\/(\d+)\.html(?:\?.*|&.*$|#.*$|$)/,
   },
-  // async getGlobalSpecialId(specialId) {
-  //   return httpFetch(`http://mobilecdnbj.kugou.com/api/v5/special/info?specialid=${specialId}`, {
-  //     headers: {
-  //       'User-Agent': 'Mozilla/5.0 (Linux; Android 10; HLK-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Mobile Safari/537.36 EdgA/104.0.1293.70',
-  //     },
-  //   }).promise.then(({ body }) => {
-  //     // console.log(body)
-  //     if (!body.data.global_specialid) Promise.reject(new Error('Failed to get global collection id.'))
-  //     return body.data.global_specialid
-  //   })
-  // },
-  // async getListInfoBySpecialId(special_id, retry = 0) {
-  //   if (++retry > 2) throw new Error('failed')
-  //   return httpFetch(`https://m.kugou.com/plist/list/${special_id}/?json=true`, {
-  //     headers: {
-  //       'User-Agent': 'Mozilla/5.0 (Linux; Android 10; HLK-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Mobile Safari/537.36 EdgA/104.0.1293.70',
-  //     },
-  //     follow_max: 2,
-  //   }).promise.then(({ body }) => {
-  //     // console.log(body)
-  //     if (!body.info.list) return this.getListInfoBySpecialId(special_id, retry)
-  //     let listinfo = body.info.list
-  //     return {
-  //       listInfo: {
-  //         name: listinfo.specialname,
-  //         image: listinfo.imgurl.replace('{size}', '150'),
-  //         intro: listinfo.intro,
-  //         author: listinfo.nickname,
-  //         playcount: listinfo.playcount,
-  //         total: listinfo.songcount,
-  //       },
-  //       globalSpecialId: listinfo.global_specialid,
-  //     }
-  //   })
-  // },
-  // async getSongListDetailByGlobalSpecialId(id, page, limit = 100, retry = 0) {
-  //   if (++retry > 2) throw new Error('failed')
-  //   console.log(id)
-  //   const params = `specialid=0&need_sort=1&module=CloudMusic&clientver=11409&pagesize=${limit}&global_collection_id=${id}&userid=0&page=${page}&type=1&area_code=1&appid=1005`
-  //   return httpFetch(`http://pubsongscdn.tx.kugou.com/v2/get_other_list_file?${params}&signature=${signatureParams(params)}`).promise.then(({ body }) => {
-  //     // console.log(body)
-  //     if (body.data?.info == null) return this.getSongListDetailByGlobalSpecialId(id, page, limit, retry)
-  //     return body.data.info
-  //   })
-  // },
   parseHtmlDesc(html) {
     const prefix = '<div class="pc_specail_text pc_singer_tab_content" id="specailIntroduceWrap">'
     let index = html.indexOf(prefix)
@@ -148,30 +103,9 @@ export default {
         name,
         img: pic,
         desc,
-        // author: body.result.info.userinfo.username,
-        // play_count: formatPlayCount(body.result.listen_num),
       },
     }
 
-    // const globalSpecialId = await this.getGlobalSpecialId(id)
-    // const limit = 100
-    // const listData = await this.getSongListDetailByGlobalSpecialId(globalSpecialId, page, limit)
-    // if (!Array.isArray(listData))
-    // return this.getUserListDetail2(globalSpecialId)
-    // return {
-    //   list: this.filterDatav9(listData),
-    //   page,
-    //   limit,
-    //   total: listInfo.total,
-    //   source: 'kg',
-    //   info: {
-    //     name: listInfo.name,
-    //     img: listInfo.image,
-    //     desc: listInfo.intro,
-    //     author: listInfo.author,
-    //     play_count: formatPlayCount(listInfo.playcount),
-    //   },
-    // }
   },
   getInfoUrl(tagId?) {
     return tagId
@@ -276,10 +210,9 @@ export default {
     try {
       result = await httpFetch(url, options).promise
     } catch (err) {
-      console.log(err)
+      console.warn(`[kg] 歌单请求失败将重试(${retryNum + 1}/3) ${url}: ${(err as Error).message}`)
       return this.createHttp(url, options, ++retryNum)
     }
-    // console.log(result.statusCode, result.body)
     if (result.statusCode !== 200 ||
       (
         (result.body.error_code !== undefined
@@ -349,7 +282,6 @@ export default {
       },
       body: { appid: 1001, clientver: 9020, mid: '21511157a05844bd085308bc76ef3343', clienttime: 640612895, key: '36164c4015e704673c588ee202b9ecb8', data: id },
     })
-    // console.log(songInfo)
     // type 1单曲，2歌单，3电台，4酷狗码，5别人的播放队列
     let songList
     let info = songInfo.info
@@ -372,7 +304,6 @@ export default {
         },
         body: { appid: 1001, clientver: 9020, mid: '21511157a05844bd085308bc76ef3343', clienttime: 640612895, key: '36164c4015e704673c588ee202b9ecb8', data: { id: info.id, type: 3, userid: info.userid, collect_type: 0, page: 1, pagesize: info.count } },
       })
-      // console.log(songList)
     }
     let list = await this.getMusicInfos(songList || songInfo.list)
     return {
@@ -402,7 +333,6 @@ export default {
       else return this.getUserListDetail4(songInfo, chain, page).catch(() => this.getUserListDetail5(chain))
     }
     let list = await this.getMusicInfos(songInfo.list)
-    // console.log(info, songInfo)
     return {
       list,
       page: 1,
@@ -468,7 +398,6 @@ export default {
     }
     let result = await Promise.all(tasks).then(([...datas]) => datas.flat())
     result = await this.getMusicInfos(result)
-    // console.log(result)
     return {
       list: result,
       page,
@@ -519,7 +448,6 @@ export default {
     })
     const songInfo = await this.createGetListDetail2Task(id, info.songcount)
     let list = await this.getMusicInfos(songInfo)
-    // console.log(info, songInfo, list)
     return {
       list,
       page: 1,
@@ -561,7 +489,6 @@ export default {
     if (result) result = JSON.parse(result[1])
     this.cache.set(chain, result)
     result = await this.getMusicInfos(result)
-    // console.log(info, songInfo)
     return result
   },
 
@@ -618,9 +545,7 @@ export default {
       },
     })
 
-    // console.log(info)
     let result = await this.getMusicInfos(info.info)
-    // console.log(info, songInfo)
     return result
   },
 
@@ -655,10 +580,8 @@ export default {
     })
     const { headers: { location }, statusCode, body } = await requestObj_listDetailLink.promise
     const loc = location as string | undefined
-    // console.log(body, location)
     if (statusCode > 400) return this.getUserListDetail(link, page, ++retryNum)
     if (loc) {
-      // console.log(location)
       if (loc.includes('global_collection_id')) return this.getUserListDetail2(loc.replace(/^.*?global_collection_id=(\w+)(?:&.*$|#.*$|$)/, '$1'))
       if (loc.includes('gcid_')) {
         let gcid = link.match(/gcid_\w+/)?.[0]
@@ -679,7 +602,6 @@ export default {
           return this.getUserListDetail(link, page, ++retryNum)
         } else return this.getUserListDetail3(loc.replace(/.+\/(\w+).html(?:\?.*|&.*$|#.*$|$)/, '$1'), page)
       }
-      // console.log('location', location)
       return this.getUserListDetail(loc, page, ++retryNum)
     }
     if (typeof body == 'string') {
@@ -713,7 +635,6 @@ export default {
     return this.getListDetailBySpecialId(id, page)
   },
   filterData(rawList) {
-    // console.log(rawList)
     return rawList.map(item => {
       const types: Array<{ type: string; size: string; hash?: string }> = []
       const _types: Record<string, QualityInfo & { hash?: string }> = {}
@@ -766,72 +687,9 @@ export default {
       }
     })
   },
-  // getSinger(singers) {
-  //   let arr = []
-  //   singers?.forEach(singer => {
-  //     arr.push(singer.name)
-  //   })
-  //   return arr.join('、')
-  // },
-  // v9 API
-  // filterDatav9(rawList) {
-  //   console.log(rawList)
-  //   return rawList.map(item => {
-  //     const types = []
-  //     const _types = {}
-  //     item.relate_goods.forEach(qualityObj => {
-  //       if (qualityObj.level === 2) {
-  //         let size = sizeFormate(qualityObj.size)
-  //         types.push({ type: '128k', size, hash: qualityObj.hash })
-  //         _types['128k'] = {
-  //           size,
-  //           hash: qualityObj.hash,
-  //         }
-  //       } else if (qualityObj.level === 4) {
-  //         let size = sizeFormate(qualityObj.size)
-  //         types.push({ type: '320k', size, hash: qualityObj.hash })
-  //         _types['320k'] = {
-  //           size,
-  //           hash: qualityObj.hash,
-  //         }
-  //       } else if (qualityObj.level === 5) {
-  //         let size = sizeFormate(qualityObj.size)
-  //         types.push({ type: 'flac', size, hash: qualityObj.hash })
-  //         _types.flac = {
-  //           size,
-  //           hash: qualityObj.hash,
-  //         }
-  //       } else if (qualityObj.level === 6) {
-  //         let size = sizeFormate(qualityObj.size)
-  //         types.push({ type: 'flac24bit', size, hash: qualityObj.hash })
-  //         _types.flac24bit = {
-  //           size,
-  //           hash: qualityObj.hash,
-  //         }
-  //       }
-  //     })
-  //     const nameInfo = item.name.split(' - ')
-  //     return {
-  //       singer: this.getSinger(item.singerinfo),
-  //       name: decodeName((nameInfo[1] ?? nameInfo[0]).trim()),
-  //       albumName: decodeName(item.albuminfo.name),
-  //       albumId: item.albuminfo.id,
-  //       songmid: item.audio_id,
-  //       source: 'kg',
-  //       interval: formatPlayTime(item.timelen / 1000),
-  //       img: null,
-  //       lrc: null,
-  //       hash: item.hash,
-  //       types,
-  //       _types,
-  //       typeUrl: {},
-  //     }
-  //   })
-  // },
 
   // hash list filter
   filterData2(rawList) {
-    // console.log(rawList)
     let ids = new Set()
     let list: SongInfo[] = []
     rawList.forEach(item => {
@@ -959,7 +817,6 @@ export default {
     return httpFetch(`http://msearchretry.kugou.com/api/v3/search/special?keyword=${encodeURIComponent(text)}&page=${page}&pagesize=${limit}&showtype=10&filter=0&version=7910&sver=2`)
       .promise.then(({ body }) => {
         if (body.errcode != 0) throw new Error('filed')
-        // console.log(body.data.info)
         return {
           list: body.data.info.map(item => {
             return {

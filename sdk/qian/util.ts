@@ -4,7 +4,7 @@
 // 该平台匿名即可搜索 / 查专辑 / 查歌单 / 拿免费曲目直链；cookie 仅影响 VIP、收藏等登录态资源，
 // MusicServer 从 sdk/auth/store.ts 的 getCredentials('bd') 读取（可选，未登录留空）。
 import crypto from 'node:crypto'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getCredentials } from '../auth/store.ts'
 
 export const APP_ID = '16073360'

@@ -1,7 +1,7 @@
 // 咪咕歌词 —— resourceinfo.do 取 lrcUrl/lyricUrl 再下载文本
 // 上游对应：music-lib/migu/lyric.go
-import { buildUrl, fetchSongDetail, miguGet, UserAgent } from './util.ts'
-import { httpFetch } from '../request.ts'
+import { buildUrl, fetchSongDetail, miguGet } from './util.ts'
+import { httpFetch } from '../common/request.ts'
 
 const LRC_REFERER = 'https://y.migu.cn/'
 const LRC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'

@@ -7,7 +7,7 @@
 // 该通道返回的是免签名 CDN 明文直链（sound-ali*-cdn-cn.maoercdn.com，m4a 原文件/-128k 变体）；
 // 网页版 hls.m3u8 为 Widevine 加密，与此无关。
 import crypto from 'node:crypto'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getCredentials } from '../auth/store.ts'
 
 const APP_SECRET = 'f8Yw1M3u0e5MV7z34PcbY9wgP56YwJ'

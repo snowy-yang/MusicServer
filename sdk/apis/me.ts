@@ -32,7 +32,7 @@ const pickUrl = (info: any, type: string) => {
 
 /** 剧条目 "d:<drama_id>" → 首个免费集的 sound_id（getdrama episodes.episode[]） */
 const resolveDramaFirstFree = async(dramaId: string): Promise<string> => {
-  const { httpFetch } = await import('../request.ts')
+  const { httpFetch } = await import('../common/request.ts')
   const { statusCode, body } = await httpFetch(`https://www.missevan.com/dramaapi/getdrama?drama_id=${dramaId}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',

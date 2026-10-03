@@ -3,7 +3,7 @@
 // 推荐：weapi/personalized/playlist（上游 GetRecommendedPlaylists，匿名可用）
 // 详情/曲目：复用 songList.getListDetail（linuxapi forward），按 page/limit 切片
 // 链接解析：#/playlist?id= / /playlist?id= / /playlist/<id>/<n>/... / 裸数字 id（上游 parseNeteaseLink）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { weapi } from './utils/crypto.ts'
 import { formatPlayCount } from '../index.ts'
 import { getWyCookie } from '../auth/store.ts'

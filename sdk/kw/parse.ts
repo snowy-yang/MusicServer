@@ -2,7 +2,7 @@
 // 歌曲：https://www.kuwo.cn/play_detail/<rid>（含 ?/# 尾串）、m.kuwo.cn 的 musicId=<rid>、裸 rid
 // 上游对应：music-lib/kuwo/song.go Parse / kuwo.go fetchFullSongInfo（元数据 m.kuwo.cn + 尽力附直链）
 // 专辑 / 歌单分别复用 album.parseAlbumLink、playlist.parsePlaylistLink。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime } from '../index.ts'
 import kwApi from '../apis/kw.ts'
 import album from './album.ts'

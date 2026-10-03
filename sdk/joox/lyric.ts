@@ -6,7 +6,7 @@
 // 解码：base64 → UTF-8 → HTML 实体（&amp; 等）→ { lyric, tlyric: '' }
 // 统一接口约定：{ promise, cancelHttp }；promise resolve → { lyric, tlyric }
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { jooxHeaders, decodeJooxLyric, normalizeJooxID, firstNonEmpty } from './util.ts'
 import { buildTrackUrl } from './musicInfo.ts'
 

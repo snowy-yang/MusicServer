@@ -3,7 +3,7 @@
 // 上游对应：music-lib/kugou/song.go Parse / kugou.go fetchSongInfo
 //   元数据 m.kugou.com/app/i/getSongInfo.php（songName/author_name/timeLength/album_img/bitRate）
 //   另尽力合并 musicInfo.getMusicInfo 的专辑/多档 hash，直链取流失败不影响返回（上游为必得 URL）。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime, decodeName } from '../index.ts'
 import kgApi from '../apis/kg.ts'
 import { getMusicInfo } from './musicInfo.ts'

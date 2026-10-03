@@ -5,7 +5,7 @@
 // 兜底：www.joox.com/<region>/album/<id> SSR __NEXT_DATA__.props.pageProps.albumData（上游做法，需 X-Forwarded-For）
 // 链接解析：ParseAlbum 的正则与裸 ID 规则同上游。
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import {
   jooxHeaders,
   jooxSign,

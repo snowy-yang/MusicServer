@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeKrc } from './krcDecode.ts'
 
 export default {
@@ -13,28 +13,6 @@ export default {
     }
     return parseInt(intv as unknown as string)
   },
-  // getLyric(songInfo, tryNum = 0) {
-  //   let requestObj = httpFetch(`http://m.kugou.com/app/i/krc.php?cmd=100&keyword=${encodeURIComponent(songInfo.name)}&hash=${songInfo.hash}&timelength=${songInfo._interval || this.getIntv(songInfo.interval)}&d=0.38664927426725626`, {
-  //     headers: {
-  //       'KG-RC': 1,
-  //       'KG-THash': 'expand_search_manager.cpp:852736169:451',
-  //       'User-Agent': 'KuGou2012-9020-ExpandSearchManager',
-  //     },
-  //   })
-  //   requestObj.promise = requestObj.promise.then(({ body, statusCode }) => {
-  //     if (statusCode !== 200) {
-  //       if (tryNum > 5) return Promise.reject(new Error('歌词获取失败'))
-  //       let tryRequestObj = this.getLyric(songInfo, ++tryNum)
-  //       requestObj.cancelHttp = tryRequestObj.cancelHttp.bind(tryRequestObj)
-  //       return tryRequestObj.promise
-  //     }
-  //     return {
-  //       lyric: body,
-  //       tlyric: '',
-  //     }
-  //   })
-  //   return requestObj
-  // },
   searchLyric(name, hash, time, tryNum = 0) {
     let requestObj = httpFetch(`http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=${encodeURIComponent(name)}&hash=${hash}&timelength=${time}&lrctxt=1`, {
       headers: {
@@ -92,7 +70,7 @@ export default {
 
     return requestObj
   },
-  getLyric(songInfo, tryNum = 0) {
+  getLyric(songInfo) {
     let requestObj = this.searchLyric(songInfo.name, songInfo.hash, songInfo._interval || this.getIntv(songInfo.interval))
 
     requestObj.promise = requestObj.promise.then(result => {

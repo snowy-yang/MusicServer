@@ -1,6 +1,6 @@
 // import '../../polyfill/array.find.js'
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime, decodeName } from '../index.ts'
 // import { debug } from '../../utils/env.ts'
 import { formatSinger } from './util.ts'
@@ -14,21 +14,13 @@ export default {
   total: 0,
   page: 0,
   allPage: 1,
-  // cancelFn: null,
   musicSearch(str: string, page: number, limit: number) {
     const musicSearchRequestObj = httpFetch(`http://search.kuwo.cn/r.s?client=kt&all=${encodeURIComponent(str)}&pn=${page - 1}&rn=${limit}&uid=794762570&ver=kwplayer_ar_9.2.2.1&vipver=1&show_copyright_off=1&newver=1&ft=music&cluster=0&strategy=2012&encoding=utf8&rformat=json&vermerge=1&mobi=1&issubtitle=1`)
     return musicSearchRequestObj.promise
   },
-  // getImg(songId) {
-  //   return httpGet(`http://player.kuwo.cn/webmusic/sj/dtflagdate?flag=6&rid=MUSIC_${songId}`)
-  // },
-  // getLrc(songId) {
-  //   return httpGet(`http://mobile.kuwo.cn/mpage/html5/songinfoandlrc?mid=${songId}&flag=0`)
-  // },
   handleResult(rawData: any) {
     const result: SongInfo[] = []
     if (!rawData) return result
-    // console.log(rawData)
     for (let i = 0; i < rawData.length; i++) {
       const info = rawData[i]
       let songId = info.MUSICRID.replace('MUSIC_', '')
@@ -97,7 +89,6 @@ export default {
         typeUrl: {},
       })
     }
-    // console.log(result)
     return result
   },
   search(str: string, page = 1, limit?: number, retryNum = 0) {
@@ -105,7 +96,6 @@ export default {
     if (limit == null) limit = this.limit
     // http://newlyric.kuwo.cn/newlyric.lrc?62355680
     return this.musicSearch(str, page, limit).then(({ body: result }) => {
-      // console.log(result)
       if (!result || (result.TOTAL !== '0' && result.SHOW === '0')) return this.search(str, page, limit, ++retryNum)
       let list = this.handleResult(result.abslist)
 

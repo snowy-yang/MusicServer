@@ -5,7 +5,7 @@
 //   https://i.y.qq.com/v8/playsong.html?songid=<数字 id>（先反查 songmid）
 //   ...?songmid=<songmid>
 // 返回 Song（含 songmid）；直链 url/type 为尽力附带，失败不影响元数据返回（与上游一致）。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime, sizeFormate } from '../index.ts'
 import { formatSingerName } from '../utils.ts'
 import txApi from '../apis/tx.ts'

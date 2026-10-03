@@ -2,9 +2,9 @@
 // 命中可访问的最高档位；匿名仅 PQ(128k) 可用，HQ/SQ/ZQ 各档需登录 Cookie。
 // 上游对应：music-lib/migu/download.go（GetDownloadInfo / buildMiguDownloadCandidates /
 //   selectHighestValidDownload / rewriteMiguToneURL / embeddedDownloadInfoFromResponse）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import {
-  AndroidChannel, AndroidUA, AndroidVersion, buildUrl, decryptZ3D, firstNonEmpty,
+  AndroidChannel, AndroidUA, AndroidVersion, decryptZ3D, firstNonEmpty,
   getMiguCookie, isMiguAudioMagic, miguFormatExt, TONE_QUALITY, type MiguSongItem,
 } from '../migu/util.ts'
 
@@ -110,15 +110,6 @@ const normalizeDownloadURL = (rawURL?: string | null): string => {
     url = `https://freetyst.nf.migu.cn/${url.slice('ftp://218.200.160.122:21/'.length)}`
   }
   return url
-}
-
-const isEncryptedDirectURL = (rawURL: string): boolean => {
-  try {
-    const decodedPath = decodeURIComponent(new URL(rawURL).pathname)
-    return decodedPath.includes('wav_3d/') && !decodedPath.includes('wav_3d_60s/')
-  } catch {
-    return false
-  }
 }
 
 interface DownloadInfo {

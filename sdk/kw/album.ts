@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeName } from '../index.ts'
 import { formatSinger, objStr2JSON } from './util.ts'
 import type { Quality } from '../types.ts'
@@ -17,9 +17,7 @@ export default {
   limit_list: 36,
   limit_song: 1000,
   filterListDetail(rawList, albumName, albumId) {
-    // console.log(rawList)
-    // console.log(rawList.length, rawList2.length)
-    return rawList.map((item, inedx) => {
+    return rawList.map(item => {
       let formats = item.formats.split('|')
       let types: Array<{ type: Quality; size: string | null }> = []
       let _types: Partial<Record<Quality, { size: string | null }>> = {}
@@ -92,7 +90,6 @@ export default {
     return requestObj_listDetail.promise.then(({ statusCode, body }) => {
       if (statusCode !== 200) return this.getAlbumListDetail(id, page, ++retryNum)
       body = objStr2JSON(body)
-      // console.log(body)
       if (!body.musiclist) return this.getAlbumListDetail(id, page, ++retryNum)
       body.name = decodeName(body.name)
       return {
@@ -235,31 +232,4 @@ export default {
     }
     throw new Error('无效的酷我专辑链接')
   },
-  // getAlbumListDetail(id, page, retryNum = 0) {
-  //   if (retryNum > 2) return Promise.reject(new Error('try max num'))
-  //   return tokenRequest(`http://www.kuwo.cn/api/www/album/albumInfo?albumId=${id}&pn=${page}&rn=${this.limit_song}&httpsStatus=1`).then((resp) => {
-  //     return resp.promise.then(({ statusCode, body }) => {
-  //       console.log(body)
-  //       return Promise.reject(new Error('failed'))
-  //       // if (statusCode !== 200) return this.getAlbumListDetail(id, page, ++retryNum)
-  //       // const data = body.data
-  //       // console.log(data)
-  //       // if (!data.musicList) return this.getAlbumListDetail(id, page, ++retryNum)
-  //       // return {
-  //       //   list: this.filterListDetail(data.musiclist),
-  //       //   page,
-  //       //   limit: this.limit_song,
-  //       //   total: data.total,
-  //       //   source: 'kw',
-  //       //   info: {
-  //       //     name: data.album,
-  //       //     img: data.pic,
-  //       //     desc: data.albuminfo,
-  //       //     author: data.artist,
-  //       //     play_count: this.formatPlayCount(data.playCnt),
-  //       //   },
-  //       // }
-  //     })
-  //   })
-  // },
 }

@@ -1,4 +1,4 @@
-import { httpFetch } from '../../request.ts'
+import { httpFetch } from '../../common/request.ts'
 import { eapi } from './crypto.ts'
 import { getWyCookie } from '../../auth/store.ts'
 import type { HttpRequestObject } from '../../types.ts'
@@ -15,12 +15,4 @@ export const eapiRequest = (url: string, data: object): HttpRequestObject => {
     },
     form: eapi(url, data),
   })
-  // requestObj.promise = requestObj.promise.then(({ body }) => {
-  //   // console.log(raw)
-  //   console.log(body)
-  //   // console.log(eapiDecrypt(raw))
-  //   // return eapiDecrypt(raw)
-  //   return body
-  // })
-  // return requestObj
 }

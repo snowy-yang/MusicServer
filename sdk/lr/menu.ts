@@ -2,7 +2,7 @@
 // 接口: https://m.lrts.me/ajax/getBookMenu?bookId=&pageNum=&pageSize=&sortType=0
 // 实测（2026-10-02）匿名可用；章节条目 {section, name, listenPrice, state}
 // 注意：专辑类内容用 getAlbumAudios（entityType=2），本实现仅收书（entityType=3）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 
 const UA_MI = 'Mozilla/5.0 (Linux; U; Android 4.1.1; zh-cn; MI2 Build/JRO03L) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30 XiaoMi/MiuiBrowser/1.0'
 const MENU_URL = 'https://m.lrts.me/ajax/getBookMenu'

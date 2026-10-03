@@ -7,7 +7,7 @@
 // 分类：www.joox.com/sg/playlist（302 → /<region> 首页）__NEXT_DATA__.props.pageProps.mlList
 // 链接解析：joox.com/{region}/playlist/<id>、playlistid/id 查询参数、裸 ID
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import {
   jooxHeaders,
   jooxSign,

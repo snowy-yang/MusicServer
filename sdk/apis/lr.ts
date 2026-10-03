@@ -3,7 +3,7 @@
 // 实测（2026-10-02）：免费章节匿名也返回 status=2 "收费章节未购买"——必须携带 /login/lr 登录会话；
 // 成功响应 list[0].path 为音频直链。
 // songmid 为复合 id "<bookId>:<section>"（/album/lr 章节列表产出）；纯 bookId 视为第一章
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getLrCookie } from '../lr/auth.ts'
 
 const UA_MI = 'Mozilla/5.0 (Linux; U; Android 4.1.1; zh-cn; MI2 Build/JRO03L) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30 XiaoMi/MiuiBrowser/1.0'

@@ -6,7 +6,7 @@
 // 裸数字 id 也接受（补充便利；上游仅接受链接）
 // 直链 url/type 为尽力附带，失败不影响元数据返回（与上游一致）；
 // 歌单/专辑链接抛清晰错误，提示使用对应 parsePlaylist/parseAlbum。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { weapi } from './utils/crypto.ts'
 import { getWyCookie } from '../auth/store.ts'
 import wyApi from '../apis/wy.ts'

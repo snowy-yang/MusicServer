@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { weapi } from './utils/crypto.ts'
 import { dateFormat2 } from '../index.ts'
 import type { HttpRequestObject } from '../types.ts'
@@ -149,7 +149,6 @@ export default {
       }),
     })
     const { body, statusCode } = await _requestObj.promise
-    // console.log(body)
     if (statusCode != 200 || body.code !== 200) throw new Error('获取评论失败')
     cursorTools.setCursor(songmid, body.data.cursor, cursorInfo.orderType, cursorInfo.offset, page)
     return { source: 'wy', comments: this.filterComment(body.data.comments), total: body.data.totalCount, page, limit, maxPage: Math.ceil(body.data.totalCount / limit) || 1 }

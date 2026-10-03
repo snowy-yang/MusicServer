@@ -157,24 +157,28 @@ export const makeSong = ({ bvid, cid, name, artist, album, duration, cover, page
 
 // ---- 视频/分P/合集接口（上游 bilibili.go 各 fetch* 的对应实现） ----
 
+/** B 站 API 统一校验：HTTP 200 且业务码 code=0，否则抛带上下文的错误 */
+const assertApiOk = (what: string, statusCode: number, body: any): void => {
+  if (statusCode !== 200 || !body || body.code !== 0) {
+    throw new Error(`B站${what}获取失败（${body?.code ?? `HTTP ${statusCode}`}${body?.message ? `: ${body.message}` : ''}）`)
+  }
+}
+
 /** 视频详情（x/web-interface/view）；bvid 或 aid 均可，返回 data 节点 */
 export const fetchView = async(id: string): Promise<any> => {
   const raw = String(id || '').trim()
   if (!raw) throw new Error('B站视频 id 为空')
   const query = /^BV/i.test(raw) ? `bvid=${encodeURIComponent(raw)}` : `aid=${encodeURIComponent(raw.replace(/^av/i, ''))}`
   const { statusCode, body } = await apiGet(`https://api.bilibili.com/x/web-interface/view?${query}`)
-  if (statusCode !== 200 || !body || body.code !== 0 || !body.data) {
-    throw new Error(`B站视频信息获取失败（${body?.code ?? `HTTP ${statusCode}`}${body?.message ? `: ${body.message}` : ''}）`)
-  }
+  assertApiOk('视频信息', statusCode, body)
+  if (!body.data) throw new Error('B站视频信息获取失败（data 为空）')
   return body.data
 }
 
 /** 分P列表（x/player/pagelist），返回 data 数组 */
 export const fetchPageList = async(bvid: string): Promise<any[]> => {
   const { statusCode, body } = await apiGet(`https://api.bilibili.com/x/player/pagelist?bvid=${encodeURIComponent(bvid)}`)
-  if (statusCode !== 200 || !body || body.code !== 0) {
-    throw new Error(`B站分P列表获取失败（${body?.code ?? `HTTP ${statusCode}`}${body?.message ? `: ${body.message}` : ''}）`)
-  }
+  assertApiOk('分P列表', statusCode, body)
   return body.data ?? []
 }
 
@@ -188,10 +192,8 @@ export const fetchSeasonArchiveIndex = async(mid: string | number, seasonId: str
   let pageNum = 1
   const pageSize = 30
   for (;;) {
-    const { body } = await apiGet(`https://api.bilibili.com/x/space/ugc/season?mid=${mid}&season_id=${seasonId}&page_num=${pageNum}&page_size=${pageSize}`)
-    if (!body || body.code !== 0) {
-      throw new Error(`B站合集信息获取失败（${body?.code ?? '非 JSON 响应'}${body?.message ? `: ${body.message}` : ''}）`)
-    }
+    const { statusCode, body } = await apiGet(`https://api.bilibili.com/x/space/ugc/season?mid=${mid}&season_id=${seasonId}&page_num=${pageNum}&page_size=${pageSize}`)
+    assertApiOk('合集信息', statusCode, body)
     if (!seasonTitle) seasonTitle = body.data?.season?.title || ''
     if (!seasonCover) seasonCover = body.data?.season?.cover || ''
     const archives = body.data?.archives ?? []
@@ -276,10 +278,8 @@ export const fetchSeasonSongs = async(mid: string | number, seasonId: string | n
   let pageNum = 1
   const pageSize = 30
   for (;;) {
-    const { body } = await apiGet(`https://api.bilibili.com/x/space/ugc/season?mid=${mid}&season_id=${seasonId}&page_num=${pageNum}&page_size=${pageSize}`)
-    if (!body || body.code !== 0) {
-      throw new Error(`B站合集列表获取失败（${body?.code ?? '非 JSON 响应'}${body?.message ? `: ${body.message}` : ''}）`)
-    }
+    const { statusCode, body } = await apiGet(`https://api.bilibili.com/x/space/ugc/season?mid=${mid}&season_id=${seasonId}&page_num=${pageNum}&page_size=${pageSize}`)
+    assertApiOk('合集列表', statusCode, body)
     if (!seasonTitle) seasonTitle = body.data?.season?.title || ''
     if (!seasonCover) seasonCover = body.data?.season?.cover || ''
     const archives = body.data?.archives ?? []

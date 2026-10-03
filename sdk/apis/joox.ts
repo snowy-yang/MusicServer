@@ -10,7 +10,7 @@
 // 统一接口约定：apis('jx').getMusicUrl(songInfo, type) → { promise, cancelHttp }
 // promise resolve → { type, url }（type 为实际命中档位，可能低于请求值）
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { jooxHeaders, normalizeJooxID } from '../joox/util.ts'
 import { buildTrackUrl } from '../joox/musicInfo.ts'
 

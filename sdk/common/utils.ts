@@ -97,5 +97,5 @@ export const decodeName = (str = '') => {
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (match, num) => String.fromCharCode(parseInt(num)))
+    .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num)))
 }

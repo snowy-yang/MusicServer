@@ -20,7 +20,7 @@ export const getHostIp = (hostname: string): CachedIp | undefined => {
     // family: 4,
     all: false,
   }, (err, address, family) => {
-    if (err) return console.log(err)
+    if (err) return console.warn(`[utils] DNS 预解析 ${hostname} 失败: ${err.message}`)
     ipMap.set(hostname, { address, family })
   })
 }

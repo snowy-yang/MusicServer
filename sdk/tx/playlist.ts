@@ -2,7 +2,7 @@
 // 搜索/分类复用现有 sdk/tx/songList.ts（handleParseId / getListId / getListDetail / getTag / getList）
 // 推荐：musicu.fcg playlist.HotRecommendServer/get_hot_recommend（上游 GetRecommendedPlaylists）
 // 链接解析：extractPlaylistId 为上游 extractQQPlaylistID 的 1:1 移植（含单测用例断言）
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayCount } from '../index.ts'
 import songList from './songList.ts'
 

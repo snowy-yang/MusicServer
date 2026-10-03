@@ -4,7 +4,7 @@
 // risk invalid 风控，本端点 + condition=relation&device=web 不受影响）
 // 返回 data.result.response.docs[]，字段 id/title/duration(秒)/nickname/album_id/album_title/
 // album_cover_path/is_paid/is_trailer
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { formatPlayTime } from '../index.ts'
 import { XM_UA } from './sign.ts'
 

@@ -39,7 +39,6 @@ const createGetMusicInfosTask = (hashs: Array<{ hash: string }>): Array<Promise<
 }
 
 export const filterMusicInfoList = (rawList: any[]): SongInfo[] => {
-  // console.log(rawList)
   let ids = new Set()
   let list: SongInfo[] = []
   rawList.forEach(item => {

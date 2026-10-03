@@ -9,7 +9,7 @@
 // 返回体含 play_url_list / refrain_url / lrc_content(base64) / qrc_content(base64) /
 //   has_hq / has_hifi / vip_flag / node_is_preview 等。
 
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import {
   jooxHeaders,
   jooxSign,

@@ -3,7 +3,7 @@
 // 链接解析优先复用既有 sdk/kg/songList.ts 的 getUserListDetail / getListDetailBySpecialId /
 // getListInfoByChain / decodeGcid 等能力（覆盖 special/single、songlist/gcid、share chain、
 // zlist、global_collection_id 等形态），本模块只做统一形状归一。
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import songList from './songList.ts'
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'

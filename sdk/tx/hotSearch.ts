@@ -1,5 +1,5 @@
 import type { HttpRequestObject } from '../types.ts'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 
 export default {
   _requestObj: null as HttpRequestObject | null,
@@ -44,9 +44,7 @@ export default {
       },
     })
     const { body, statusCode } = await _requestObj.promise
-    // console.log(body)
     if (statusCode != 200 || body.code !== 0) throw new Error('获取热搜词失败')
-    // console.log(body)
     return { source: 'tx', list: this.filterList(body.hotkey.data.vec_hotkey) }
   },
   filterList(rawList) {

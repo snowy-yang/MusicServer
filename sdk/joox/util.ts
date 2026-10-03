@@ -11,7 +11,7 @@
 //     在签名参数里作为 uid/usk 参与（可拿到完整曲目/更高档位）。
 
 import crypto from 'node:crypto'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { getCredentials } from '../auth/store.ts'
 
 export const JOOX_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'

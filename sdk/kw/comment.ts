@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { dateFormat2 } from '../index.ts'
 import type { HttpRequestObject } from '../types.ts'
 
@@ -15,7 +15,6 @@ export default {
     })
     const { body, statusCode } = await _requestObj.promise
     if (statusCode != 200 || body.code != '200') throw new Error('获取评论失败')
-    // console.log(body)
 
     const total = body.comments_counts
     return {
@@ -37,7 +36,6 @@ export default {
     })
     const { body, statusCode } = await _requestObj2.promise
     if (statusCode != 200 || body.code != '200') throw new Error('获取热门评论失败')
-    // console.log(body)
 
     const total = body.hot_comments_counts
     return {

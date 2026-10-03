@@ -7,7 +7,7 @@
 // 响应 trackInfo 顶层挂载（playUrlList/title/cover*/duration/isPaid/isAuthorized/isXimiUhqTrack），
 // playUrlList[].url 为 AES-ECB 加密地址（key 取自官方客户端 4.0.14 asar），见 decoder.ts
 import crypto from 'node:crypto'
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { makeXmSign, XM_UA } from './sign.ts'
 import { getCredentials } from '../auth/store.ts'
 

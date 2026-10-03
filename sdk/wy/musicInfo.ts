@@ -1,5 +1,5 @@
 // https://github.com/Binaryify/NeteaseCloudMusicApi/blob/master/module/song_detail.js
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { weapi } from './utils/crypto.ts'
 import type { RequestObj } from '../types.ts'
 
@@ -17,7 +17,6 @@ export default (songmid: string): RequestObj<any> => {
     }),
   })
   requestObj.promise = requestObj.promise.then(({ body }) => {
-    // console.log(body)
     if (body.code !== 200 || !body.songs.length) return Promise.reject(new Error('获取歌曲信息失败'))
     return body.songs[0]
   })

@@ -1,4 +1,4 @@
-import { httpFetch } from '../request.ts'
+import { httpFetch } from '../common/request.ts'
 import { decodeName, formatPlayTime, sizeFormate } from '../index.ts'
 import { formatSingerName } from '../utils.ts'
 import type { HttpRequestObject, SongType, QualityInfo } from '../types.ts'
@@ -91,7 +91,6 @@ export default {
     return arr.join('、')
   },
   filterData(rawList) {
-    // console.log(rawList)
     return rawList.map(item => {
       const types: Array<SongType & { hash?: string }> = []
       const _types: Record<string, QualityInfo & { hash?: string }> = {}
@@ -147,7 +146,6 @@ export default {
   },
 
   filterBoardsData(rawList) {
-    // console.log(rawList)
     let list: Array<{ id: string; name: string; bangid: string }> = []
     for (const board of rawList) {
       if (board.isvol != 1) continue
@@ -159,24 +157,7 @@ export default {
     }
     return list
   },
-  async getBoards(retryNum = 0) {
-    // if (++retryNum > 3) return Promise.reject(new Error('try max num'))
-    // let response
-    // try {
-    //   response = await this.getBoardsData()
-    // } catch (error) {
-    //   return this.getBoards(retryNum)
-    // }
-    // // console.log(response.body)
-    // if (response.statusCode !== 200 || response.body.errcode !== 0) return this.getBoards(retryNum)
-    // const list = this.filterBoardsData(response.body.data.info)
-    // console.log(list)
-    // // console.log(JSON.stringify(list))
-    // this.list = list
-    // return {
-    //   list,
-    //   source: 'kg',
-    // }
+  async getBoards() {
     this.list = boardList
     return {
       list: boardList,
@@ -189,11 +170,9 @@ export default {
 
     if (body.errcode != 0) return this.getList(bangid, page, retryNum)
 
-    // console.log(body)
     let total = body.data.total
     let limit = 100
     let listData = this.filterData(body.data.info)
-    // console.log(listData)
     return {
       total,
       list: listData,

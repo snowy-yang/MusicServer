@@ -61,26 +61,13 @@ export default {
       },
     })
     return searchRequest.then(({ body }) => {
-      // console.log(body)
       if (!body || !body.req || body.code != this.successCode || body.req.code != this.successCode) {
         return this.musicSearch(str, page, limit, ++retryNum)
       }
       return body.req.data
     })
   },
-  // randomInt(min, max) {
-  //   return Math.floor(Math.random() * (max - min + 1)) + min
-  // },
-  // getSearchId() {
-  //   const e = BigInt(this.randomInt(1, 20))
-  //   const t = e * 18014398509481984n
-  //   const n = BigInt(this.randomInt(0, 4194304)) * 4294967296n
-  //   const a = BigInt(Date.now())
-  //   const r = (a * 1000n) % (24n * 60n * 60n * 1000n)
-  //   return String(t + n + r)
-  // },
   handleResult(rawList) {
-    // console.log(rawList)
     if (!rawList || !Array.isArray(rawList)) return []
     const list: SongInfo[] = []
     rawList.forEach(item => {
@@ -144,7 +131,6 @@ export default {
         typeUrl: {},
       })
     })
-    // console.log(list)
     return list
   },
   search(str, page = 1, limit) {
