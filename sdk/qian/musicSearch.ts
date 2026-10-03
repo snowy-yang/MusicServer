@@ -6,7 +6,7 @@ import { APP_ID, apiGet, apiOk, mapTrack } from './util.ts'
 
 export const search = async(keyword: string, page = 1, limit = 20) => {
   const word = String(keyword ?? '').trim()
-  const empty = { list: [] as any[], allPage: 1, total: 0, limit, source: 'qian' as const }
+  const empty = { list: [] as any[], allPage: 1, total: 0, limit, source: 'bd' as const }
   if (!word) return empty
 
   const body = await apiGet('/v1/search', {
@@ -28,7 +28,7 @@ export const search = async(keyword: string, page = 1, limit = 20) => {
     allPage: haveMore ? page + 1 : Math.max(page, Math.ceil(total / Math.max(1, limit)) || 1),
     total,
     limit,
-    source: 'qian' as const,
+    source: 'bd' as const,
   }
 }
 

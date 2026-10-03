@@ -26,7 +26,7 @@ export const parseSong = async(link: string) => {
   }
   delete song.lyricUrl
   delete song.raw
-  return { ...song, songmid: firstNonEmpty(song.songmid, tsid), source: 'qian' as const }
+  return { ...song, songmid: firstNonEmpty(song.songmid, tsid), source: 'bd' as const }
 }
 
 export const parseAlbum = async(link: string) => parseAlbumLink(link)

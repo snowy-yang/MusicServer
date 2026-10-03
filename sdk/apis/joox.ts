@@ -7,7 +7,7 @@
 //   wmid/session_key 会作为 uid/usk 参与签名（/login/joox 绑定后 VIP 曲目可取完整流）。
 // 实测：游客态返回 128k MP3（免费完整曲目）或 VIP 曲目的 preview/refrain 片段；
 //   未登录请求 VIP 曲目时 play_url_list 为试听片段——与上游行为一致（上游同样只能拿游客流）。
-// 统一接口约定：apis('joox').getMusicUrl(songInfo, type) → { promise, cancelHttp }
+// 统一接口约定：apis('jx').getMusicUrl(songInfo, type) → { promise, cancelHttp }
 // promise resolve → { type, url }（type 为实际命中档位，可能低于请求值）
 
 import { httpFetch } from '../request.ts'

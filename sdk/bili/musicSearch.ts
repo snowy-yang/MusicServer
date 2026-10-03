@@ -50,7 +50,7 @@ export const search = async(keyword: string, page = 1, limit = 20) => {
     allPage: numPages || p + (list.length >= l ? 1 : 0),
     total,
     limit: l,
-    source: 'bili' as const,
+    source: 'bl' as const,
   }
 }
 

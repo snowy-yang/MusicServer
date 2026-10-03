@@ -3,7 +3,7 @@
 多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单、专辑、歌手、链接解析、登录。
 
 共 15 个平台：`kw`（酷我）/ `kg`（酷狗）/ `tx`（QQ音乐）/ `wy`（网易云）/ `qs`（汽水）/ `migu`（咪咕）/
-`qian`（千千）/ `joox` / `bili`（哔哩哔哩）/ `5sing` / `apple`（Apple Music，仅试听），
+`bd`（千千）/ `jx` / `bl`（哔哩哔哩）/ `5s` / `apple`（Apple Music，仅试听），
 以及有声平台 `xm`（喜马拉雅）/ `me`（猫耳FM）/ `qt`（蜻蜓FM）/ `lr`（懒人听书）。
 
 > **本文档是人工速查版，可能滞后于代码。**
@@ -40,7 +40,7 @@
 ### 歌曲 id 形态
 
 各平台 id 约定（含 `kw` 的 songmid、`kg` 的 hash、`qs`/`xm`/`me` 的 id、`migu` 的三元组、
-`qt`/`lr` 的复合 id、`bili` 的 `<bvid>|<cid>` 等）详见 README「歌曲 ID 约定」。
+`qt`/`lr` 的复合 id、`bl` 的 `<bvid>|<cid>` 等）详见 README「歌曲 ID 约定」。
 复合 id 含 `|` / `:` 时在 URL 中需编码（`|` → `%7C`）。
 
 ## 接口速查
@@ -78,7 +78,7 @@
 | GET | `/boards/:source/:boardId[/:page]` | 榜单详情（分页 path 段）。`boardId` 兼容带前缀 id（`kw__93`）与裸 `bangid`（`93`） |
 | GET | `/hot-search/:source` | 热搜词 |
 | GET | `/song-list/:source[/:page]` | 歌单列表；`?sortId=` `?tagId=` 各平台词汇不同，省略时用平台默认 |
-| GET | `/playlist/:source/:id[/:page]` | 歌单详情与曲目；`?limit=`。bili 支持合集/多分P |
+| GET | `/playlist/:source/:id[/:page]` | 歌单详情与曲目；`?limit=`。bl 支持合集/多分P |
 | GET | `/playlist/:source/search/:keyword` | 歌单搜索（`?page=` `?limit=`） |
 | GET | `/playlist/:source/categories` | 歌单分类列表 |
 | GET | `/playlist/:source/categories/:categoryId` | 分类下的歌单（`?page=` `?limit=`） |
@@ -125,8 +125,8 @@
 | DELETE | `/login/xm` · `/login/me` | 退出对应平台 |
 | POST | `/login/lr` | 懒人听书账号登录（`account` + `password`） |
 | DELETE | `/login/lr` | 退出懒人听书 |
-| POST | `/login/bili/qr` → `/login/bili/qr/check` | 哔哩哔哩扫码（解锁大会员音质） |
-| DELETE | `/login/bili` | 退出哔哩哔哩 |
+| POST | `/login/bl/qr` → `/login/bl/qr/check` | 哔哩哔哩扫码（解锁大会员音质） |
+| DELETE | `/login/bl` | 退出哔哩哔哩 |
 | POST | `/login/refresh` | 手动触发登录态续期（kg/tx） |
 | GET | `/login/status` | 登录状态总览（各平台 `logged` 与账号资料） |
 

@@ -45,7 +45,7 @@ export const jooxSongFromTrack = (
     vip: Number(item?.vip_flag ?? 0) === 1,
     types: [],
     _types: {},
-    source: 'joox' as const,
+    source: 'jx' as const,
   }
 }
 
@@ -65,7 +65,7 @@ export const jooxSongFromDetail = (detail: any, playUrl = ''): any => {
     lrc: null,
     types: [],
     _types: {},
-    source: 'joox' as const,
+    source: 'jx' as const,
   }
   if (playUrl) song.url = playUrl
   song.vip = Number(detail?.vip_flag ?? 0) === 1

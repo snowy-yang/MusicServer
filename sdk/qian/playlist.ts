@@ -19,14 +19,14 @@ const mapPlaylistSummary = (item: any) => {
     creator: firstNonEmpty(item?.creator, item?.author, item?.userName, item?.nickName, item?.ownerName),
     description: rawDesc || tagList.join('、'),
     link: id ? playlistLink(id) : '',
-    source: 'qian' as const,
+    source: 'bd' as const,
   }
 }
 
 /** 上游 SearchPlaylist（type=6 歌单搜索；服务端已停用，返回空列表） */
 export const searchPlaylist = async(keyword: string, page = 1, limit = 10) => {
   const word = String(keyword ?? '').trim()
-  const empty = { source: 'qian' as const, list: [] as any[], total: 0, page, limit }
+  const empty = { source: 'bd' as const, list: [] as any[], total: 0, page, limit }
   if (!word) return empty
 
   const body = await apiGet('/v1/search', {
@@ -40,7 +40,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 10) => {
 
   const items = Array.isArray(body?.data?.typeSonglist) ? body.data.typeSonglist : []
   const list = items.map(mapPlaylistSummary).filter((item: any) => item.id)
-  return { source: 'qian' as const, list, total: Number(body?.data?.total) || list.length, page, limit }
+  return { source: 'bd' as const, list, total: Number(body?.data?.total) || list.length, page, limit }
 }
 
 /** 歌单详情（含曲目；tracklist/info 支持 pageNo/pageSize） */
@@ -69,7 +69,7 @@ export const getPlaylistDetail = async(id: string, page = 1, limit = 50) => {
   const total = Number(data?.trackCount) || list.length
 
   return {
-    source: 'qian' as const,
+    source: 'bd' as const,
     info: { id: playlistId, name: title, img: cover, desc: description, author: creator, link: playlistLink(playlistId) },
     list,
     page,
@@ -105,7 +105,7 @@ export const getCategories = async() => {
       list.push({ id, name, group: groupName, count: Number(item?.count ?? 0) || 0 })
     }
   }
-  return { source: 'qian' as const, list }
+  return { source: 'bd' as const, list }
 }
 
 /** 上游 GetCategoryPlaylists（page >= 1，limit 1..100） */
@@ -125,7 +125,7 @@ export const getCategoryPlaylists = async(categoryId: string | number, page = 1,
     .map((item: any) => ({ ...mapPlaylistSummary(item), categoryId: cateId }))
     .filter((item: any) => item.id)
   return {
-    source: 'qian' as const,
+    source: 'bd' as const,
     list,
     total: Number(body?.data?.total) || list.length,
     page: pageNo,

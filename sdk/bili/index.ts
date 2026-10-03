@@ -1,4 +1,4 @@
-// Bilibili（B站）平台模块 —— 上游 music-lib/bilibili 的移植（平台 id: bili）
+// Bilibili（B站）平台模块 —— 上游 music-lib/bilibili 的移植（平台 id: bl）
 // 能力：搜索 / 取流（DASH，VIP 可出 FLAC/Hi-Res）/ 歌单（合集 ugc_season + 多分P稿件）/
 //       链接解析（BV/av、分P）/ 封面 / 扫码登录（sdk/bili/login.ts，凭据落 sdk/auth/store.ts）
 // 不实现：专辑、歌词（上游即空实现）、榜单、热搜、歌手、评论、个人歌单、歌单分类（上游均未实现）。

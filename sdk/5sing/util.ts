@@ -1,8 +1,8 @@
 // 5sing 公共工具（上游 fivesing/fivesing.go 的 getFirstValid / removeEmTags 等移植）
-// 平台 id 统一为 '5sing'（上游包名 fivesing，Go 源码 model.Source 用 "fivesing"；
-// 本仓库契约要求 id 为 5sing，故所有对外 source 字段均为 '5sing'。
+// 平台 id 统一为 '5s'（上游包名 fivesing，Go 源码 model.Source 用 "fivesing"；
+// 本仓库契约要求 id 为 5s，故所有对外 source 字段均为 '5s'。
 // 上游 New(cookie) 的 cookie 实际参与请求（搜索/getSongUrl/newget/歌单页），
-// 这里按约定从 sdk/auth/store.ts 的 getCredentials('5sing') 读取（无则匿名）。
+// 这里按约定从 sdk/auth/store.ts 的 getCredentials('5s') 读取（无则匿名）。
 
 import { httpFetch } from '../request.ts'
 import { getCredentials } from '../auth/store.ts'
@@ -65,17 +65,17 @@ export const unescapeHtml = (s: any): string =>
   })
 
 /** 上游 New(cookie)：cookie 仅在有值时随请求发送（匿名可用） */
-export const get5singCookie = (): string => String((getCredentials('5sing') as { cookie?: string } | null)?.cookie ?? '')
+export const get5singCookie = (): string => String((getCredentials('5s') as { cookie?: string } | null)?.cookie ?? '')
 
 /** 登录态（凭据存在性判断，与 me 平台 status 对齐） */
 export const getStatus = () => {
-  const cred = getCredentials('5sing') as { cookie?: string, updatedAt?: string } | null
+  const cred = getCredentials('5s') as { cookie?: string, updatedAt?: string } | null
   return cred?.cookie ? { logged: true, updatedAt: cred.updatedAt } : { logged: false }
 }
 
 /** 是否显式声明了非本平台的 source（上游 GetLyrics/GetDownloadURL 的 source mismatch 检查） */
 export const isForeignSource = (songInfo: any): boolean =>
-  Boolean(songInfo?.source) && songInfo.source !== '5sing'
+  Boolean(songInfo?.source) && songInfo.source !== '5s'
 
 /**
  * 带 Cookie/UA 的请求（上游 utils.Get + http.Client 自动跟跳的等价实现）

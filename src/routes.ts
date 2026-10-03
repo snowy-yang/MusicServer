@@ -513,7 +513,7 @@ export const musicRoutes = async(fastify: any) => {
 
   const albumSchema = (withPage: boolean) => ({
     summary: '获取专辑详情与曲目列表',
-    description: '支持 kg/kw/tx/wy/xm/me/qt/lr/migu/qian/joox/apple（见 /sources 的 album 能力位）。' +
+    description: '支持 kg/kw/tx/wy/xm/me/qt/lr/migu/bd/jx/apple（见 /sources 的 album 能力位）。' +
       'kw 单页固定 1000 条、xm/me 固定 30 条、limit 不生效。',
     tags: ['歌手专辑'],
     params: params({
@@ -538,7 +538,7 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/album/:source/search/:keyword', {
     schema: {
       summary: '搜索专辑',
-      description: '支持 kg/kw/tx/wy/migu/qian/joox/apple（见 /sources 的 albumSearch 能力位）。',
+      description: '支持 kg/kw/tx/wy/migu/bd/jx/apple（见 /sources 的 albumSearch 能力位）。',
       tags: ['歌手专辑'],
       params: params({ source: pSource('album.searchAlbum'), keyword: { type: 'string', description: '专辑名关键词', example: '魔杰座' } }),
       querystring: qs({ page: pPage, limit: pLimit }),
@@ -563,8 +563,8 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/playlist/:source/search/:keyword', {
     schema: {
       summary: '搜索歌单',
-      description: '支持 kg/kw/tx/wy/migu/qian/joox/bili/5sing/apple（见 /sources 的 playlistSearch 能力位）。' +
-        '部分平台该能力受限（如 qian 歌单搜索接口已下线、bili 需登录），失败时返回 502。',
+      description: '支持 kg/kw/tx/wy/migu/bd/jx/bl/5s/apple（见 /sources 的 playlistSearch 能力位）。' +
+        '部分平台该能力受限（如 bd 歌单搜索接口已下线、bl 需登录），失败时返回 502。',
       tags: ['歌单'],
       params: params({ source: pSource('playlist.searchPlaylist'), keyword: { type: 'string', example: '华语' } }),
       querystring: qs({ page: pPage, limit: pLimit }),
@@ -586,7 +586,7 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/playlist/:source/categories', {
     schema: {
       summary: '获取歌单分类',
-      description: '支持 kw/kg/tx/wy/migu/qian/joox/bili/5sing/apple（见 /sources 的 playlistCategories 能力位）。',
+      description: '支持 kw/kg/tx/wy/migu/bd/jx/bl/5s/apple（见 /sources 的 playlistCategories 能力位）。',
       tags: ['歌单'],
       params: params({ source: pSource('playlist.getCategories') }),
       response: responses('PlaylistCategoriesResult'),
@@ -630,8 +630,8 @@ export const musicRoutes = async(fastify: any) => {
 
   const playlistSchema = (withPage: boolean) => ({
     summary: '获取歌单详情与曲目列表',
-    description: 'id 为歌单 id 或链接（部分平台支持链接/裸 id，如 bili 的 season:<id>:<mid>:<bvid>、' +
-      'joox/qian/migu 的网页链接）。列表按 page/limit 切片（聚合接口自身分页的平台由平台决定）。',
+    description: 'id 为歌单 id 或链接（部分平台支持链接/裸 id，如 bl 的 season:<id>:<mid>:<bvid>、' +
+      'jx/bd/migu 的网页链接）。列表按 page/limit 切片（聚合接口自身分页的平台由平台决定）。',
     tags: ['歌单'],
     params: params({
       source: pSource('playlist'),
@@ -701,7 +701,7 @@ export const musicRoutes = async(fastify: any) => {
       schema: {
         summary: `解析${kind === 'song' ? '歌曲' : kind === 'album' ? '专辑' : '歌单'}链接`,
         description: '把平台链接（或裸 id）解析成结构化歌曲/曲目数据。支持平台见 /sources 的 parse 能力位；' +
-          '5sing 歌曲/歌单、apple/bili/joox/qian/migu 三类、kw/kg/tx/wy 部分支持。',
+          '5s 歌曲/歌单、apple/bl/jx/bd/migu 三类、kw/kg/tx/wy 部分支持。',
         tags: ['链接解析'],
         params: params({ source: pSource('parse.parseSong') }),
         body: parseBodySchema,

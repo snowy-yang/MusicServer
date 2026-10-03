@@ -33,7 +33,7 @@ export const jooxSign = (params: Record<string, any>): string =>
 
 /** 绑定到 sdk/auth/store.ts 的登录 cookie（未登录返回空串，不回退游客 cookie） */
 export const jooxLoginCookie = (): string => {
-  const cred = getCredentials('joox') as { cookie?: string } | null
+  const cred = getCredentials('jx') as { cookie?: string } | null
   return cred?.cookie || ''
 }
 

@@ -425,10 +425,10 @@ export const loginRoutes = async(fastify) => {
 
   // ---------- 哔哩哔哩 ----------
 
-  fastify.post('/login/bili/qr', {
+  fastify.post('/login/bl/qr', {
     schema: {
       summary: '获取哔哩哔哩扫码登录二维码',
-      description: '用 B站 App 扫码后轮询 /login/bili/qr/check 完成登录。返回 key 需原样回传，qrimg 为 data URL 可直接展示。',
+      description: '用 B站 App 扫码后轮询 /login/bl/qr/check 完成登录。返回 key 需原样回传，qrimg 为 data URL 可直接展示。',
       tags: ['登录'],
     },
   }, async(request, reply) => {
@@ -439,7 +439,7 @@ export const loginRoutes = async(fastify) => {
     }
   })
 
-  fastify.post('/login/bili/qr/check', {
+  fastify.post('/login/bl/qr/check', {
     schema: {
       summary: '轮询哔哩哔哩扫码状态',
       description: 'status：waiting 等待扫码 / scanned 已扫码待确认 / success 登录成功（自动保存凭据并返回账号资料）' +
@@ -455,10 +455,10 @@ export const loginRoutes = async(fastify) => {
     }
   })
 
-  fastify.delete('/login/bili', {
+  fastify.delete('/login/bl', {
     schema: { summary: '退出哔哩哔哩登录', tags: ['登录'] },
   }, async() => {
-    clearCredentials('bili')
+    clearCredentials('bl')
     return { logged: false }
   })
 
@@ -476,8 +476,8 @@ export const loginRoutes = async(fastify) => {
   fastify.get('/login/status', {
     schema: {
       summary: '查看登录状态',
-      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx/bili 为已存凭据（含 VIP 等级与最近更新时间），' +
-        'qs/xm/me/lr/qian/joox/apple/5sing 为已存凭据。',
+      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx/bl 为已存凭据（含 VIP 等级与最近更新时间），' +
+        'qs/xm/me/lr/bd/jx/apple/5s 为已存凭据。',
       tags: ['登录'],
     },
   }, async() => {
@@ -493,11 +493,11 @@ export const loginRoutes = async(fastify) => {
       xm: xmStatus(),
       me: meStatus(),
       lr: lrAuth.status(),
-      bili: biliAuth.status(),
-      qian: qianStatus(),
-      joox: jooxStatus(),
+      bl: biliAuth.status(),
+      bd: qianStatus(),
+      jx: jooxStatus(),
       apple: appleStatus(),
-      '5sing': fivesingStatus(),
+      '5s': fivesingStatus(),
     }
   })
 }

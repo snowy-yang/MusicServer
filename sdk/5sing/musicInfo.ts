@@ -106,7 +106,7 @@ export const fetchSongInfo = async(songID: string, songType: string, register?: 
     link: buildSongLink(songType, songID),
     songType,
     typeName: kindName(songType),
-    source: '5sing' as const,
+    source: '5s' as const,
   }
 }
 

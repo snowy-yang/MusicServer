@@ -2,7 +2,7 @@
 // 上游 music-lib/qianqian 的全部接口都走 /v1/*，参数 = 业务参数 + appid + timestamp + sign：
 //   sign = md5(按 key 升序拼接 "k=v&..."（不含 sign）+ Secret)
 // 该平台匿名即可搜索 / 查专辑 / 查歌单 / 拿免费曲目直链；cookie 仅影响 VIP、收藏等登录态资源，
-// MusicServer 从 sdk/auth/store.ts 的 getCredentials('qian') 读取（可选，未登录留空）。
+// MusicServer 从 sdk/auth/store.ts 的 getCredentials('bd') 读取（可选，未登录留空）。
 import crypto from 'node:crypto'
 import { httpFetch } from '../request.ts'
 import { getCredentials } from '../auth/store.ts'
@@ -18,7 +18,7 @@ export const RATE_ORDER = ['3000', '320', '128', '64']
 
 /** 千千平台 cookie（未绑定返回空串；上游所有请求都会带上该 header，此处保持一致） */
 export const getQianCookie = (): string => {
-  const cred = getCredentials('qian') as { cookie?: string } | null
+  const cred = getCredentials('bd') as { cookie?: string } | null
   return cred?.cookie ? String(cred.cookie) : ''
 }
 
@@ -196,7 +196,7 @@ export const mapTrack = (item: any, opts: MapTrackOptions = {}) => {
     lrcx: '',
     types,
     _types,
-    source: 'qian' as const,
+    source: 'bd' as const,
   }
 }
 

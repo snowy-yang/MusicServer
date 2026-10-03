@@ -54,10 +54,10 @@ const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModul
   { id: 'qt', name: '蜻蜓FM', module: qt, noAggregate: true },
   { id: 'lr', name: '懒人听书', module: lr, noAggregate: true },
   { id: 'migu', name: '咪咕音乐', module: migu },
-  { id: 'qian', name: '千千音乐', module: qian },
-  { id: 'joox', name: 'JOOX', module: joox },
-  { id: 'bili', name: '哔哩哔哩', module: bili },
-  { id: '5sing', name: '5sing', module: fivesing },
+  { id: 'bd', name: '千千音乐', module: qian },
+  { id: 'jx', name: 'JOOX', module: joox },
+  { id: 'bl', name: '哔哩哔哩', module: bili },
+  { id: '5s', name: '5sing', module: fivesing },
   // Apple Music 仅提供 preview 试听片段（完整曲为 DRM），不参与跨平台精确匹配
   { id: 'apple', name: 'Apple Music', module: apple, noAggregate: true },
 ]
@@ -82,10 +82,10 @@ export const supportQuality: Record<string, string[]> = {
   qt: qtQualitys,
   lr: lrQualitys,
   migu: miguQualitys,
-  qian: qianQualitys,
-  joox: jooxQualitys,
-  bili: biliQualitys,
-  '5sing': fivesingQualitys,
+  bd: qianQualitys,
+  jx: jooxQualitys,
+  bl: biliQualitys,
+  '5s': fivesingQualitys,
   apple: appleQualitys,
 }
 

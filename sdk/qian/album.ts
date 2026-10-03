@@ -29,7 +29,7 @@ const mapAlbumSummary = (item: QianAlbumSearchItem) => {
     genre: String(item?.genre ?? '').trim(),
     lang: String(item?.lang ?? '').trim(),
     link: id ? albumLink(id) : '',
-    source: 'qian' as const,
+    source: 'bd' as const,
   }
 }
 
@@ -74,7 +74,7 @@ export const searchAlbumItems = async(keyword: string, page = 1, limit = 10): Pr
 /** 搜索专辑（返回歌单/专辑统一摘要形状） */
 export const searchAlbum = async(keyword: string, page = 1, limit = 10) => {
   const word = String(keyword ?? '').trim()
-  const empty = { source: 'qian' as const, list: [] as any[], total: 0, page, limit }
+  const empty = { source: 'bd' as const, list: [] as any[], total: 0, page, limit }
   if (!word) return empty
 
   const items = await searchAlbumItems(word, page, limit)
@@ -82,7 +82,7 @@ export const searchAlbum = async(keyword: string, page = 1, limit = 10) => {
     .map(mapAlbumSummary)
     .filter((album) => album.id)
     .slice(0, limit)
-  return { source: 'qian' as const, list, total: items.length, page, limit }
+  return { source: 'bd' as const, list, total: items.length, page, limit }
 }
 
 /** 旧数字专辑 id → PSID（P 码）；已是 P 码则原样返回 */
@@ -146,7 +146,7 @@ export const getAlbumDetail = async(id: string, page = 1, limit = 30) => {
   }
 
   return {
-    source: 'qian' as const,
+    source: 'bd' as const,
     info: albumInfo,
     list: paged,
     page,

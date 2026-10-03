@@ -6,7 +6,7 @@
 //   - VIP/版权曲目 tracklink 无 path（需登录态会员 cookie），搜索保留但标记 payPlay；
 //   - 歌单关键词搜索（/v1/search?type=6）服务端已下线（errno 23001），searchPlaylist 返回空列表；
 //   - 上游 GetUserPlaylists 明确 Unsupported，本移植不提供 userPlaylist。
-// 凭据：上游 New(cookie) 的 cookie 从 sdk/auth/store.ts 的 getCredentials('qian') 读取（可选）。
+// 凭据：上游 New(cookie) 的 cookie 从 sdk/auth/store.ts 的 getCredentials('bd') 读取（可选）。
 import qianApi from '../apis/qian.ts'
 import musicSearch from './musicSearch.ts'
 import lyric from './lyric.ts'

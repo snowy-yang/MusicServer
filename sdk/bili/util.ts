@@ -25,7 +25,7 @@ export const biliHeaders = (cookie = ''): Record<string, string> => ({
 })
 
 /** 已保存的登录 Cookie（未登录返回空串） */
-export const getLoginCookie = (): string => String((getCredentials('bili') as any)?.cookie || '')
+export const getLoginCookie = (): string => String((getCredentials('bl') as any)?.cookie || '')
 
 const cookieMapFromHeaders = (headers: any): Record<string, string> => {
   const raw = headers?.['set-cookie']
@@ -147,7 +147,7 @@ export const makeSong = ({ bvid, cid, name, artist, album, duration, cover, page
     lrc: null,
     types: [] as any[],
     _types: {} as Record<string, any>,
-    source: 'bili' as const,
+    source: 'bl' as const,
     bvid,
     cid: String(cid ?? ''),
     page,

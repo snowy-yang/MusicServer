@@ -32,7 +32,7 @@ const mapPlaylistSong = (songID: string, kind: string, name: string, artist: str
   songType: kind,
   typeName: kindName(kind),
   link: buildSongLink(kind, songID),
-  source: '5sing' as const,
+  source: '5s' as const,
 })
 
 /**
@@ -103,7 +103,7 @@ const mapPlaylistSummary = (item: any) => {
     // 上游怪癖：content 为字符串 "0" 时视为空简介
     description: desc === '0' ? '' : desc,
     link: buildPlaylistLink(userId, id),
-    source: '5sing' as const,
+    source: '5s' as const,
   }
 }
 
@@ -112,7 +112,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
   const word = String(keyword ?? '').trim()
   const pageNo = Math.max(1, Number(page) || 1)
   const pageSize = Math.max(1, Number(limit) || 20)
-  const empty = { list: [] as any[], total: 0, page: pageNo, limit: pageSize, source: '5sing' as const }
+  const empty = { list: [] as any[], total: 0, page: pageNo, limit: pageSize, source: '5s' as const }
   if (!word) return empty
 
   const url = `${SEARCH_API}?keyword=${encodeURIComponent(word)}&sort=1&page=${pageNo}&filter=0&type=1`
@@ -132,7 +132,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
   }
 
   const total = Number(body?.pageInfo?.totalCount) || list.length
-  return { list, total, page: pageNo, limit: pageSize, source: '5sing' as const }
+  return { list, total, page: pageNo, limit: pageSize, source: '5s' as const }
 }
 
 /** 元数据 + 全量曲目（上游 fetchPlaylistDetail 核心；HTML 不分页，一次拿全） */
@@ -165,7 +165,7 @@ export const fetchPlaylistAll = async(playlistIdRaw: string) => {
     description: String(data?.C ?? ''),
     link: buildPlaylistLink(userId, playlistId),
     userId,
-    source: '5sing' as const,
+    source: '5s' as const,
   }
 
   // 2) 歌单页 HTML（数字 userId 会 302 → 个性域名页，fetch5sing 已跟跳）
@@ -191,7 +191,7 @@ export const getPlaylistDetail = async(id: string, page = 1, limit = 50) => {
   const list = songs.slice(start, start + pageSize)
   const total = songs.length
   return {
-    source: '5sing' as const,
+    source: '5s' as const,
     info: {
       id: playlist.id,
       name: playlist.name,
@@ -222,7 +222,7 @@ export const parsePlaylistLink = async(link: string) => {
   if (!parsed) throw new Error('invalid 5sing playlist link')
   const { playlist, songs } = await fetchPlaylistAll(parsed.playlistId)
   return {
-    source: '5sing' as const,
+    source: '5s' as const,
     info: {
       id: playlist.id,
       name: playlist.name,
