@@ -40,7 +40,7 @@ const fetchAlbumTracks = async(albumId: string, page: number, limit: number) => 
 
   const total = firstNonZero(body?.tracks?.total_count, body?.tracks?.list_count, list.length)
   return {
-    source: 'jx' as const,
+    source: 'joox' as const,
     info: {
       name: String(firstNonEmpty(body?.name, albumId)),
       img: pickJooxImage(body?.images) || null,
@@ -95,7 +95,7 @@ export const getAlbumDetailFromPage = async(rawId: string, page = 1, limit = 50)
 
   const total = firstNonZero(albumData?.trackList?.total_count, albumData?.trackList?.list_count, items.length)
   return {
-    source: 'jx' as const,
+    source: 'joox' as const,
     info: {
       name: String(firstNonEmpty(albumData?.title, albumId)),
       img: cover || null,
@@ -120,7 +120,7 @@ export const searchAlbum = async(keyword: string, page = 1, limit = 20) => {
   const url = `${SEARCH_URL}?country=sg&lang=zh_cn&keyword=${encodeURIComponent(String(keyword ?? ''))}`
   const { statusCode, body } = await httpFetch(url, { headers: jooxHeaders(), timeout: 20000 }).promise as any
   if (statusCode != 200 || !body?.section_list) {
-    return { list: [], total: 0, page, limit, source: 'jx' as const }
+    return { list: [], total: 0, page, limit, source: 'joox' as const }
   }
 
   const list: any[] = []
@@ -142,12 +142,12 @@ export const searchAlbum = async(keyword: string, page = 1, limit = 20) => {
         publishDate: String(album.publish_date ?? '').trim(),
         trackCount: 0,
         link: jooxAlbumLink(id),
-        source: 'jx' as const,
+        source: 'joox' as const,
       })
     }
   }
 
-  return { list: list.slice(0, limit), total: list.length, page, limit, source: 'jx' as const }
+  return { list: list.slice(0, limit), total: list.length, page, limit, source: 'joox' as const }
 }
 
 /** 专辑链接解析（上游 ParseAlbum） */

@@ -5,7 +5,7 @@
 //       0 成功 / 86038 过期 / 86090 已扫码待确认 / 86101 未扫码
 // 成功时登录态 Cookie 在 poll 响应的 Set-Cookie 与 data.url 的 crossDomain 查询串里（两处都收集）。
 // 凭据落盘到 sdk/auth/store.ts 的 `bili` 记录（cookie / refreshToken / 账号资料），与 kg/wy 一致；
-// 上游 New(cookie) 的实例化语义由 getCredentials('bl') 承担（见 util.ts getCookie）。
+// 上游 New(cookie) 的实例化语义由 getCredentials('bili') 承担（见 util.ts getCookie）。
 // 状态码沿用本仓库约定：800 过期 / 801 等待扫码 / 802 已扫码待确认 / 803 登录成功。
 import QRCode from 'qrcode'
 import { httpFetch } from '../common/request.ts'
@@ -125,7 +125,7 @@ export const checkQRLogin = async(key: string) => {
     const cookie = cookieString(jar)
     if (!cookie) throw new Error('B站登录成功但未获取到 Cookie，请重试')
     const profile = await fetchProfile(cookie)
-    setCredentials('bl', {
+    setCredentials('bili', {
       cookie,
       refreshToken: String(data.refresh_token || ''),
       mid: profile.mid,
@@ -148,7 +148,7 @@ export const checkQRLogin = async(key: string) => {
 
 /** 当前登录态（凭据存在性 + 落盘时保存的账号资料） */
 export const status = () => {
-  const cred = getCredentials('bl') as any
+  const cred = getCredentials('bili') as any
   return cred?.cookie
     ? {
         logged: true,

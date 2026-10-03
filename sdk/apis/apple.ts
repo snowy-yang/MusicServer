@@ -3,7 +3,7 @@
 //    完整曲目是 FairPlay DRM 加密流（extendedAssetUrls.enhancedHls），需要 gamdl 等外部工具解密，
 //    本 SDK 不提供。因此这里**任何请求档位都返回 type='preview'**，并在注释/响应里明确标注，不假装是无损完整曲。
 //    歌曲的 previews[0].url 来自 catalog 歌曲详情（搜索结果缓存里的 previewUrl 也会直接复用，同上游 s.URL 逻辑）。
-// 统一接口约定：apis('ap').getMusicUrl(songInfo, type) → { promise, cancelHttp }
+// 统一接口约定：apis('apple').getMusicUrl(songInfo, type) → { promise, cancelHttp }
 //   promise resolve → { type:'preview', url, ext:'m4a', preview:true, songDuration, isrc }
 //   （songDuration 是歌曲完整时长，试听片段本身约 30-90 秒）
 //   type 请求参数不影响结果（只有 preview 一档）；supportQualitys 声明为 ['128k'] 以对齐

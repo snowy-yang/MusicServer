@@ -9,7 +9,7 @@
 import { formatPlayTime } from '../common/utils.ts'
 import { SEARCH_API, fetch5singJson, removeEmTags, unescapeHtml, buildSongLink, estimateDuration, kindName } from './util.ts'
 
-/** 上游 Search 的 list 项 → 统一 Song 形状（source 统一 '5s'） */
+/** 上游 Search 的 list 项 → 统一 Song 形状（source 统一 '5sing'） */
 export const mapSearchSong = (item: any) => {
   const songType = String(item?.typeEname ?? '')
   const duration = estimateDuration(Number(item?.songSize) || 0)
@@ -29,7 +29,7 @@ export const mapSearchSong = (item: any) => {
     typeName: String(item?.typeName ?? kindName(songType)),
     size: Number(item?.songSize) || 0,
     link: buildSongLink(songType, item?.songId),
-    source: '5s' as const,
+    source: '5sing' as const,
   }
 }
 
@@ -37,7 +37,7 @@ export const search = async(keyword: string, page = 1, limit = 20) => {
   const word = String(keyword ?? '').trim()
   const pageNo = Math.max(1, Number(page) || 1)
   const pageSize = Math.max(1, Number(limit) || 20)
-  const empty = { list: [] as any[], allPage: 0, total: 0, limit: pageSize, source: '5s' as const }
+  const empty = { list: [] as any[], allPage: 0, total: 0, limit: pageSize, source: '5sing' as const }
   if (!word) return empty
 
   const url = `${SEARCH_API}?keyword=${encodeURIComponent(word)}&sort=1&page=${pageNo}&filter=0&type=0`
@@ -50,7 +50,7 @@ export const search = async(keyword: string, page = 1, limit = 20) => {
   const total = Number(pageInfo.totalCount) || list.length
   // 服务端每页 10 条（固定），allPage 直接用 pageInfo.totalPages
   const allPage = Number(pageInfo.totalPages) || (list.length >= pageSize ? pageNo + 1 : pageNo)
-  return { list, allPage, total, limit: pageSize, source: '5s' as const }
+  return { list, allPage, total, limit: pageSize, source: '5sing' as const }
 }
 
 export default { search }

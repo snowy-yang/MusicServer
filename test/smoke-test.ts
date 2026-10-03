@@ -514,11 +514,11 @@ await test('专辑详情 /album/lr', async() => {
   return `${r.data.info.total} 节`
 })
 
-// ---- 新平台（migu/bd/jx/bl/5s/ap 移植回归） ----
+// ---- 新平台（mg/bd/joox/bili/5sing/apple 移植回归） ----
 
-for (const source of ['mg', 'bd', 'jx', 'bl', '5s', 'ap']) {
+for (const source of ['mg', 'bd', 'joox', 'bili', '5sing', 'apple']) {
   await test(`搜索 ${source} 直查`, async() => {
-    const r = await get(`/search/${source}/${encodeURIComponent(source === '5s' ? '董贞' : '周杰伦')}?limit=5`)
+    const r = await get(`/search/${source}/${encodeURIComponent(source === '5sing' ? '董贞' : '周杰伦')}?limit=5`)
     if (r.code != 0) throw new Error(r.msg)
     if (!r.data?.list?.length) throw new Error('空列表')
     return `${r.data.list.length} 条，首条 ${r.data.list[0].name}`
@@ -547,10 +547,10 @@ await test('URL bd 免费曲', async() => {
   return `实际 ${u.data.type}，${String(u.data.url).slice(0, 60)}`
 })
 
-await test('URL 5s（档位 sq/hq/lq）', async() => {
-  const r = await get(`/search/5s/${encodeURIComponent('董贞')}?limit=5`)
+await test('URL 5sing（档位 sq/hq/lq）', async() => {
+  const r = await get(`/search/5sing/${encodeURIComponent('董贞')}?limit=5`)
   if (r.code != 0 || !r.data?.list?.length) throw new Error('搜索失败，无法取流')
-  const u = await get(`/url/5s/${encodeURIComponent(r.data.list[0].songmid)}?quality=128k`)
+  const u = await get(`/url/5sing/${encodeURIComponent(r.data.list[0].songmid)}?quality=128k`)
   if (u.code != 0) throw new Error(u.msg)
   return `实际 ${u.data.type}，${String(u.data.url).slice(0, 60)}`
 })
@@ -565,11 +565,11 @@ await test('歌词 mg', async() => {
   return l.data.lyric.slice(0, 40)
 })
 
-await test('歌词 5s', async() => {
-  const r = await get(`/search/5s/${encodeURIComponent('董贞')}?limit=5`)
+await test('歌词 5sing', async() => {
+  const r = await get(`/search/5sing/${encodeURIComponent('董贞')}?limit=5`)
   const song = r.data?.list?.[0]
   if (!song) throw new Error('搜索失败')
-  const l = await get(`/lyric/5s/${encodeURIComponent(song.songmid)}`)
+  const l = await get(`/lyric/5sing/${encodeURIComponent(song.songmid)}`)
   if (l.code != 0) throw new Error(l.msg)
   if (!l.data?.lyric) throw new Error('空歌词')
   return l.data.lyric.slice(0, 40)
@@ -585,7 +585,7 @@ await test('封面 mg', async() => {
   return String(p.data.url).slice(0, 60)
 })
 
-for (const source of ['mg', 'bd', 'jx', 'ap']) {
+for (const source of ['mg', 'bd', 'joox', 'apple']) {
   await test(`专辑搜索 /album/${source}/search`, async() => {
     const r = await get(`/album/${source}/search/${encodeURIComponent('Hello')}?limit=3`)
     if (r.code != 0) throw new Error(r.msg)
@@ -604,7 +604,7 @@ await test('专辑详情 /album/mg', async() => {
   return `${a.data.info.name}（${a.data.total} 首）`
 })
 
-for (const source of ['mg', 'bd', 'jx', 'ap']) {
+for (const source of ['mg', 'bd', 'joox', 'apple']) {
   await test(`歌单分类 /playlist/${source}/categories`, async() => {
     const r = await get(`/playlist/${source}/categories`)
     if (r.code != 0) throw new Error(r.msg)
@@ -635,11 +635,11 @@ await test('歌单详情 /playlist/mg', async() => {
   return `${d.data.total} 首，本页 ${d.data.list.length} 首`
 })
 
-await test('歌单详情 /playlist/bl（合集）', async() => {
-  const s = await get(`/playlist/bl/search/${encodeURIComponent('周杰伦')}?limit=3`)
+await test('歌单详情 /playlist/bili（合集）', async() => {
+  const s = await get(`/playlist/bili/search/${encodeURIComponent('周杰伦')}?limit=3`)
   const id = s.data?.list?.[0]?.id
   if (!id) throw new Error('搜索无歌单')
-  const d = await get(`/playlist/bl/${encodeURIComponent(id)}?limit=5`)
+  const d = await get(`/playlist/bili/${encodeURIComponent(id)}?limit=5`)
   if (d.code != 0) throw new Error(d.msg)
   if (!d.data?.list?.length) throw new Error('歌单无曲目')
   return `${d.data.total} 首`
@@ -659,8 +659,8 @@ await test('链接解析 /parse/playlist/bd', async() => {
   return `${r.body.data.playlist?.name ?? ''}（${r.body.data.total} 首）`
 })
 
-await test('链接解析 /parse/album/ap', async() => {
-  const r = await postJson('/parse/album/ap', { link: 'https://music.apple.com/us/album/the-life-of-a-showgirl-the-encore/6814997249' })
+await test('链接解析 /parse/album/apple', async() => {
+  const r = await postJson('/parse/album/apple', { link: 'https://music.apple.com/us/album/the-life-of-a-showgirl-the-encore/6814997249' })
   if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
   if (!r.body.data?.list?.length) throw new Error('无曲目')
   return `${r.body.data.playlist?.name ?? ''}（${r.body.data.total} 首）`
@@ -682,24 +682,24 @@ await test('链接解析 /parse/song/kw（正向）', async() => {
   return `kw 解析成功: ${r.body.data.song.name}`
 })
 
-await test('扫码二维码创建 POST /login/bl/qr', async() => {
-  const r = await postRaw('/login/bl/qr')
+await test('扫码二维码创建 POST /login/bili/qr', async() => {
+  const r = await postRaw('/login/bili/qr')
   const body = JSON.parse(r.body)
   if (r.status !== 200 || body.code != 0 || !body.data?.key) throw new Error(r.body.slice(0, 120))
   return `key=${String(body.data.key).slice(0, 12)}…`
 })
 
-await test('扫码轮询 POST /login/bl/qr/check', async() => {
-  const created = JSON.parse((await postRaw('/login/bl/qr')).body)
+await test('扫码轮询 POST /login/bili/qr/check', async() => {
+  const created = JSON.parse((await postRaw('/login/bili/qr')).body)
   const key = created.data?.key
   if (!key) throw new Error('未取到 key')
-  const r = await postJson('/login/bl/qr/check', { key })
+  const r = await postJson('/login/bili/qr/check', { key })
   if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
   return `status=${r.body.data.status} code=${r.body.data.code}`
 })
 
 await test('个人歌单 未支持的平台 → 502', async() => {
-  const r = await getRaw('/user-playlist/5s')
+  const r = await getRaw('/user-playlist/5sing')
   if (r.status !== 502 && r.status !== 404) throw new Error(`期望 502/404，实际 ${r.status}`)
   return JSON.parse(r.body).msg?.slice(0, 60)
 })

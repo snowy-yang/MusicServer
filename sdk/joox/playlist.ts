@@ -39,7 +39,7 @@ const mapPlaylistSummary = (item: any) => {
     creator: '',
     description: '',
     link: jooxPlaylistLink(id),
-    source: 'jx' as const,
+    source: 'joox' as const,
   }
 }
 
@@ -60,7 +60,7 @@ const fetchPlaylistTracks = async(playlistId: string, page: number, limit: numbe
 
   const total = firstNonZero(body?.tracks?.total_count, body?.tracks?.list_count, body?.track_count, list.length)
   return {
-    source: 'jx' as const,
+    source: 'joox' as const,
     info: {
       name: String(firstNonEmpty(body?.name, playlistId)),
       img: pickJooxImage(body?.images) || null,
@@ -136,7 +136,7 @@ export const getPlaylistDetailFromPage = async(rawId: string) => {
         .filter(Boolean)
       if (!list.length) throw new Error('joox 歌单无歌曲')
       return {
-        source: 'jx' as const,
+        source: 'joox' as const,
         info: {
           name: String(parsed.name || pageId),
           img: cover || null,
@@ -185,7 +185,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
   const url = `${SEARCH_URL}?country=sg&lang=zh_cn&keyword=${encodeURIComponent(String(keyword ?? ''))}`
   const { statusCode, body } = await httpFetch(url, { headers: jooxHeaders(), timeout: 20000 }).promise as any
   if (statusCode != 200 || !body?.section_list) {
-    return { list: [], total: 0, page, limit, source: 'jx' as const }
+    return { list: [], total: 0, page, limit, source: 'joox' as const }
   }
 
   const list: any[] = []
@@ -200,7 +200,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
     }
   }
 
-  return { list: list.slice(0, limit), total: list.length, page, limit, source: 'jx' as const }
+  return { list: list.slice(0, limit), total: list.length, page, limit, source: 'joox' as const }
 }
 
 /** 歌单分类页原始数据（上游 fetchJooxPlaylistCategoriesPage） */
@@ -230,7 +230,7 @@ export const getCategories = async() => {
     list.push({ id: String(index), name, group: 'JOOX', hot: false, count: items.length })
   })
   if (list.length === 1) throw new Error('joox 歌单分类不存在')
-  return { source: 'jx' as const, list }
+  return { source: 'joox' as const, list }
 }
 
 /** 分类下歌单（上游 GetCategoryPlaylists） */
@@ -282,13 +282,13 @@ export const getCategoryPlaylists = async(categoryId = '', page = 1, limit = 20)
         link: jooxPlaylistLink(id),
         categoryId: cid,
         categoryName,
-        source: 'jx' as const,
+        source: 'joox' as const,
       }
     })
     .filter(Boolean)
   if (!list.length) throw new Error('joox 分类下无歌单')
 
-  return { list, total: items.length, page, limit, source: 'jx' as const }
+  return { list, total: items.length, page, limit, source: 'joox' as const }
 }
 
 /** 歌单链接解析（上游 ParsePlaylist） */

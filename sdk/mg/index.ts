@@ -2,17 +2,17 @@
 // 上游对应：music-lib/migu/（migu.go、song.go、lyric.go、album.go、playlist.go、download.go）
 // 匿名面（2026-10-02 实测）：搜索、PQ(128k mp3) 取流、歌词、封面、专辑曲目、歌单曲目均可用；
 // HQ/SQ/ZQ 各档需登录 Cookie（接口返回「登录后免费试听」）。
-import miguApi from '../apis/migu.ts'
+import mgApi from '../apis/mg.ts'
 import musicSearch from './musicSearch.ts'
 import lyric, { contentIdOf } from './lyric.ts'
 import album from './album.ts'
 import playlist from './playlist.ts'
 import { fetchSongDetail, miguSongLink } from './util.ts'
 
-const migu = {
+const mg = {
   musicSearch,
   getMusicUrl(songInfo: any, type: string) {
-    return miguApi.getMusicUrl(songInfo, type)
+    return mgApi.getMusicUrl(songInfo, type)
   },
   getLyric(songInfo: any) {
     return lyric.getLyric(songInfo)
@@ -60,4 +60,4 @@ export const parseSong = async(link: string) => {
   return song
 }
 
-export default migu
+export default mg

@@ -2,7 +2,7 @@
 // 歌曲：music.91q.com/song/<TSID>（上游 Parse：取 song/info 后顺带取直链，失败不影响返回）
 // 专辑：music.91q.com/album/<P码> / ?albumAssetCode= / ?albumid=
 // 歌单：music.91q.com/songlist|tracklist|playlist/<id> / ?*id= / 裸歌单 id
-import { getDownloadUrl } from '../apis/qian.ts'
+import { getDownloadUrl } from '../apis/bd.ts'
 import { getSongInfo } from './musicInfo.ts'
 import { parseAlbumLink } from './album.ts'
 import { parsePlaylistLink } from './playlist.ts'

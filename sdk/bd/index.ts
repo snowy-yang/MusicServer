@@ -7,7 +7,7 @@
 //   - 歌单关键词搜索（/v1/search?type=6）服务端已下线（errno 23001），searchPlaylist 返回空列表；
 //   - 上游 GetUserPlaylists 明确 Unsupported，本移植不提供 userPlaylist。
 // 凭据：上游 New(cookie) 的 cookie 从 sdk/auth/store.ts 的 getCredentials('bd') 读取（可选）。
-import qianApi from '../apis/qian.ts'
+import bdApi from '../apis/bd.ts'
 import musicSearch from './musicSearch.ts'
 import lyric from './lyric.ts'
 import { getSongInfo } from './musicInfo.ts'
@@ -16,11 +16,11 @@ import playlist from './playlist.ts'
 import parse from './parse.ts'
 import { getQianCookie } from './util.ts'
 
-const qian = {
+const bd = {
   musicSearch,
 
   getMusicUrl(songInfo, type) {
-    return qianApi.getMusicUrl(songInfo, type)
+    return bdApi.getMusicUrl(songInfo, type)
   },
 
   getLyric(songInfo) {
@@ -83,4 +83,4 @@ export const status = () => {
   return cookie ? { logged: true } : { logged: false }
 }
 
-export default qian
+export default bd

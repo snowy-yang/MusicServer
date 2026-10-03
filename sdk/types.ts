@@ -4,7 +4,7 @@
 /** 音乐平台标识 */
 export type Source =
   | 'kw' | 'kg' | 'tx' | 'wy' | 'qs'
-  | 'mg' | 'bd' | 'jx' | 'bl' | '5s' | 'ap'
+  | 'mg' | 'bd' | 'joox' | 'bili' | '5sing' | 'apple'
   | 'xm' | 'me' | 'qt' | 'lr'
 
 /** 音质标识（wav 仅部分接口声明使用） */

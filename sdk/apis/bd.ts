@@ -3,7 +3,7 @@
 //   - 免费曲目（搜索 isVip=0，如 SSR Beats 特辑）各档位均返回明文直链 data.path（audio0x.dmhmusic.com，CDN 签名 URL）
 //   - VIP/版权曲目返回 200/errno 22000 但 data 无 path、无 trail_audio_info，需登录态带会员 cookie 才可能有直链
 // 契约：getMusicUrl(songInfo, type) → { promise, cancelHttp }，promise resolve { type, url }（type 为实际命中档位）
-import { apiOk, firstNonEmpty, trackLink } from '../qian/util.ts'
+import { apiOk, firstNonEmpty, trackLink } from '../bd/util.ts'
 
 // 请求档位 → tracklink rate 尝试链（优先请求档，逐级降级；与上游 3000→320→128→64 的探测顺序一致）
 const QUALITY_RATES: Record<string, string[]> = {

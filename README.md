@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、汽水音乐（qs）、咪咕音乐（mg）、千千音乐（bd）、JOOX（jx）、哔哩哔哩（bl）、5sing（5s）；有声平台：喜马拉雅（xm）、猫耳FM（me）、蜻蜓FM（qt）、懒人听书（lr）；Apple Music（ap，仅 preview 试听）
+- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、汽水音乐（qs）、咪咕音乐（mg）、千千音乐（bd）、JOOX（joox）、哔哩哔哩（bili）、5sing（5sing）；有声平台：喜马拉雅（xm）、猫耳FM（me）、蜻蜓FM（qt）、懒人听书（lr）；Apple Music（apple，仅 preview 试听）
 - **直连取流**：各平台播放地址获取（不依赖第三方 API 服务）
 - **完整链路**：搜索、播放地址、歌词（含各平台加密歌词解码）、封面、榜单、热搜、歌单、专辑、歌手、链接解析（歌单/专辑/歌曲网页链接）
 - 有声平台（xm/me/qt/lr）与 Apple Music（仅试听）不参与聚合搜索与跨平台匹配，仅支持 source 直查
@@ -20,10 +20,10 @@
 | 汽水音乐 | `qs` | ✅ | 128k/320k（登录解锁无损） | ✅ | ✅ | — | — | — | 扫码 |
 | 咪咕音乐 | `mg` | ✅ | 64k/128k/320k/flac/flac24bit | ✅ | ✅ | ✅ 搜索/详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（解锁高档位） |
 | 千千音乐 | `bd` | ✅ | 64k/128k/320k/flac | ✅ | ✅ | ✅ 详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（VIP 曲目） |
-| JOOX | `jx` | ✅ | 128k（VIP 为试听片段） | ✅ | ✅ | ✅ 搜索/详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（VIP 完整曲） |
-| 哔哩哔哩 | `bl` | ✅ | 64k/128k/320k/flac/flac24bit（实际命中 B站档位 132k/192k；flac/Hi-Res 需大会员） | ✅ | ✅ | ✅ 搜索/详情（合集/多分P） | — | ✅ 歌曲/歌单 | 扫码 |
-| 5sing | `5s` | ✅ | sq/hq/lq | ✅ | — | ✅ 搜索/详情 | — | ✅ 歌曲/歌单 | cookie（可选） |
-| Apple Music | `ap` | ✅ | preview 试听片段 | ✅（需登录） | ✅ | ✅ 搜索/详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（media-user-token） |
+| JOOX | `joox` | ✅ | 128k（VIP 为试听片段） | ✅ | ✅ | ✅ 搜索/详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（VIP 完整曲） |
+| 哔哩哔哩 | `bili` | ✅ | 64k/128k/320k/flac/flac24bit（实际命中 B站档位 132k/192k；flac/Hi-Res 需大会员） | ✅ | ✅ | ✅ 搜索/详情（合集/多分P） | — | ✅ 歌曲/歌单 | 扫码 |
+| 5sing | `5sing` | ✅ | sq/hq/lq | ✅ | — | ✅ 搜索/详情 | — | ✅ 歌曲/歌单 | cookie（可选） |
+| Apple Music | `apple` | ✅ | preview 试听片段 | ✅（需登录） | ✅ | ✅ 搜索/详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（media-user-token） |
 | 喜马拉雅 | `xm` | ✅ | 64k/128k | — | ✅ | — | ✅ 详情 | — | cookie |
 | 猫耳FM | `me` | ✅ | 64k/128k | — | ✅ | — | ✅ 详情 | — | token |
 | 蜻蜓FM | `qt` | ✅ | 64k/128k | — | ✅ | — | ✅ 详情 | — | — |
@@ -62,13 +62,13 @@ pnpm typecheck   # 仅类型检查，不运行
 | `GET /singer/:source/:id` | 歌手信息（kg/tx/wy） |
 | `GET /singer/:source/:id/songs[/:page]?limit=30` | 歌手歌曲列表（kg/tx/wy） |
 | `GET /singer/:source/:id/albums[/:page]?limit=10` | 歌手专辑列表（kg/tx/wy） |
-| `GET /album/:source/:id[/:page]` | 专辑详情与曲目（分页为 path 段，第 1 页省略）。支持 kg/kw/tx/wy/xm/me/qt/lr/mg/bd/jx/ap |
-| `GET /album/:source/search/:keyword` | 专辑搜索（kg/kw/tx/wy/mg/bd/jx/ap） |
-| `GET /playlist/:source/search/:keyword` | 歌单搜索（kg/kw/tx/wy/mg/bd/jx/bl/5s/ap） |
-| `GET /playlist/:source/categories` | 歌单分类（kw/kg/tx/wy/mg/bd/jx/bl/5s/ap） |
+| `GET /album/:source/:id[/:page]` | 专辑详情与曲目（分页为 path 段，第 1 页省略）。支持 kg/kw/tx/wy/xm/me/qt/lr/mg/bd/joox/apple |
+| `GET /album/:source/search/:keyword` | 专辑搜索（kg/kw/tx/wy/mg/bd/joox/apple） |
+| `GET /playlist/:source/search/:keyword` | 歌单搜索（kg/kw/tx/wy/mg/bd/joox/bili/5sing/apple） |
+| `GET /playlist/:source/categories` | 歌单分类（kw/kg/tx/wy/mg/bd/joox/bili/5sing/apple） |
 | `GET /playlist/:source/categories/:categoryId` | 分类下的歌单（同上） |
-| `GET /playlist/:source/:id[/:page]?limit=` | 歌单详情与曲目（kw/kg/tx/wy/mg/bd/jx/bl/5s/ap；bl 支持合集/多分P） |
-| `POST /parse/song/:source` 等 | 链接解析：body `{ "link": "..." }`，三个端点 `parse/song` / `parse/album` / `parse/playlist`。支持 kw/kg/tx/wy/5s/ap/bl/jx/bd/mg（其中 bl、5s 无 album 端点） |
+| `GET /playlist/:source/:id[/:page]?limit=` | 歌单详情与曲目（kw/kg/tx/wy/mg/bd/joox/bili/5sing/apple；bili 支持合集/多分P） |
+| `POST /parse/song/:source` 等 | 链接解析：body `{ "link": "..." }`，三个端点 `parse/song` / `parse/album` / `parse/playlist`。支持 kw/kg/tx/wy/5sing/apple/bili/joox/bd/mg（其中 bili、5sing 无 album 端点） |
 | `GET /user-playlist/:source` | 个人歌单（仅 tx/wy 有完整实现；需登录，未登录或平台不支持返回 404/502） |
 | `POST /login/wy/qr` → `POST /login/wy/qr/check` | 网易云扫码登录（扫码后轮询完成登录） |
 | `POST /login/wy/cellphone` | 网易云手机号登录（password 或 captcha） |
@@ -83,8 +83,8 @@ pnpm typecheck   # 仅类型检查，不运行
 | `POST /login/xm` | 绑定喜马拉雅 cookie（www.ximalaya.com 复制，须含 `1&_token`，解锁付费/已购内容取流） |
 | `POST /login/me` | 绑定猫耳FM token（App 抓包或 m.missevan.com 复制，须含 `token=`，解锁付费声音取流） |
 | `POST /login/lr` | 懒人听书账号登录（account+password，懒人取流要求登录态，免费章节同样） |
-| `POST /login/bl/qr` → `POST /login/bl/qr/check` | 哔哩哔哩扫码登录（B站 App 扫一扫，登录后解锁大会员音质） |
-| `DELETE /login/{wy,kg,tx,qs,xm,me,lr,bl}` | 清除对应平台凭据（退出登录） |
+| `POST /login/bili/qr` → `POST /login/bili/qr/check` | 哔哩哔哩扫码登录（B站 App 扫一扫，登录后解锁大会员音质） |
+| `DELETE /login/{wy,kg,tx,qs,xm,me,lr,bili}` | 清除对应平台凭据（退出登录） |
 | `GET /login/status` | 登录状态（登录后取流/请求自动携带凭据） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
@@ -105,10 +105,10 @@ pnpm typecheck   # 仅类型检查，不运行
 - **lr**：`<bookId>:<section>` 复合 id（/album/lr 章节列表产出）；取流必须 `POST /login/lr` 登录（免费章节同样要求登录态）
 - **mg**：`<contentId>|<resourceType>|<formatType>` 三元组（搜索结果/专辑/歌单产出）；取流走 listen-url 多档候选链 + 逐档 Range 探测，命中可访问的最高档（匿名实测可出 flac24bit 真无损），Z3D/I3D 加密流自动改走 `/stream/mg` 解密代理
 - **bd**：track id（T 开头，搜索结果的 `songmid`）；免费曲目匿名可出 128k/320k/flac 明文直链，VIP/版权曲目需 cookie
-- **jx**：加密后的 track id（含 `=`/`+`，URL 编码后传）；游客 128k，VIP 完整曲需 cookie（`wmid`+`session_key`）
-- **bl**：`<bvid>|<cid>`（搜索结果/合集曲目产出）；合集/歌单 id 形如 `season:<id>:<mid>:<bvid>` 或 `bvid:<bvid>`
-- **5s**：`<songId>|<songType>`（如 `932557|yc`，songType 为 yc 原创 / fc 翻唱 / bz 伴奏），URL 路径需编码 `|` 为 `%7C`
-- **ap**：数字歌曲 id（搜索结果产出）；取流固定为 `preview` 试听片段（完整曲为 DRM，不在支持范围）
+- **joox**：加密后的 track id（含 `=`/`+`，URL 编码后传）；游客 128k，VIP 完整曲需 cookie（`wmid`+`session_key`）
+- **bili**：`<bvid>|<cid>`（搜索结果/合集曲目产出）；合集/歌单 id 形如 `season:<id>:<mid>:<bvid>` 或 `bvid:<bvid>`
+- **5sing**：`<songId>|<songType>`（如 `932557|yc`，songType 为 yc 原创 / fc 翻唱 / bz 伴奏），URL 路径需编码 `|` 为 `%7C`
+- **apple**：数字歌曲 id（搜索结果产出）；取流固定为 `preview` 试听片段（完整曲为 DRM，不在支持范围）
 
 `/url` 在外部音源与平台直连都失败时，自动降级到**酷我**兜底：按歌名/歌手/时长匹配同一首歌后走 kw 通道（匿名可拿无损）。kg 可由 hash 反查歌曲信息；其它平台需要兜底时给 `/url` 传 `name`/`singer`/`interval` 查询参数。
 
@@ -172,7 +172,7 @@ src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源�
   server.ts         HTTP 服务器入口（pnpm start 实际启动文件）
   routes.ts         业务路由（JSON Schema 校验 + OpenAPI 元数据）
   routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/账密+风控验证/token、tx 扫码/cookie、qs 汽水扫码、
-                    bl 扫码、xm/me cookie 绑定、lr 账密）
+                    bili 扫码、xm/me cookie 绑定、lr 账密）
   source.ts         外部音源候选链（SOURCE_ENABLED 时 /url 取流优先走 sources/ 脚本，失败回落 SDK）
   source-ivm.ts     社区音源脚本加载器（isolated-vm 硬隔离沙箱）
   source-simple.ts  简单 API 音源脚本加载器（.mjs 进程内直载）
@@ -210,8 +210,8 @@ test/
 - **kw 取流**：主通道 mobi.s 严格校验「返回 bitrate == 请求档位且为明文格式」，档位缺失时沿降级链换档（flac24bit→flac→320k→128k）；web playUrl 回退通道匿名恒 128k。
 - **qs 取流**：匿名仅 30s 试听；完整曲目需 `/login/qs/qr` 用**汽水音乐 App** 扫码登录，取流走 `/stream/qs/:id` 解密流代理（一次性下载解密回明文，不支持 Range）。
 - **mg 取流**：匿名 PQ(128k) 永远可用，但候选链会优先探测更高档位——多数曲目实际能匿名拿到 SQ/ZQ 真无损直链（上游同款 tone 路径重写 + 逐档探测）；Z3D/I3D 加密候选经 `/stream/mg` 解密后同样可播。HQ/SQ 返回「登录后免费试听」时自动降级到可用的最高档。
-- **ap 取流**：只有 preview 试听片段（约 30–90s，AAC/m4a），返回的 `type` 固定为 `preview`，不要当作完整曲。
-- **bl 取流**：匿名最高 192k；flac/Hi-Res 需 `/login/bl/qr` 登录大会员账号。CDN 有约 1 小时的 `deadline` 签名，取流结果不宜缓存过久。
-- **5s 歌单详情**：依赖 5sing 网页（`5sing.kugou.com/.../dj/...html`）解析曲目；2026-10-02 实测该站点网页层整体 502（搜索/取流/歌词等手机端 API 不受影响）。上游同样依赖该页面，待站点恢复即自动可用。
+- **apple 取流**：只有 preview 试听片段（约 30–90s，AAC/m4a），返回的 `type` 固定为 `preview`，不要当作完整曲。
+- **bili 取流**：匿名最高 192k；flac/Hi-Res 需 `/login/bili/qr` 登录大会员账号。CDN 有约 1 小时的 `deadline` 签名，取流结果不宜缓存过久。
+- **5sing 歌单详情**：依赖 5sing 网页（`5sing.kugou.com/.../dj/...html`）解析曲目；2026-10-02 实测该站点网页层整体 502（搜索/取流/歌词等手机端 API 不受影响）。上游同样依赖该页面，待站点恢复即自动可用。
 - **link 解析**：`/parse/*` 走各平台网页链接解析（需上游有对应实现）；未实现的平台返回 404。
 - 平台接口随时可能变更，遇失效时可对照 `sdk/apis/` 内的接口文档调整。

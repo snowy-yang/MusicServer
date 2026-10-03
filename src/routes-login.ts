@@ -8,7 +8,7 @@ import * as qsPassport from '../sdk/qs/passport.ts'
 import * as biliAuth from '../sdk/bili/login.ts'
 import { status as xmStatus } from '../sdk/xm/index.ts'
 import { status as meStatus } from '../sdk/me/index.ts'
-import { status as qianStatus } from '../sdk/qian/index.ts'
+import { status as bdStatus } from '../sdk/bd/index.ts'
 import { status as jooxStatus } from '../sdk/joox/index.ts'
 import { status as appleStatus } from '../sdk/apple/index.ts'
 import { status as fivesingStatus } from '../sdk/5sing/index.ts'
@@ -425,10 +425,10 @@ export const loginRoutes = async(fastify) => {
 
   // ---------- 哔哩哔哩 ----------
 
-  fastify.post('/login/bl/qr', {
+  fastify.post('/login/bili/qr', {
     schema: {
       summary: '获取哔哩哔哩扫码登录二维码',
-      description: '用 B站 App 扫码后轮询 /login/bl/qr/check 完成登录。返回 key 需原样回传，qrimg 为 data URL 可直接展示。',
+      description: '用 B站 App 扫码后轮询 /login/bili/qr/check 完成登录。返回 key 需原样回传，qrimg 为 data URL 可直接展示。',
       tags: ['登录'],
     },
   }, async(_request, reply) => {
@@ -439,7 +439,7 @@ export const loginRoutes = async(fastify) => {
     }
   })
 
-  fastify.post('/login/bl/qr/check', {
+  fastify.post('/login/bili/qr/check', {
     schema: {
       summary: '轮询哔哩哔哩扫码状态',
       description: 'status：waiting 等待扫码 / scanned 已扫码待确认 / success 登录成功（自动保存凭据并返回账号资料）' +
@@ -455,10 +455,10 @@ export const loginRoutes = async(fastify) => {
     }
   })
 
-  fastify.delete('/login/bl', {
+  fastify.delete('/login/bili', {
     schema: { summary: '退出哔哩哔哩登录', tags: ['登录'] },
   }, async() => {
-    clearCredentials('bl')
+    clearCredentials('bili')
     return { logged: false }
   })
 
@@ -476,8 +476,8 @@ export const loginRoutes = async(fastify) => {
   fastify.get('/login/status', {
     schema: {
       summary: '查看登录状态',
-      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx/bl 为已存凭据（含 VIP 等级与最近更新时间），' +
-        'qs/xm/me/lr/bd/jx/ap/5s 为已存凭据。',
+      description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx/bili 为已存凭据（含 VIP 等级与最近更新时间），' +
+        'qs/xm/me/lr/bd/joox/apple/5sing 为已存凭据。',
       tags: ['登录'],
     },
   }, async() => {
@@ -493,11 +493,11 @@ export const loginRoutes = async(fastify) => {
       xm: xmStatus(),
       me: meStatus(),
       lr: lrAuth.status(),
-      bl: biliAuth.status(),
-      bd: qianStatus(),
-      jx: jooxStatus(),
-      ap: appleStatus(),
-      '5s': fivesingStatus(),
+      bili: biliAuth.status(),
+      bd: bdStatus(),
+      joox: jooxStatus(),
+      apple: appleStatus(),
+      '5sing': fivesingStatus(),
     }
   })
 }

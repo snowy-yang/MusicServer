@@ -14,7 +14,7 @@ export const search = async(keyword: string, _page = 1, limit = 20) => {
   const url = `${SEARCH_URL}?country=sg&lang=zh_cn&keyword=${encodeURIComponent(String(keyword ?? ''))}`
   const { statusCode, body } = await httpFetch(url, { headers: jooxHeaders(), timeout: 20000 }).promise as any
   if (statusCode != 200 || !body?.section_list) {
-    return { list: [], allPage: 0, total: 0, limit, source: 'jx' as const }
+    return { list: [], allPage: 0, total: 0, limit, source: 'joox' as const }
   }
 
   const list: any[] = []
@@ -35,7 +35,7 @@ export const search = async(keyword: string, _page = 1, limit = 20) => {
     allPage: 1,
     total: list.length,
     limit,
-    source: 'jx' as const,
+    source: 'joox' as const,
   }
 }
 

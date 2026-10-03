@@ -49,7 +49,7 @@ const DOCS_PREFIX = '/docs'
 const API_TITLE = 'MusicServer 聚合音乐 API'
 const API_DESCRIPTION = '多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单、专辑、歌手、链接解析。' +
   '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）/ qs（汽水音乐）/ mg（咪咕）/ bd（千千）/ ' +
-  'jx / bl（哔哩哔哩）/ 5s / ap（Apple Music，仅试听）与有声平台 xm（喜马拉雅）/ me（猫耳FM）/ qt（蜻蜓FM）/ lr（懒人听书）。'
+  'joox / bili（哔哩哔哩）/ 5sing / apple（Apple Music，仅试听）与有声平台 xm（喜马拉雅）/ me（猫耳FM）/ qt（蜻蜓FM）/ lr（懒人听书）。'
 
 const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'))
 

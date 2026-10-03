@@ -53,8 +53,8 @@ export const appleCuratorCategories: Array<{ id: string, name: string }> = [
 
 /** 上游 GetPlaylistCategories：静态返回 Apple Music genre curators */
 export const getCategories = async() => ({
-  source: 'ap' as const,
-  list: appleCuratorCategories.map(item => ({ id: item.id, name: item.name, group: 'Apple Music 分类', source: 'ap' as const })),
+  source: 'apple' as const,
+  list: appleCuratorCategories.map(item => ({ id: item.id, name: item.name, group: 'Apple Music 分类', source: 'apple' as const })),
 })
 
 /** 上游 GetCategoryPlaylists：按 curator 分类取歌单（cn storefront，单请求上限 25，循环补齐） */
@@ -88,7 +88,7 @@ export const getCategoryPlaylists = async(categoryID: string, page = 1, limit = 
   }
 
   return {
-    source: 'ap' as const,
+    source: 'apple' as const,
     list: all.slice(0, l),
     page: p,
     limit: l,
@@ -118,7 +118,7 @@ export const getPlaylistDetail = async(rawId: string, page = 1, limit = 100) => 
   if (!summary.trackCount || songs.length > summary.trackCount) summary.trackCount = songs.length
 
   return {
-    source: 'ap' as const,
+    source: 'apple' as const,
     info: {
       id: playlistId,
       name: summary.name,
@@ -145,7 +145,7 @@ export const getPlaylistSongs = async(id: string): Promise<any[]> => {
 export const parsePlaylistLink = async(link: string) => {
   const detail = await getPlaylistDetail(link, 1, 100000)
   return {
-    source: 'ap' as const,
+    source: 'apple' as const,
     id: detail.info.id,
     info: detail.info,
     list: detail.list,

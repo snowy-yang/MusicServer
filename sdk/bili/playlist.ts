@@ -57,7 +57,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
         creator: view?.owner?.name || item.author || '',
         description: season.intro || '',
         link: `https://www.bilibili.com/video/${item.bvid}`,
-        source: 'bl' as const,
+        source: 'bili' as const,
       }
     }
     const pages: any[] = view?.pages ?? []
@@ -73,14 +73,14 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
         creator: view?.owner?.name || item.author || '',
         description: '',
         link: `https://www.bilibili.com/video/${item.bvid}`,
-        source: 'bl' as const,
+        source: 'bili' as const,
       }
     }
     return null
   })
 
   const list = result.filter(Boolean)
-  return { list, page: p, limit: l, total: list.length, source: 'bl' as const }
+  return { list, page: p, limit: l, total: list.length, source: 'bili' as const }
 }
 
 /** 由 bvid 构造歌单详情（上游 GetPlaylistSongs 的 bvid 分支 + ParsePlaylist 的元数据） */
@@ -167,7 +167,7 @@ const pageSlice = (detail: { info: any, songs: any[] }, page: any, limit: any) =
   const p = Math.max(1, Number(page) || 1)
   const l = Math.min(Math.max(1, Number(limit) || 100), 10000)
   return {
-    source: 'bl' as const,
+    source: 'bili' as const,
     info: detail.info,
     list: detail.songs.slice((p - 1) * l, p * l),
     page: p,
@@ -216,7 +216,7 @@ const parsePlaylistView = async(bvid: string, view: any) => {
     let trackCount = countSeasonEpisodes(season.sections)
     if (!trackCount) trackCount = detail.songs.length
     return {
-      source: 'bl' as const,
+      source: 'bili' as const,
       id,
       info: { ...detail.info, trackCount, playCount: Number(season?.stat?.view) || undefined },
       list: detail.songs,
@@ -227,7 +227,7 @@ const parsePlaylistView = async(bvid: string, view: any) => {
   }
   const detail = await detailFromBvid(bvid)
   return {
-    source: 'bl' as const,
+    source: 'bili' as const,
     id: bvidKey(bvid),
     info: { ...detail.info, trackCount: detail.songs.length },
     list: detail.songs,

@@ -6,7 +6,7 @@ import { httpFetch } from '../common/request.ts'
 import {
   AndroidChannel, AndroidUA, AndroidVersion, decryptZ3D, firstNonEmpty,
   getMiguCookie, isMiguAudioMagic, miguFormatExt, TONE_QUALITY, type MiguSongItem,
-} from '../migu/util.ts'
+} from '../mg/util.ts'
 
 export const supportQualitys = ['64k', '128k', '320k', 'flac', 'flac24bit']
 

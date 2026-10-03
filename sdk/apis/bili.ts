@@ -120,7 +120,7 @@ const followRedirects = async(url: string, cookie: string, tracker?: { current: 
 }
 
 /**
- * 统一取流接口：apis('bl').getMusicUrl(songInfo, type) → { promise, cancelHttp }
+ * 统一取流接口：apis('bili').getMusicUrl(songInfo, type) → { promise, cancelHttp }
  * promise resolve → { type, url }（type 为实际命中档位，可能高于/低于请求档位）
  * songInfo.songmid 约定 `<bvid>|<cid>`；仅给 bvid 时回源 view 取首P cid。
  */
