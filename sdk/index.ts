@@ -53,13 +53,13 @@ const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModul
   { id: 'me', name: '猫耳FM', module: me, noAggregate: true },
   { id: 'qt', name: '蜻蜓FM', module: qt, noAggregate: true },
   { id: 'lr', name: '懒人听书', module: lr, noAggregate: true },
-  { id: 'migu', name: '咪咕音乐', module: migu },
+  { id: 'mg', name: '咪咕音乐', module: migu },
   { id: 'bd', name: '千千音乐', module: qian },
   { id: 'jx', name: 'JOOX', module: joox },
   { id: 'bl', name: '哔哩哔哩', module: bili },
   { id: '5s', name: '5sing', module: fivesing },
   // Apple Music 仅提供 preview 试听片段（完整曲为 DRM），不参与跨平台精确匹配
-  { id: 'apple', name: 'Apple Music', module: apple, noAggregate: true },
+  { id: 'ap', name: 'Apple Music', module: apple, noAggregate: true },
 ]
 
 const SOURCE_MODULES = Object.fromEntries(SUPPORTED_SOURCES.map((s) => [s.id, s.module]))
@@ -81,12 +81,12 @@ export const supportQuality: Record<string, string[]> = {
   me: meQualitys,
   qt: qtQualitys,
   lr: lrQualitys,
-  migu: miguQualitys,
+  mg: miguQualitys,
   bd: qianQualitys,
   jx: jooxQualitys,
   bl: biliQualitys,
   '5s': fivesingQualitys,
-  apple: appleQualitys,
+  ap: appleQualitys,
 }
 
 const trimStr = (str: unknown): string => (typeof str === 'string' ? str.trim() : str as string)

@@ -514,9 +514,9 @@ await test('专辑详情 /album/lr', async() => {
   return `${r.data.info.total} 节`
 })
 
-// ---- 新平台（migu/bd/jx/bl/5s/apple 移植回归） ----
+// ---- 新平台（migu/bd/jx/bl/5s/ap 移植回归） ----
 
-for (const source of ['migu', 'bd', 'jx', 'bl', '5s', 'apple']) {
+for (const source of ['mg', 'bd', 'jx', 'bl', '5s', 'ap']) {
   await test(`搜索 ${source} 直查`, async() => {
     const r = await get(`/search/${source}/${encodeURIComponent(source === '5s' ? '董贞' : '周杰伦')}?limit=5`)
     if (r.code != 0) throw new Error(r.msg)
@@ -525,14 +525,14 @@ for (const source of ['migu', 'bd', 'jx', 'bl', '5s', 'apple']) {
   })
 }
 
-await test('URL migu（多档候选链）', async() => {
-  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+await test('URL mg（多档候选链）', async() => {
+  const r = await get(`/search/mg/${encodeURIComponent('起风了')}?limit=3`)
   if (r.code != 0 || !r.data?.list?.length) throw new Error('搜索失败，无法取流')
   const song = r.data.list.find((s: any) => !s.payPlay) ?? r.data.list[0]
-  const u = await get(`/url/migu/${encodeURIComponent(song.songmid)}?quality=128k`)
+  const u = await get(`/url/mg/${encodeURIComponent(song.songmid)}?quality=128k`)
   if (u.code != 0) throw new Error(u.msg)
   const url = String(u.data.url)
-  if (!url.startsWith('http') && !url.includes('/stream/migu/')) throw new Error('url 非法')
+  if (!url.startsWith('http') && !url.includes('/stream/mg/')) throw new Error('url 非法')
   return `实际 ${u.data.type}，${url.slice(0, 60)}`
 })
 
@@ -555,11 +555,11 @@ await test('URL 5s（档位 sq/hq/lq）', async() => {
   return `实际 ${u.data.type}，${String(u.data.url).slice(0, 60)}`
 })
 
-await test('歌词 migu', async() => {
-  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+await test('歌词 mg', async() => {
+  const r = await get(`/search/mg/${encodeURIComponent('起风了')}?limit=3`)
   const song = r.data?.list?.[0]
   if (!song) throw new Error('搜索失败')
-  const l = await get(`/lyric/migu/${encodeURIComponent(song.songmid)}`)
+  const l = await get(`/lyric/mg/${encodeURIComponent(song.songmid)}`)
   if (l.code != 0) throw new Error(l.msg)
   if (!l.data?.lyric) throw new Error('空歌词')
   return l.data.lyric.slice(0, 40)
@@ -575,17 +575,17 @@ await test('歌词 5s', async() => {
   return l.data.lyric.slice(0, 40)
 })
 
-await test('封面 migu', async() => {
-  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+await test('封面 mg', async() => {
+  const r = await get(`/search/mg/${encodeURIComponent('起风了')}?limit=3`)
   const song = r.data?.list?.[0]
   if (!song) throw new Error('搜索失败')
-  const p = await get(`/pic/migu/${encodeURIComponent(song.songmid)}`)
+  const p = await get(`/pic/mg/${encodeURIComponent(song.songmid)}`)
   if (p.code != 0) throw new Error(p.msg)
   if (!String(p.data?.url ?? '').startsWith('http')) throw new Error('封面 url 非法')
   return String(p.data.url).slice(0, 60)
 })
 
-for (const source of ['migu', 'bd', 'jx', 'apple']) {
+for (const source of ['mg', 'bd', 'jx', 'ap']) {
   await test(`专辑搜索 /album/${source}/search`, async() => {
     const r = await get(`/album/${source}/search/${encodeURIComponent('Hello')}?limit=3`)
     if (r.code != 0) throw new Error(r.msg)
@@ -594,17 +594,17 @@ for (const source of ['migu', 'bd', 'jx', 'apple']) {
   })
 }
 
-await test('专辑详情 /album/migu', async() => {
-  const r = await get(`/search/migu/${encodeURIComponent('起风了')}?limit=3`)
+await test('专辑详情 /album/mg', async() => {
+  const r = await get(`/search/mg/${encodeURIComponent('起风了')}?limit=3`)
   const albumId = r.data?.list?.find((s: any) => s.albumId)?.albumId
   if (!albumId) throw new Error('搜索结果未携带 albumId')
-  const a = await get(`/album/migu/${albumId}`)
+  const a = await get(`/album/mg/${albumId}`)
   if (a.code != 0) throw new Error(a.msg)
   if (!a.data?.list?.length) throw new Error('专辑无曲目')
   return `${a.data.info.name}（${a.data.total} 首）`
 })
 
-for (const source of ['migu', 'bd', 'jx', 'apple']) {
+for (const source of ['mg', 'bd', 'jx', 'ap']) {
   await test(`歌单分类 /playlist/${source}/categories`, async() => {
     const r = await get(`/playlist/${source}/categories`)
     if (r.code != 0) throw new Error(r.msg)
@@ -623,13 +623,13 @@ for (const source of ['migu', 'bd', 'jx', 'apple']) {
   })
 }
 
-await test('歌单详情 /playlist/migu', async() => {
-  const c = await get('/playlist/migu/categories')
+await test('歌单详情 /playlist/mg', async() => {
+  const c = await get('/playlist/mg/categories')
   const cat = c.data.list[0]
-  const pl = await get(`/playlist/migu/categories/${encodeURIComponent(cat.id)}?limit=3`)
+  const pl = await get(`/playlist/mg/categories/${encodeURIComponent(cat.id)}?limit=3`)
   const id = pl.data?.list?.[0]?.id
   if (!id) throw new Error('未取到歌单 id')
-  const d = await get(`/playlist/migu/${id}?limit=5`)
+  const d = await get(`/playlist/mg/${id}?limit=5`)
   if (d.code != 0) throw new Error(d.msg)
   if (!d.data?.list?.length) throw new Error('歌单无曲目')
   return `${d.data.total} 首，本页 ${d.data.list.length} 首`
@@ -645,8 +645,8 @@ await test('歌单详情 /playlist/bl（合集）', async() => {
   return `${d.data.total} 首`
 })
 
-await test('链接解析 /parse/song/migu', async() => {
-  const r = await postJson('/parse/song/migu', { link: 'https://music.migu.cn/v3/music/song/600913000002601091' })
+await test('链接解析 /parse/song/mg', async() => {
+  const r = await postJson('/parse/song/mg', { link: 'https://music.migu.cn/v3/music/song/600913000002601091' })
   if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
   if (!r.body.data?.song?.songmid) throw new Error('缺少 song')
   return `${r.body.data.song.name} / ${r.body.data.song.singer}`
@@ -659,8 +659,8 @@ await test('链接解析 /parse/playlist/bd', async() => {
   return `${r.body.data.playlist?.name ?? ''}（${r.body.data.total} 首）`
 })
 
-await test('链接解析 /parse/album/apple', async() => {
-  const r = await postJson('/parse/album/apple', { link: 'https://music.apple.com/us/album/the-life-of-a-showgirl-the-encore/6814997249' })
+await test('链接解析 /parse/album/ap', async() => {
+  const r = await postJson('/parse/album/ap', { link: 'https://music.apple.com/us/album/the-life-of-a-showgirl-the-encore/6814997249' })
   if (r.status !== 200 || r.body?.code != 0) throw new Error(JSON.stringify(r.body).slice(0, 120))
   if (!r.body.data?.list?.length) throw new Error('无曲目')
   return `${r.body.data.playlist?.name ?? ''}（${r.body.data.total} 首）`
@@ -705,7 +705,7 @@ await test('个人歌单 未支持的平台 → 502', async() => {
 })
 
 await test('咪咕解密流代理 无票据 → 404', async() => {
-  const r = await getRaw('/stream/migu/ffffffffffffffffffffffffffffffff')
+  const r = await getRaw('/stream/mg/ffffffffffffffffffffffffffffffff')
   if (r.status !== 404) throw new Error(`期望 404，实际 ${r.status}`)
   return JSON.parse(r.body).msg?.slice(0, 50)
 })

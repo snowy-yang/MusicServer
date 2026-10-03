@@ -31,7 +31,7 @@ const toPlaylist = (item: MiguPlaylistItem, categoryId?: string) => {
     playCount: parseInt(String(item.playNum ?? ''), 10) || 0,
     creator: firstNonEmpty(item.userName, item.ownerName),
     link: miguPlaylistLink(playlistID),
-    source: 'migu' as const,
+    source: 'mg' as const,
     ...(categoryId ? { categoryId } : {}),
   }
 }
@@ -41,7 +41,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
   const body = await searchAll(keyword, 'songlist', page, limit)
   const result: MiguPlaylistItem[] = body?.songListResultData?.result ?? []
   const list = result.map(item => toPlaylist(item)).filter(Boolean)
-  return { list, source: 'migu' as const, page, limit, total: list.length }
+  return { list, source: 'mg' as const, page, limit, total: list.length }
 }
 
 /** 静态分类（上游 miguPlaylistCategoryKeywords） */
@@ -67,7 +67,7 @@ const CATEGORY_KEYWORDS = [
 ]
 
 export const getCategories = () => ({
-  source: 'migu' as const,
+  source: 'mg' as const,
   list: [
     { id: '', name: '全部', group: '全部' },
     ...CATEGORY_KEYWORDS.map(c => ({ id: c.name, name: c.name, group: c.group, hot: Boolean(c.hot) })),
@@ -77,7 +77,7 @@ export const getCategories = () => ({
 export const getCategoryPlaylists = async(categoryId: string, page = 1, limit = 20) => {
   const keyword = String(categoryId ?? '').trim() || '华语'
   const { list } = await searchPlaylist(keyword, page, limit)
-  return { list: list.map(p => toPlaylist(p as any, keyword)).filter(Boolean), source: 'migu' as const, page, limit }
+  return { list: list.map(p => toPlaylist(p as any, keyword)).filter(Boolean), source: 'mg' as const, page, limit }
 }
 
 /** 歌单曲目（每页 50 全量翻页 + 去重；上游 GetPlaylistSongs） */
@@ -123,7 +123,7 @@ export const getPlaylistDetail = async(id: string, page = 1, limit = 50) => {
   const { songs, total } = await fetchPlaylistSongs(playlistID)
   const start = (page - 1) * limit
   return {
-    source: 'migu' as const,
+    source: 'mg' as const,
     info: { name: playlistID, img: songs[0]?.img ?? '', desc: '', author: '' },
     list: songs.slice(start, start + limit),
     page,

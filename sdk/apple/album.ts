@@ -35,7 +35,7 @@ export const getAlbumDetail = async(rawId: string, page = 1, limit = 50) => {
   if (!summary.trackCount || songs.length > summary.trackCount) summary.trackCount = songs.length
 
   return {
-    source: 'apple' as const,
+    source: 'ap' as const,
     info: {
       id: albumId,
       name: summary.name,
@@ -64,7 +64,7 @@ export const getAlbumSongs = async(id: string): Promise<any[]> => {
 export const parseAlbumLink = async(link: string) => {
   const detail = await getAlbumDetail(link, 1, 100000)
   return {
-    source: 'apple' as const,
+    source: 'ap' as const,
     id: detail.info.id,
     info: detail.info,
     list: detail.list,

@@ -1,8 +1,8 @@
-// Apple Music 平台模块（上游 music-lib/apple/apple.go 的 Node/TS 移植，平台 id: apple）
+// Apple Music 平台模块（上游 music-lib/apple/apple.go 的 Node/TS 移植，平台 id: ap）
 // 能力：搜索 / 歌词（TTML，匿名 developer token 通常拿不到，见 lyric.ts）/ 封面 /
 //       专辑（搜索+详情+链接解析）/ 歌单（搜索+详情+分类+分类歌单+链接解析）/
 //       链接解析（song/album/playlist）/ 取流（**仅 preview 试听片段**，见 sdk/apis/apple.ts）。
-// 凭据：上游 New(cookie) → getCredentials('apple')，cookie 形如
+// 凭据：上游 New(cookie) → getCredentials('ap')，cookie 形如
 //   "media-user-token=xxx;storefront=cn;token=xxx"，也支持 storefront/mediaUserToken/token 直填字段。
 // 未实现（上游也没有）：userPlaylist、榜单、热搜、歌手、评论、扫码登录。
 import appleApi from '../apis/apple.ts'
@@ -72,7 +72,7 @@ const apple = {
 
   playlist,
 
-  // 契约别名：Apple 的歌单分类即 genre curators，挂到 songList 键供 /song-list/apple 复用
+  // 契约别名：Apple 的歌单分类即 genre curators，挂到 songList 键供 /song-list/ap 复用
   songList: {
     sortList: [{ name: '热门', id: '1526756058' }],
     getTags() {
@@ -96,7 +96,7 @@ const apple = {
 
 /** 登录状态（media-user-token 存在性判断；无在线校验接口） */
 export const status = () => {
-  const cred = getCredentials('apple') as any
+  const cred = getCredentials('ap') as any
   const cfg = getAppleConfig()
   return (cfg.mediaUserToken || cred?.cookie)
     ? { logged: true, updatedAt: cred?.updatedAt }

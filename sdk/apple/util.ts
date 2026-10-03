@@ -1,6 +1,6 @@
 // Apple Music（music.apple.com / amp-api.music.apple.com）公共工具
 // 上游 music-lib/apple/apple.go 的移植基础层：
-//   - New(cookie) → getCredentials('apple')：cookie 支持 "media-user-token=xxx;storefront=cn;token=xxx"
+//   - New(cookie) → getCredentials('ap')：cookie 支持 "media-user-token=xxx;storefront=cn;token=xxx"
 //   - fetchAppleToken()：从 music.apple.com 首页 → index-legacy JS 抓 developer token（amp-api 的 Bearer）
 //     当前（2026-10）Apple 下发的 JWT 以 eyJ0eXAi（{"typ":...}）开头而非上游正则写的 eyJh，
 //     故这里泛化为任意 JWT（eyJ…）并优先选择 issuer=AMPWebPlay 的 token；带回退与失效重取见 getAppleToken/invalidateAppleToken。
@@ -42,7 +42,7 @@ export const parseCookieParts = (cookie: string): Record<string, string> => {
 
 /** 读取 apple 平台运行时配置（对应上游 New(cookie)） */
 export const getAppleConfig = (): AppleRuntimeConfig => {
-  const cred = (getCredentials('apple') as any) || {}
+  const cred = (getCredentials('ap') as any) || {}
   const parts = parseCookieParts(String(cred.cookie ?? ''))
   const storefront = String(cred.storefront || parts.storefront || DEFAULT_STOREFRONT).trim()
   return {
@@ -297,7 +297,7 @@ export const appleSongFromCatalog = (res: any, defaultAlbumId = ''): any => {
     lrc: null,
     types: [],
     _types: {},
-    source: 'apple' as const,
+    source: 'ap' as const,
     link: attr.url || '', // music.apple.com 网页地址
     previewUrl: previewURL, // 30-90 秒试听片段直链（Apple 不提供完整曲目明文流）
     duration: durationSec,
@@ -316,7 +316,7 @@ export const appleAlbumToPlaylist = (res: any): any => {
     creator: attr.artistName || '',
     description: attr.editorialNotes?.short || '',
     link: attr.url || '',
-    source: 'apple' as const,
+    source: 'ap' as const,
     extra: {
       release_date: attr.releaseDate || '',
       record_label: attr.recordLabel || '',
@@ -340,7 +340,7 @@ export const applePlaylistToPlaylist = (res: any): any => {
     creator: attr.curatorName || '',
     description,
     link: attr.url || '',
-    source: 'apple' as const,
+    source: 'ap' as const,
   }
 }
 

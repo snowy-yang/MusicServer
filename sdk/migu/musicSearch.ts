@@ -37,7 +37,7 @@ export const search = async(keyword: string, page = 1, limit = 20) => {
     allPage: Math.max(1, Math.ceil(total / limit)),
     total,
     limit,
-    source: 'migu' as const,
+    source: 'mg' as const,
   }
 }
 

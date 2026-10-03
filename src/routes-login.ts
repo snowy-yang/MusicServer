@@ -477,7 +477,7 @@ export const loginRoutes = async(fastify) => {
     schema: {
       summary: '查看登录状态',
       description: 'wy 为实时校验（未登录或 cookie 失效返回 logged: false），kg/tx/bl 为已存凭据（含 VIP 等级与最近更新时间），' +
-        'qs/xm/me/lr/bd/jx/apple/5s 为已存凭据。',
+        'qs/xm/me/lr/bd/jx/ap/5s 为已存凭据。',
       tags: ['登录'],
     },
   }, async() => {
@@ -496,7 +496,7 @@ export const loginRoutes = async(fastify) => {
       bl: biliAuth.status(),
       bd: qianStatus(),
       jx: jooxStatus(),
-      apple: appleStatus(),
+      ap: appleStatus(),
       '5s': fivesingStatus(),
     }
   })

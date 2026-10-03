@@ -1,5 +1,5 @@
-// 咪咕加密流票据 —— /url/migu 命中 Z3D/I3D 加密候选时登记，/stream/migu/:id 凭票解密
-// （统一入口为 /stream/:source/:id，source=migu 时 id 即此处返回的票据）。
+// 咪咕加密流票据 —— /url/mg 命中 Z3D/I3D 加密候选时登记，/stream/mg/:id 凭票解密
+// （统一入口为 /stream/:source/:id，source=mg 时 id 即此处返回的票据）。
 // 不把上游 URL 塞进播放地址（Fastify path 参数限长，且 URL 含时效签名与中文路径），
 // 票据短时有效（10 分钟，够播放器起播），进程内存储、不落盘。
 import { randomUUID } from 'node:crypto'
@@ -29,7 +29,7 @@ const prune = () => {
   }
 }
 
-/** 登记一条加密流，返回可直接放入 /stream/migu/:id 的短票据 id */
+/** 登记一条加密流，返回可直接放入 /stream/mg/:id 的短票据 id */
 export const registerMiguStream = (url: string, fileKey: string): string => {
   prune()
   const id = randomUUID().replace(/-/g, '')

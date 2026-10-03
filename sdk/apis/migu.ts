@@ -298,7 +298,7 @@ const MAX_PROBES = 10
 export interface MiguUrlResult {
   type: string
   url: string
-  /** Z3D/I3D 加密流：URL 需解密后才能播放（本服务提供 /stream/migu 代理） */
+  /** Z3D/I3D 加密流：URL 需解密后才能播放（本服务提供 /stream/mg 代理） */
   encrypted?: boolean
   fileKey?: string
   ext?: string

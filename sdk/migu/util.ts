@@ -38,7 +38,7 @@ const ENCRYPTED_APP_CODE = Buffer.from([
 ])
 
 export const getMiguCookie = (): string => {
-  const cred = getCredentials('migu') as { cookie?: string } | null
+  const cred = getCredentials('mg') as { cookie?: string } | null
   return String(cred?.cookie ?? '').trim()
 }
 
@@ -269,7 +269,7 @@ export interface MiguSong {
   payPlay?: boolean
   /** 源特有元数据（取流/歌词需要）：contentId/resourceType/formatType/copyrightId/songId/albumId */
   extra: Record<string, string>
-  source: 'migu'
+  source: 'mg'
   [key: string]: unknown
 }
 
@@ -369,7 +369,7 @@ export const convertItemToSong = (item: MiguSongItem, allowPaid = true): MiguSon
     payPlay: isVIP,
     // 路由/取流需要 content_id|resource_type|format_type 三元组与版权号，放在 extra 里
     extra: { ...extra, link: miguSongLink(linkID) },
-    source: 'migu',
+    source: 'mg',
   }
 }
 

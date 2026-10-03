@@ -29,10 +29,10 @@ export const searchAlbum = async(keyword: string, page = 1, limit = 10) => {
       creator: String(item.singer ?? '').trim(),
       description: firstNonEmpty(item.desc, item.publishDate),
       link: miguAlbumLink(albumID),
-      source: 'migu' as const,
+      source: 'mg' as const,
     }
   }).filter(Boolean)
-  return { list, source: 'migu' as const, page, limit, total: list.length }
+  return { list, source: 'mg' as const, page, limit, total: list.length }
 }
 
 /** 专辑曲目（每页 50 全量翻页 + 去重；上游 fetchAlbumSongs） */
@@ -101,7 +101,7 @@ export const getAlbumDetail = async(id: string, page = 1, limit = 50) => {
 
   const start = (page - 1) * limit
   return {
-    source: 'migu' as const,
+    source: 'mg' as const,
     info,
     list: songs.slice(start, start + limit),
     page,

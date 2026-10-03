@@ -39,7 +39,7 @@ export const search = async(keyword: string, page = 1, limit = 20) => {
     allPage: hasNext ? p + 1 : p,
     total: (p - 1) * l + list.length,
     limit: l,
-    source: 'apple' as const,
+    source: 'ap' as const,
   }
 }
 
@@ -53,7 +53,7 @@ export const searchAlbum = async(keyword: string, page = 1, limit = 20) => {
     total: (p - 1) * l + list.length,
     page: p,
     limit: l,
-    source: 'apple' as const,
+    source: 'ap' as const,
   }
 }
 
@@ -67,7 +67,7 @@ export const searchPlaylist = async(keyword: string, page = 1, limit = 20) => {
     total: (p - 1) * l + list.length,
     page: p,
     limit: l,
-    source: 'apple' as const,
+    source: 'ap' as const,
   }
 }
 
