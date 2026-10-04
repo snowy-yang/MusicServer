@@ -11,7 +11,6 @@ import os from 'node:os'
 import QRCode from 'qrcode'
 import { httpFetch } from '../common/request.ts'
 import { getCredentials, setCredentials } from '../auth/store.ts'
-import { getDeviceIds } from './device.ts'
 
 const PASSPORT_HOST = 'https://api.qishui.com'
 const SCAN_LOGIN_URL = 'https://bff-pc.qishui.com/light/invoke/scan_login'
@@ -28,6 +27,19 @@ const PASSPORT_FIXED = {
   is_frontier: 'true',
   is_new_login: '1',
   version_code: '30020100',
+}
+
+/**
+ * PC 设备身份（同步读，首次懒生成并持久化）：passport 登录与 PC 签名公共参数共用，
+ * 持久化于 data/auth.json 的 `_qs_passport_device`，保证同一实例「同一设备」。
+ */
+export const getDeviceIds = (): { deviceId: string; installId: string } => {
+  const existing = getCredentials('_qs_passport_device') as { deviceId?: string; installId?: string } | null
+  if (existing?.deviceId && existing.installId) return { deviceId: String(existing.deviceId), installId: String(existing.installId) }
+  const now = Date.now()
+  const ids = { deviceId: String(now), installId: String(now + 1) }
+  setCredentials('_qs_passport_device', ids)
+  return ids
 }
 
 // 各 passport 请求共用的公共参数（设备身份 + 平台/版本）
