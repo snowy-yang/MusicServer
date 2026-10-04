@@ -113,6 +113,28 @@ export const cellphoneLogin = async({ phone, password, captcha, countrycode = '8
   return profile
 }
 
+/**
+ * 手动绑定 cookie（从已登录的 music.163.com 浏览器请求头复制，须含 MUSIC_U）。
+ * 绑定前用 account/get 实测校验，失效直接报 401，与 kg 绑定 token 同款语义。
+ */
+export const loginByCookie = async(cookieInput: string) => {
+  const cookie = String(cookieInput || '').trim()
+  const musicU = /MUSIC_U=([^;\s]+)/.exec(cookie)?.[1]
+  if (!musicU) throw Object.assign(new Error('cookie 需包含 MUSIC_U 字段'), { status: 422 })
+  const { body } = await requestWeapi('/api/w/nuser/account/get', {}, cookie)
+  if (!body?.account?.id) {
+    throw Object.assign(new Error('cookie 无效或已过期（MUSIC_U 校验未通过）'), { status: 401 })
+  }
+  const profile = {
+    userid: body.account.id,
+    nickname: body.profile?.nickname ?? null,
+    avatar: body.profile?.avatarUrl ?? null,
+    vipType: body.profile?.vipType ?? null,
+  }
+  setCredentials('wy', { cookie, musicU, ...profile })
+  return profile
+}
+
 /** 当前账号资料（未登录返回 null） */
 export const status = async() => {
   if (!getWyCookie()) return null

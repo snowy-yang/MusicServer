@@ -1,4 +1,5 @@
-// 登录路由 —— wy 扫码/手机号，kg 扫码/短信/token，tx 扫码/cookie 绑定，凭据持久化于 data/auth.json
+// 登录路由 —— wy 扫码/手机号/cookie，kg 扫码/短信/token，tx 扫码/cookie，qs 扫码/短信/sessionid，
+// xm/me cookie，lr 账密，bili 扫码；凭据持久化于 data/auth.json
 // 注意：成功响应返回裸数据对象，全局 preSerialization 钩子会统一包成 { code: 0, data }
 
 import * as wyAuth from '../sdk/auth/wy.ts'
@@ -70,6 +71,26 @@ export const loginRoutes = async(fastify) => {
   }, async(request, reply) => {
     try {
       return await wyAuth.cellphoneLogin(request.body)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/wy', {
+    schema: {
+      summary: '绑定网易云 cookie',
+      description: 'cookie 从已登录的 music.163.com 浏览器请求头复制（须含 MUSIC_U 字段）。' +
+        '绑定前服务端实测校验有效性（account/get），失效返回 401。无法自动续期，失效后需重新复制绑定。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: { cookie: { type: 'string' } },
+        required: ['cookie'],
+      },
+    },
+  }, async(request, reply) => {
+    try {
+      return await wyAuth.loginByCookie(request.body.cookie)
     } catch (err) {
       return fail(reply, err)
     }
@@ -318,6 +339,67 @@ export const loginRoutes = async(fastify) => {
   }, async(request, reply) => {
     try {
       return await qsPassport.checkQr(request.body.token)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/qs/sms', {
+    schema: {
+      summary: '发送汽水音乐登录短信验证码',
+      description: '手机号验证码登录第一步（官方 PC 客户端同款 /passport/web/send_code/，type=24）。' +
+        'mobile 支持 "13800138000" 或自带区号 "86 13800138000"；海外号码用 cc 参数指定区号。' +
+        '发送成功后用 /login/qs/sms/login 提交验证码完成登录。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: { mobile: { type: 'string' }, cc: { type: 'string' } },
+        required: ['mobile'],
+      },
+    },
+  }, async(request, reply) => {
+    try {
+      return await qsPassport.sendSmsCode(request.body.mobile, request.body.cc)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/qs/sms/login', {
+    schema: {
+      summary: '汽水音乐短信验证码登录',
+      description: '提交 /login/qs/sms 发送的验证码完成登录，成功自动保存凭据并返回 803。' +
+        '失败经 msg 返回官方文案（1200-1300 为验证码/手机号错误；2046 需去汽水 App 完成安全验证；1075 账号注销中）。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: { mobile: { type: 'string' }, code: { type: 'string' }, cc: { type: 'string' } },
+        required: ['mobile', 'code'],
+      },
+    },
+  }, async(request, reply) => {
+    try {
+      return await qsPassport.smsLogin(request.body.mobile, request.body.code, request.body.cc)
+    } catch (err) {
+      return fail(reply, err)
+    }
+  })
+
+  fastify.post('/login/qs', {
+    schema: {
+      summary: '绑定汽水音乐 sessionid',
+      description: 'sessionid 从汽水 App / 官方 PC 客户端抓包获取（登录态 Cookie 的 sessionid 字段），' +
+        '也可传完整 cookie 串（须含 sessionid= 字段，整体保存）。无上游校验接口，不做有效性验证，' +
+        '失效会在取流时报错。推荐优先用 /login/qs/qr 扫码或 /login/qs/sms 短信登录。',
+      tags: ['登录'],
+      body: {
+        type: 'object',
+        properties: { sessionid: { type: 'string' }, cookie: { type: 'string' } },
+      },
+    },
+  }, async(request, reply) => {
+    try {
+      return await qsPassport.loginBySessionId(request.body.sessionid || request.body.cookie)
     } catch (err) {
       return fail(reply, err)
     }

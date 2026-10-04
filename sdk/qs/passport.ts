@@ -272,7 +272,98 @@ export const status = (): { logged: boolean; updatedAt?: string } => {
 /** 登录态 sessionid（未登录返回空串） */
 export const getSessionId = (): string => (getCredentials('qs') as any)?.sessionid || ''
 
+// ---------- 手机验证码登录（接口与官方 PC 客户端 login.asar 的 WebInterfaceSdk 同款）----------
+// POST /passport/web/send_code/  { mobile: "86 13800138000", type: 24 }
+// POST /passport/web/sms_login/  { mobile, code } → Set-Cookie sessionid
+
+/** 官方 SDK 的 mobile 参数是 "区号 号码" 空格拼接（如 "86 13800138000"） */
+const normalizeMobile = (mobile: string, cc = '86'): string => {
+  const s = String(mobile || '').trim()
+  const withCc = s.match(/^(\d{1,3})[\s-]+(\d{4,15})$/)
+  if (withCc) return `${withCc[1]} ${withCc[2]}`
+  return `${cc} ${s.replace(/\D/g, '')}`
+}
+
+const smsUpstream = async (path: string, form: Record<string, string>, cookie = ''): Promise<{ data: Record<string, any>; message: string; headers: Record<string, any> }> => {
+  const query = new URLSearchParams(commonParams())
+  const request = httpFetch(`${PASSPORT_HOST}${path}?${query}`, {
+    method: 'post',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...webHeaders(cookie) },
+    body: new URLSearchParams(form).toString(),
+    timeout: 15000,
+  })
+  const { statusCode, headers, body } = await request.promise
+  if (statusCode != 200) throw Object.assign(new Error(`汽水接口 HTTP ${statusCode}`), { status: 502 })
+  return { data: (body as any)?.data ?? {}, message: String((body as any)?.message ?? ''), headers }
+}
+
+// send_code 下发的 cookie（验证码会话），sms_login 时带上
+const smsCookies = new Map<string, string>()
+
+export const sendSmsCode = async (mobile: string, cc?: string): Promise<{ sent: true; mobile: string }> => {
+  const norm = normalizeMobile(mobile, cc)
+  const { data, message, headers } = await smsUpstream('/passport/web/send_code/', {
+    mobile: norm,
+    type: '24', // 官方登录页固定 24（登录注册）；16 为仅注册
+  })
+  if (message !== 'success') {
+    throw Object.assign(new Error(data.description || `验证码发送失败 (code=${data.error_code})`), { status: 400 })
+  }
+  smsCookies.set(norm, mergeCookies('', cookieMapFrom(headers)))
+  return { sent: true, mobile: norm }
+}
+
+// 官方登录页的失败文案映射（login-7a4b1afd.js catch 分支）
+const smsFailMessage = (data: Record<string, any>): string => {
+  if (data.error_code === 1075) return '账号注销中，请前往抖音放弃注销'
+  if (data.error_code === 2046) return '需要二次验证，请在汽水 App 完成安全验证后重试'
+  return data.description || `登录失败 (code=${data.error_code})`
+}
+
+export const smsLogin = async (mobile: string, code: string, cc?: string): Promise<Record<string, any>> => {
+  const norm = normalizeMobile(mobile, cc)
+  const { data, message, headers } = await smsUpstream('/passport/web/sms_login/', {
+    mobile: norm,
+    code: String(code ?? '').trim(),
+  }, smsCookies.get(norm) || '')
+
+  let cookie = mergeCookies(smsCookies.get(norm) || '', cookieMapFrom(headers))
+  smsCookies.delete(norm)
+
+  // 成功但 sessionid 未随本响应下发时补跳 redirect_url（与扫码确认同款）
+  if (message === 'success' && !sessionIdOf(cookie) && data.redirect_url) {
+    try {
+      const hop = await httpFetch(String(data.redirect_url), { method: 'get', headers: webHeaders(cookie), timeout: 15000 }).promise
+      cookie = mergeCookies(cookie, cookieMapFrom(hop.headers))
+    } catch {
+      // 补跳失败不致命：sessionid 缺失时按失败处理
+    }
+  }
+
+  const sessionid = sessionIdOf(cookie)
+  if (message === 'success' && sessionid) {
+    setCredentials('qs', { sessionid, cookie })
+    return { code: 803, message: '登录成功', errorCode: 0 }
+  }
+  throw Object.assign(new Error(message === 'success' ? '登录响应缺少 sessionid' : smsFailMessage(data)), { status: 400 })
+}
+
+/**
+ * 手动绑定 sessionid（汽水 App / 官方 PC 客户端抓包，或已登录浏览器 Cookie）。
+ * 接受裸 sessionid 值或完整 cookie 串（须含 sessionid= 字段）；完整串优先整体保存，
+ * sid_guard 等伴随字段有利于延长登录态寿命。passport 无可用的免签校验接口
+ * （/passport/web/user_info/ 对本 aid 恒报 20016 无权限），不做上游验证，失效会在取流时暴露。
+ */
+export const loginBySessionId = async(input: string): Promise<{ logged: true; sessionid: string }> => {
+  const raw = String(input || '').trim()
+  const sessionid = sessionIdOf(raw) || (/^[\w-]{10,}$/.test(raw) ? raw : '')
+  if (!sessionid) throw Object.assign(new Error('需提供 sessionid 值或含 sessionid= 字段的 cookie'), { status: 422 })
+  const cookie = raw.includes('=') ? raw : `sessionid=${sessionid}`
+  setCredentials('qs', { sessionid, cookie })
+  return { logged: true, sessionid }
+}
+
 /** 登录态完整 Cookie（未登录返回空串；取流优先用它，sessionid 只是最小集） */
 export const getCookie = (): string => (getCredentials('qs') as any)?.cookie || ''
 
-export default { createQr, checkQr, status, getSessionId, getCookie, buildScanUrl, decideQrStatus }
+export default { createQr, checkQr, status, getSessionId, getCookie, buildScanUrl, decideQrStatus, sendSmsCode, smsLogin, loginBySessionId }

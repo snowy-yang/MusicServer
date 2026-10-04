@@ -832,6 +832,20 @@ await test('扫码二维码创建 POST /login/wy/qr', async() => {
   return r.body.data.key.slice(0, 18) + '…'
 })
 
+// wy cookie 绑定校验（缺 MUSIC_U 直接 422，不打上游）
+await test('wy 坏 cookie 拒绝 POST /login/wy', async() => {
+  const r = await postJson('/login/wy', { cookie: 'foo=bar; baz=1' })
+  if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
+  return `status ${r.status}`
+})
+
+// wy 失效 MUSIC_U 会被 account/get 实测拒绝（401，与 kg 假 token 同款语义）
+await test('wy 假 cookie 拒绝 POST /login/wy', async() => {
+  const r = await postJson('/login/wy', { cookie: 'MUSIC_U=smoke_fake_music_u' })
+  if (r.status !== 401) throw new Error(`期望 401，实际 ${r.status}`)
+  return r.body?.msg
+})
+
 await test('扫码二维码创建 POST /login/qs/qr', async() => {
   const r = await postJson('/login/qs/qr', {})
   if (r.status !== 200 || r.body?.code !== 0) throw new Error(r.body?.msg ?? `HTTP ${r.status}`)
@@ -839,6 +853,41 @@ await test('扫码二维码创建 POST /login/qs/qr', async() => {
   // 二维码必须是官方 PC 客户端同款扫码页（旧的 ucenter_web/app/sdk-next 已 404，抖音扫出「无法访问页面」）
   if (!String(r.body.data?.scanUrl ?? '').includes('/light/invoke/scan_login')) throw new Error(`二维码内容非官方扫码页: ${r.body.data?.scanUrl}`)
   return `scanApp=${r.body.data.scanApp || '?'}`
+})
+
+// 短信发码：无效手机号应被上游业务拒绝（400 + 官方文案），而非 502 网关错
+await test('sms 坏手机号拒绝 POST /login/qs/sms', async() => {
+  const r = await postJson('/login/qs/sms', { mobile: '10000000000' })
+  if (r.status !== 400 || !r.body?.msg) throw new Error(`期望 400+msg，实际 ${r.status} ${JSON.stringify(r.body)}`)
+  return r.body.msg
+})
+
+// 短信登录：未发码直接提交，应被上游业务拒绝（400 + 官方文案）
+await test('sms 错误验证码拒绝 POST /login/qs/sms/login', async() => {
+  const r = await postJson('/login/qs/sms/login', { mobile: '10000000000', code: '000000' })
+  if (r.status !== 400 || !r.body?.msg) throw new Error(`期望 400+msg，实际 ${r.status} ${JSON.stringify(r.body)}`)
+  return r.body.msg
+})
+
+// qs 手动绑定：裸 sessionid 与完整 cookie 串两种形态均可绑，登录态生效；
+// 无上游校验接口，测完解绑恢复匿名（避免假 sessionid 影响后续 qs 用例）
+await test('qs sessionid 绑定 POST /login/qs', async() => {
+  const bare = await postJson('/login/qs', { sessionid: 'smoke_fake_sessionid_0123456789abcdef' })
+  if (bare.status !== 200 || bare.body?.code !== 0 || bare.body.data?.logged !== true) throw new Error(`HTTP ${bare.status} ${JSON.stringify(bare.body)}`)
+  const full = await postJson('/login/qs', { cookie: 'sid_guard=smoke; sessionid=smoke_fake_sessionid_0123456789abcdef' })
+  if (full.status !== 200 || full.body?.code !== 0) throw new Error(`HTTP ${full.status} ${JSON.stringify(full.body)}`)
+  const st = await get('/login/status')
+  if (st.code != 0 || st.data?.qs?.logged !== true) throw new Error('qs 登录状态未生效')
+  const del = await fetch(`${BASE}/login/qs`, { method: 'DELETE' })
+  if (del.status !== 200) throw new Error(`解绑失败 HTTP ${del.status}`)
+  return 'bare+cookie 两种形态可绑，已解绑'
+})
+
+// qs cookie 绑定校验（缺 sessionid 字段拒绝）
+await test('qs 坏 cookie 拒绝 POST /login/qs', async() => {
+  const r = await postJson('/login/qs', { cookie: 'foo=bar; baz=1' })
+  if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
+  return `status ${r.status}`
 })
 
 await test('kg 假 token 拒绝 POST /login/kg', async() => {
