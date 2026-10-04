@@ -9,7 +9,7 @@
     "typecheck": "tsc",
     "start": "node src/server.ts",
     "dev": "node scripts/dev.mjs",
-    "test": "pnpm run typecheck && node test/source-simple-test.ts && node test/smoke-test.ts"
+    "test": "pnpm run typecheck && node test/source-simple-test.ts && node test/bili-cdn-test.ts && node test/smoke-test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

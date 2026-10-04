@@ -51,12 +51,12 @@ export const parseSong = async(link: string) => {
     page,
   })
 
-  // 上游 Parse 会立即填充音频地址（失败忽略）
+  // 上游 Parse 会立即填充音频地址（失败忽略）；urls 已按 CDN 分级排序，取最优候选
   if (cid) {
     try {
       const audio = await getAudioUrl(song.bvid, cid)
-      if (audio?.url) {
-        song.url = audio.url
+      if (audio?.urls?.[0]) {
+        song.url = audio.urls[0]
         song.type = audio.type
       }
     } catch {

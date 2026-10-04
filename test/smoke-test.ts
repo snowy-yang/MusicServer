@@ -555,6 +555,17 @@ await test('URL 5sing（档位 sq/hq/lq）', async() => {
   return `实际 ${u.data.type}，${String(u.data.url).slice(0, 60)}`
 })
 
+await test('URL bili（CDN 分级选址）', async() => {
+  const r = await get(`/search/bili/${encodeURIComponent('周杰伦')}?limit=3`)
+  if (r.code != 0 || !r.data?.list?.length) throw new Error('搜索失败，无法取流')
+  const u = await get(`/url/bili/${encodeURIComponent(r.data.list[0].songmid)}?quality=128k`)
+  if (u.code != 0) throw new Error(u.msg)
+  // 返回地址应落在正规 CDN（upos-*.bilivideo.com 等）；命中 PCDN 说明备源探测全挂，软警告不判失败
+  const host = new URL(String(u.data.url)).hostname
+  const pcdn = /\.(mcdn\.bilivideo\.cn|mountaintoys\.cn|szbdyd\.com|nexusedgeio\.com)$/.test(host)
+  return `实际 ${u.data.type}，${host}${pcdn ? '（警告：命中 PCDN，请检查 backupUrl 探测）' : ''}`
+})
+
 await test('歌词 mg', async() => {
   const r = await get(`/search/mg/${encodeURIComponent('起风了')}?limit=3`)
   const song = r.data?.list?.[0]
