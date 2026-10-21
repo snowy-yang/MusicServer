@@ -156,7 +156,7 @@ if (externalServer) {
 }
 
 // 搜索
-for (const source of ['kw', 'kg', 'tx', 'wy', 'qs']) {
+for (const source of ['kw', 'kg', 'tx', 'wy']) {
   await test(`搜索 ${source}`, async() => {
     const r = await get(`/search/${source}/${encodeURIComponent('稻香')}?limit=2`)
     if (r.code != 0) throw new Error(r.msg)
@@ -221,13 +221,6 @@ await test('URL tx 320k', async() => {
   return r.data.url.slice(0, 60)
 })
 
-// qs 匿名只有 30 秒试听（7079108541549643812 = 陈粒《小半》，2026-10-01 实测可用）
-await test('URL qs 试听 128k', async() => {
-  const r = await get('/url/qs/7079108541549643812?quality=128k')
-  if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.url) throw new Error('无 url')
-  return r.data.url.slice(0, 60)
-})
 
 // xm 匿名免费曲直链（12096669 = 苏荷酒吧我爱的人，免费，2026-10-02 实测可用）
 await test('URL xm 免费曲', async() => {
@@ -338,12 +331,6 @@ await test('歌词 kw', async() => {
   return `${r.data.lyric.slice(0, 30)}...`
 })
 
-await test('歌词 qs', async() => {
-  const r = await get('/lyric/qs/7079108541549643812')
-  if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.lyric) throw new Error('无歌词')
-  return `${r.data.lyric.slice(0, 30)}...`
-})
 
 // 封面
 await test('封面 kw', async() => {
@@ -353,12 +340,6 @@ await test('封面 kw', async() => {
   return r.data.url.slice(0, 60)
 })
 
-await test('封面 qs', async() => {
-  const r = await get('/pic/qs/7079108541549643812')
-  if (r.code != 0) throw new Error(r.msg)
-  if (!r.data?.url) throw new Error('无 url')
-  return r.data.url.slice(0, 60)
-})
 
 // 榜单 & 热搜
 for (const source of ['kw', 'kg', 'tx', 'wy']) {
@@ -678,12 +659,12 @@ await test('链接解析 /parse/album/apple', async() => {
 })
 
 await test('链接解析 不支持的平台 → 404', async() => {
-  // qs 无 parse 实现（以 /sources 的 parse 能力位为准）。
+  // xm 无 parse 实现（以 /sources 的 parse 能力位为准）。
   // 原先此处断言 kw 返回 404 —— 但 kw 的 parse 早已实现（sdk/kw/parse.ts），
   // 该断言过期后恒失败，导致 pnpm test 永远无法全绿。
-  const r = await postJson('/parse/song/qs', { link: 'https://music.douyin.com/qishui/share/track?track_id=1' })
+  const r = await postJson('/parse/song/xm', { link: 'https://www.ximalaya.com/album/1' })
   if (r.status !== 404) throw new Error(`期望 404，实际 ${r.status}`)
-  return 'qs 未实现 parse（按上游）'
+  return 'xm 未实现 parse（按上游）'
 })
 
 await test('链接解析 /parse/song/kw（正向）', async() => {
@@ -846,49 +827,6 @@ await test('wy 假 cookie 拒绝 POST /login/wy', async() => {
   return r.body?.msg
 })
 
-await test('扫码二维码创建 POST /login/qs/qr', async() => {
-  const r = await postJson('/login/qs/qr', {})
-  if (r.status !== 200 || r.body?.code !== 0) throw new Error(r.body?.msg ?? `HTTP ${r.status}`)
-  if (!r.body.data?.token || !r.body.data?.qrimg?.startsWith('data:image/')) throw new Error('响应不完整')
-  // 二维码必须是官方 PC 客户端同款扫码页（旧的 ucenter_web/app/sdk-next 已 404，抖音扫出「无法访问页面」）
-  if (!String(r.body.data?.scanUrl ?? '').includes('/light/invoke/scan_login')) throw new Error(`二维码内容非官方扫码页: ${r.body.data?.scanUrl}`)
-  return `scanApp=${r.body.data.scanApp || '?'}`
-})
-
-// 短信发码：无效手机号应被上游业务拒绝（400 + 官方文案），而非 502 网关错
-await test('sms 坏手机号拒绝 POST /login/qs/sms', async() => {
-  const r = await postJson('/login/qs/sms', { mobile: '10000000000' })
-  if (r.status !== 400 || !r.body?.msg) throw new Error(`期望 400+msg，实际 ${r.status} ${JSON.stringify(r.body)}`)
-  return r.body.msg
-})
-
-// 短信登录：未发码直接提交，应被上游业务拒绝（400 + 官方文案）
-await test('sms 错误验证码拒绝 POST /login/qs/sms/login', async() => {
-  const r = await postJson('/login/qs/sms/login', { mobile: '10000000000', code: '000000' })
-  if (r.status !== 400 || !r.body?.msg) throw new Error(`期望 400+msg，实际 ${r.status} ${JSON.stringify(r.body)}`)
-  return r.body.msg
-})
-
-// qs 手动绑定：裸 sessionid 与完整 cookie 串两种形态均可绑，登录态生效；
-// 无上游校验接口，测完解绑恢复匿名（避免假 sessionid 影响后续 qs 用例）
-await test('qs sessionid 绑定 POST /login/qs', async() => {
-  const bare = await postJson('/login/qs', { sessionid: 'smoke_fake_sessionid_0123456789abcdef' })
-  if (bare.status !== 200 || bare.body?.code !== 0 || bare.body.data?.logged !== true) throw new Error(`HTTP ${bare.status} ${JSON.stringify(bare.body)}`)
-  const full = await postJson('/login/qs', { cookie: 'sid_guard=smoke; sessionid=smoke_fake_sessionid_0123456789abcdef' })
-  if (full.status !== 200 || full.body?.code !== 0) throw new Error(`HTTP ${full.status} ${JSON.stringify(full.body)}`)
-  const st = await get('/login/status')
-  if (st.code != 0 || st.data?.qs?.logged !== true) throw new Error('qs 登录状态未生效')
-  const del = await fetch(`${BASE}/login/qs`, { method: 'DELETE' })
-  if (del.status !== 200) throw new Error(`解绑失败 HTTP ${del.status}`)
-  return 'bare+cookie 两种形态可绑，已解绑'
-})
-
-// qs cookie 绑定校验（缺 sessionid 字段拒绝）
-await test('qs 坏 cookie 拒绝 POST /login/qs', async() => {
-  const r = await postJson('/login/qs', { cookie: 'foo=bar; baz=1' })
-  if (r.status !== 422) throw new Error(`期望 422，实际 ${r.status}`)
-  return `status ${r.status}`
-})
 
 await test('kg 假 token 拒绝 POST /login/kg', async() => {
   const r = await postJson('/login/kg', { token: 'smoke_fake_token', userid: 0 })
@@ -960,23 +898,23 @@ if (!externalServer && !process.env.AUTH_KEY) {
   // /stream/* 流代理：支持 X-Server-Key 头，或短时签名 ?exp=&sig=（不落裸秘钥到 URL）；裸 ?key= 已废弃
   await test('AUTH_KEY 流代理签名机制', async() => {
     // 裸秘钥 ?key= 已不生效
-    const rawKey = await authFetch(`/stream/qs/123?key=${AUTH_TEST_KEY}`)
+    const rawKey = await authFetch(`/stream/mg/123?key=${AUTH_TEST_KEY}`)
     if (rawKey.status !== 401) throw new Error(`裸 ?key= 应 401，实际 ${rawKey.status}`)
     // X-Server-Key 头可通过鉴权（后续业务可能 502，但不能是 401）
-    const withHeader = await authFetch('/stream/qs/123', { headers: keyHeaders })
+    const withHeader = await authFetch('/stream/mg/123', { headers: keyHeaders })
     if (withHeader.status === 401) throw new Error('X-Server-Key 应通过流代理鉴权')
     // 正确签名通过；错签名 401
     const exp = Math.floor(Date.now() / 1000) + 600
     const crypto = await import('node:crypto')
-    const sig = crypto.createHmac('sha256', AUTH_TEST_KEY).update(`/stream/qs/123:${exp}`).digest('hex').slice(0, 32)
-    const signed = await authFetch(`/stream/qs/123?exp=${exp}&sig=${sig}`)
+    const sig = crypto.createHmac('sha256', AUTH_TEST_KEY).update(`/stream/mg/123:${exp}`).digest('hex').slice(0, 32)
+    const signed = await authFetch(`/stream/mg/123?exp=${exp}&sig=${sig}`)
     if (signed.status === 401) throw new Error('有效签名应通过流代理鉴权')
-    const badSig = await authFetch(`/stream/qs/123?exp=${exp}&sig=${'0'.repeat(32)}`)
+    const badSig = await authFetch(`/stream/mg/123?exp=${exp}&sig=${'0'.repeat(32)}`)
     if (badSig.status !== 401) throw new Error(`错签名应 401，实际 ${badSig.status}`)
     // 过期签名 401
     const oldExp = Math.floor(Date.now() / 1000) - 10
-    const oldSig = crypto.createHmac('sha256', AUTH_TEST_KEY).update(`/stream/qs/123:${oldExp}`).digest('hex').slice(0, 32)
-    const expired = await authFetch(`/stream/qs/123?exp=${oldExp}&sig=${oldSig}`)
+    const oldSig = crypto.createHmac('sha256', AUTH_TEST_KEY).update(`/stream/mg/123:${oldExp}`).digest('hex').slice(0, 32)
+    const expired = await authFetch(`/stream/mg/123?exp=${oldExp}&sig=${oldSig}`)
     if (expired.status !== 401) throw new Error(`过期签名应 401，实际 ${expired.status}`)
     return '头/签名通过，裸key/错签/过期签均 401'
   })

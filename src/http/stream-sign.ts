@@ -3,13 +3,13 @@
 // 与裸 ?key= 的区别：签名值泄露只能在该时效窗口内拉这一条流，不能反推出秘钥、不能调用其它接口
 import crypto from 'node:crypto'
 
-// 流地址有效期（毫秒），与 qs 流缓存 TTL（10 分钟）对齐；过期后客户端重新 /url 即可
+// 流地址有效期（毫秒），与 mg 流票据 TTL（10 分钟）对齐；过期后客户端重新 /url 即可
 export const STREAM_SIGN_TTL = 10 * 60_000
 
 const hmac = (authKey: string, data: string) =>
   crypto.createHmac('sha256', authKey).update(data).digest('hex').slice(0, 32)
 
-/** 生成流地址的签名参数（path 为不含 query 的路径，如 /stream/qs/123） */
+/** 生成流地址的签名参数（path 为不含 query 的路径，如 /stream/mg/123） */
 export const signStream = (authKey: string, path: string) => {
   const exp = Math.floor((Date.now() + STREAM_SIGN_TTL) / 1000)
   return `exp=${exp}&sig=${hmac(authKey, `${path}:${exp}`)}`

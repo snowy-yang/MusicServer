@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、汽水音乐（qs）、咪咕音乐（mg）、千千音乐（bd）、JOOX（joox）、哔哩哔哩（bili）、5sing（5sing）；有声平台：喜马拉雅（xm）、猫耳FM（me）、蜻蜓FM（qt）、懒人听书（lr）；Apple Music（apple，仅 preview 试听）
+- **多平台聚合**：酷我（kw）、酷狗（kg）、QQ音乐（tx）、网易云（wy）、咪咕音乐（mg）、千千音乐（bd）、JOOX（joox）、哔哩哔哩（bili）、5sing（5sing）；有声平台：喜马拉雅（xm）、猫耳FM（me）、蜻蜓FM（qt）、懒人听书（lr）；Apple Music（apple，仅 preview 试听）
 - **直连取流**：各平台播放地址获取（不依赖第三方 API 服务）
 - **完整链路**：搜索、播放地址、歌词（含各平台加密歌词解码）、封面、榜单、热搜、歌单、专辑、歌手、链接解析（歌单/专辑/歌曲网页链接）
 - 有声平台（xm/me/qt/lr）与 Apple Music（仅试听）不参与聚合搜索与跨平台匹配，仅支持 source 直查
@@ -17,7 +17,6 @@
 | 酷狗音乐 | `kg` | ✅ | 128k/320k/flac/flac24bit | ✅ | ✅ | ✅ 列表/详情 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | 扫码/短信/账密/token |
 | QQ音乐 | `tx` | ✅ | 128k/320k/flac/flac24bit | ✅ | ✅ | ✅ 列表/详情 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | 扫码/cookie |
 | 网易云 | `wy` | ✅ | 128k/320k/flac/flac24bit | ✅ | ✅ | ✅ 列表/详情 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | 扫码/手机号 |
-| 汽水音乐 | `qs` | ✅ | 128k/320k（登录解锁无损） | ✅ | ✅ | — | — | — | 扫码 |
 | 咪咕音乐 | `mg` | ✅ | 64k/128k/320k/flac/flac24bit | ✅ | ✅ | ✅ 搜索/详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（解锁高档位） |
 | 千千音乐 | `bd` | ✅ | 64k/128k/320k/flac | ✅ | ✅ | ✅ 详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（VIP 曲目） |
 | JOOX | `joox` | ✅ | 128k（VIP 为试听片段） | ✅ | ✅ | ✅ 搜索/详情/分类 | ✅ 搜索/详情 | ✅ 歌曲/专辑/歌单 | cookie（VIP 完整曲） |
@@ -52,7 +51,7 @@ pnpm typecheck   # 仅类型检查，不运行
 | `GET /search/:source/:keyword[/:page]` | 搜索歌曲：平台 id 或 all（聚合，排除 xm/me/qt/lr）；第 1 页可省略页码段，下一页 `/search/kw/稻香/2`；?singer= 附加歌手、?limit= 每页条数 |
 | `GET /find/:source/:keyword` | 精确匹配搜索（source 为平台 id 或 all；?singer= ?albumName= ?interval= 辅助匹配，all 时 ?excludeSource= 跳过平台） |
 | `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 64k/128k/320k/flac/flac24bit）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（跨平台匹配，响应 `via` 字段标记实际命中通道） |
-| `GET /stream/:source/:id` | 加密流解密代理（source 用 path 段区分：`qs`=汽水解密流、`mg`=咪咕 Z3D/I3D 加密流）。取流响应返回相对地址时使用，服务端下载上游密流并在本地解密回明文音频 |
+| `GET /stream/:source/:id` | 加密流解密代理（`mg` 咪咕 Z3D/I3D 加密流）。取流响应返回相对地址时使用，服务端下载上游密流并在本地解密回明文音频 |
 | `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/yrc） |
 | `GET /pic/:source/:id` | 获取封面 |
 | `GET /boards/:source` | 榜单列表 |
@@ -79,12 +78,11 @@ pnpm typecheck   # 仅类型检查，不运行
 | `POST /login/kg` + `userid` | 绑定酷狗 token（App 抓包获取，服务端验证） |
 | `POST /login/tx/qr` → `POST /login/tx/qr/check` | QQ 音乐扫码登录（QQ/微信扫一扫，扫码后轮询完成登录） |
 | `POST /login/tx` | 绑定 QQ 音乐 cookie（y.qq.com 复制，可选 App 抓包字段供自动续期） |
-| `POST /login/qs/qr` → `POST /login/qs/qr/check` | 汽水音乐扫码登录（用**汽水音乐 App** 扫一扫——同官方 PC 客户端文案；抖音 App 扫可能不完成确认。登录后解锁完整曲目与无损取流） |
 | `POST /login/xm` | 绑定喜马拉雅 cookie（www.ximalaya.com 复制，须含 `1&_token`，解锁付费/已购内容取流） |
 | `POST /login/me` | 绑定猫耳FM token（App 抓包或 m.missevan.com 复制，须含 `token=`，解锁付费声音取流） |
 | `POST /login/lr` | 懒人听书账号登录（account+password，懒人取流要求登录态，免费章节同样） |
 | `POST /login/bili/qr` → `POST /login/bili/qr/check` | 哔哩哔哩扫码登录（B站 App 扫一扫，登录后解锁大会员音质） |
-| `DELETE /login/{wy,kg,tx,qs,xm,me,lr,bili}` | 清除对应平台凭据（退出登录） |
+| `DELETE /login/{wy,kg,tx,xm,me,lr,bili}` | 清除对应平台凭据（退出登录） |
 | `GET /login/status` | 登录状态（登录后取流/请求自动携带凭据） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
@@ -98,7 +96,6 @@ pnpm typecheck   # 仅类型检查，不运行
 
 - **kw / tx / wy**：`songmid`（如 `228908`、`0039MnYb0qxYhV`）
 - **kg**：`hash`（搜索结果的 `hash` 字段）；VIP/付费歌需 `/login/kg` 登录后取流
-- **qs**：track id（搜索结果的 `songmid` 字段）；匿名仅 30s 试听，`/login/qs/qr` 登录后走解密流代理取完整曲目
 - **xm**：track id（搜索/专辑结果的 `songmid` 字段）；匿名可取免费曲目（64k/128k 有声档位），付费/VIP 内容 `POST /login/xm` 绑定 cookie 后取流
 - **me**：声音 id（搜索结果的 `songmid` 字段）；走 App API 签名通道取免签名明文直链（m4a），匿名可取免费声音，付费内容 `POST /login/me` 绑定 token 后取流
 - **qt**：`<channelId>:<programId>` 复合 id（/album/qt 节目列表产出）；audiostream 签名直链（302 到华为云 CDN），匿名可取免费节目
@@ -129,22 +126,13 @@ X-Server-Key: <AUTH_KEY>      # 统一验证头（全部路径）
 
 per-IP 滑动窗口限流，`RATE_LIMIT` 为每 IP 每分钟允许的请求数（默认 120，设 0 关闭）。超限返回 429 + Retry-After；鉴权失败的请求同样计数（防秘钥爆破）。
 
-## 汽水 PC 签名（可选增强）
+## 汽水音乐（已拆分）
 
-汽水（`qs`）的 PC 通道（搜索优先走、取流降级走）依赖 `X-Helios`/`X-Medusa` 两个加密签名头，按优先级两种供给方式；都没有时 PC 通道自动关闭，只走安卓自签通道（匿名搜索/试听不受影响）：
-
-1. **签名服务器**：环境变量 `QS_SIGN_SERVER`（如 `http://127.0.0.1:8899`，可选 `QS_SIGN_TOKEN` 配 Bearer 鉴权）。契约兼容独立仓库 **qs-signer**（`gitea.4i.hk/hhhge/qs-signer`，本地与 MusicServer 同级）的两个服务——`server.mjs`（Wine + bdms.node）与 `mssdk-sign`（metasecml.dll 独立进程，见其 README），跨平台部署无需在本机安装官方客户端。
-2. **固定值**：无签名服务器时，两个加密头直接用抓包固定值，写入 `data/qs-sign.json`（已 gitignore）：
-
-   ```json
-   { "helios": "…", "medusa": "…", "device_id": "…", "install_id": "…" }
-   ```
-
-   `device_id`/`install_id` 必须与抓包时同一套（签名与设备绑定，会自动对齐 URL 参数）；也可用环境变量 `QS_HELIOS`/`QS_MEDUSA`（配套 `QS_SIGN_DEVICE_ID`/`QS_SIGN_INSTALL_ID`）。固定值时效自负，被风控时搜索/取流自动回落安卓通道。
+汽水音乐（`qs`）已拆分为独立服务端 **SodaServer**（`gitea.4i.hk/hhhge/SodaServer`，本地与 MusicServer 同级）：API 路径兼容（`/search/qs`、`/url/qs`、`/stream/qs`、`/login/qs/*`），凭据文件格式同源可互迁；PC 签名继续复用 qs-signer 部署。
 
 ## 外部音源
 
-设置 `SOURCE_ENABLED=1` 后取流优先走外部音源（默认未设置时直接走 SDK 官方直连接口；是否启用由服务端在 `src/server.ts` 决策）。两种脚本都放 `sources/` 目录（不入库），按文件名混排成候选链：取流失败自动切换下一个，某平台连续失败 3 次的脚本降权冷却 5 分钟；整条音源链失败后回落 SDK 直连、再失败走酷我兜底（见上文取流链）。音源候选链只覆盖 kw/kg/tx/wy（音源脚本协议无 qs 平台，`/url/qs` 始终走 SDK）。音源模式下登录态不参与取流，登录自动续期不会启动（手动 `POST /login/refresh` 仍可用）。详见 [docs/source-ivm.md](docs/source-ivm.md) 与 [docs/source-simple.md](docs/source-simple.md)。
+设置 `SOURCE_ENABLED=1` 后取流优先走外部音源（默认未设置时直接走 SDK 官方直连接口；是否启用由服务端在 `src/server.ts` 决策）。两种脚本都放 `sources/` 目录（不入库），按文件名混排成候选链：取流失败自动切换下一个，某平台连续失败 3 次的脚本降权冷却 5 分钟；整条音源链失败后回落 SDK 直连、再失败走酷我兜底（见上文取流链）。音源候选链只覆盖 kw/kg/tx/wy。音源模式下登录态不参与取流，登录自动续期不会启动（手动 `POST /login/refresh` 仍可用）。详见 [docs/source-ivm.md](docs/source-ivm.md) 与 [docs/source-simple.md](docs/source-simple.md)。
 
 **社区音源脚本（`.js`）** —— 通用格式，isolated-vm 硬隔离沙箱执行（详见 `src/source-ivm.ts` 头注释），文件名排序即优先级；`SOURCE_SCRIPT_PATH` 可改为指定目录外单脚本，`SOURCE_LOG=0` 关闭请求日志，`SOURCE_ALLOW_ALL_HTTP=1` 放开 HTTP 白名单（调试用）。
 
@@ -171,7 +159,7 @@ export async function getMusicUrl({ source, id, songInfo, quality, signal }) {
 src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源码）
   server.ts         HTTP 服务器入口（pnpm start 实际启动文件）
   routes.ts         业务路由（JSON Schema 校验 + OpenAPI 元数据）
-  routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/账密+风控验证/token、tx 扫码/cookie、qs 汽水扫码、
+  routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/账密+风控验证/token、tx 扫码/cookie、
                     bili 扫码、xm/me cookie 绑定、lr 账密）
   source.ts         外部音源候选链（SOURCE_ENABLED 时 /url 取流优先走 sources/ 脚本，失败回落 SDK）
   source-ivm.ts     社区音源脚本加载器（isolated-vm 硬隔离沙箱）
@@ -185,18 +173,17 @@ src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源�
   openapi/
     components.ts   OpenAPI 共享 schema（与路由校验同源）
     ui.ts           ReDoc 页面模板
-sdk/                音乐聚合 SDK（仅官方平台：平台模块 + 官方直连取流 + 凭据 + 基础设施；15 个平台）
+sdk/                音乐聚合 SDK（仅官方平台：平台模块 + 官方直连取流 + 凭据 + 基础设施；14 个平台）
   index.ts          平台聚合入口（通用工具转发，实现在 common/utils.ts）
-  apis/             各平台官方 URL 直连取流实现（15 平台）
+  apis/             各平台官方 URL 直连取流实现（14 平台）
   auth/             登录态与登录协议（store.ts 持久化凭据到 data/auth.json；wy.ts 扫码/手机号、kg.ts 扫码/短信/token/续期、tx.ts 扫码/cookie/续期）
   common/           SDK 基础设施
     request.ts      HTTP 请求（可取消、自动 JSON 解析、gzip/deflate 解压）
     utils.ts        工具函数（sizeFormate/formatPlayTime/dateFormat 等）
     message.ts      请求错误消息
-  kg/ kw/ tx/ wy/ qs/ migu/ qian/ joox/ bili/ 5sing/ apple/ xm/ me/ qt/ lr/
-                    平台模块（搜索/歌词/榜单/歌单/专辑/链接解析等；qs 含字节系参数签名与音频解密 crypto/，
-                    migu 含 Z3D 流解密，bili 含扫码登录）
-  apis/             kw.ts kg.ts tx.ts wy.ts qs.ts migu.ts qian.ts joox.ts bili.ts 5sing.ts apple.ts …
+  kg/ kw/ tx/ wy/ migu/ qian/ joox/ bili/ 5sing/ apple/ xm/ me/ qt/ lr/
+                    平台模块（搜索/歌词/榜单/歌单/专辑/链接解析等；migu 含 Z3D 流解密，bili 含扫码登录）
+  apis/             kw.ts kg.ts tx.ts wy.ts migu.ts qian.ts joox.ts bili.ts 5sing.ts apple.ts …
 test/
   smoke-test.ts     冒烟测试（自动启动/关闭本地服务器，验证各平台接口）
   source-simple-test.ts  简单 API 音源脚本加载器测试（离线）
@@ -208,7 +195,6 @@ test/
 
 - **kg 取流**：匿名仅能获取部分免费资源，VIP/付费歌需 `/login/kg` 登录（扫码/短信/token 均可）后取流，成功响应解析见 `sdk/apis/kg.ts` 头注释。
 - **kw 取流**：主通道 mobi.s 严格校验「返回 bitrate == 请求档位且为明文格式」，档位缺失时沿降级链换档（flac24bit→flac→320k→128k）；web playUrl 回退通道匿名恒 128k。
-- **qs 取流**：匿名仅 30s 试听；完整曲目需 `/login/qs/qr` 用**汽水音乐 App** 扫码登录，取流走 `/stream/qs/:id` 解密流代理（一次性下载解密回明文，不支持 Range）。
 - **mg 取流**：匿名 PQ(128k) 永远可用，但候选链会优先探测更高档位——多数曲目实际能匿名拿到 SQ/ZQ 真无损直链（上游同款 tone 路径重写 + 逐档探测）；Z3D/I3D 加密候选经 `/stream/mg` 解密后同样可播。HQ/SQ 返回「登录后免费试听」时自动降级到可用的最高档。
 - **apple 取流**：只有 preview 试听片段（约 30–90s，AAC/m4a），返回的 `type` 固定为 `preview`，不要当作完整曲。
 - **bili 取流**：匿名最高 192k；flac/Hi-Res 需 `/login/bili/qr` 登录大会员账号。CDN 有约 1 小时的 `deadline` 签名，取流结果不宜缓存过久。

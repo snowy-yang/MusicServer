@@ -2,7 +2,6 @@ import kw from './kw/index.ts'
 import kg from './kg/index.ts'
 import tx from './tx/index.ts'
 import wy from './wy/index.ts'
-import qs from './qs/index.ts'
 import xm from './xm/index.ts'
 import me from './me/index.ts'
 import qt from './qt/index.ts'
@@ -17,7 +16,6 @@ import { supportQualitys as kwQualitys } from './apis/kw.ts'
 import { supportQualitys as kgQualitys } from './apis/kg.ts'
 import { supportQualitys as txQualitys } from './apis/tx.ts'
 import { supportQualitys as wyQualitys } from './apis/wy.ts'
-import { supportQualitys as qsQualitys } from './apis/qs.ts'
 import { supportQualitys as xmQualitys } from './apis/xm.ts'
 import { supportQualitys as meQualitys } from './apis/me.ts'
 import { supportQualitys as qtQualitys } from './apis/qt.ts'
@@ -48,7 +46,6 @@ const SUPPORTED_SOURCES: Array<{ id: string; name: string; module: PlatformModul
   { id: 'kg', name: '酷狗音乐', module: kg },
   { id: 'tx', name: 'QQ音乐', module: tx },
   { id: 'wy', name: '网易音乐', module: wy },
-  { id: 'qs', name: '汽水音乐', module: qs },
   { id: 'xm', name: '喜马拉雅', module: xm, noAggregate: true },
   { id: 'me', name: '猫耳FM', module: me, noAggregate: true },
   { id: 'qt', name: '蜻蜓FM', module: qt, noAggregate: true },
@@ -76,7 +73,6 @@ export const supportQuality: Record<string, string[]> = {
   kg: kgQualitys,
   tx: txQualitys,
   wy: wyQualitys,
-  qs: qsQualitys,
   xm: xmQualitys,
   me: meQualitys,
   qt: qtQualitys,

@@ -2,7 +2,7 @@
 
 多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单、专辑、歌手、链接解析、登录。
 
-共 15 个平台：`kw`（酷我）/ `kg`（酷狗）/ `tx`（QQ音乐）/ `wy`（网易云）/ `qs`（汽水）/ `mg`（咪咕）/
+共 14 个平台：`kw`（酷我）/ `kg`（酷狗）/ `tx`（QQ音乐）/ `wy`（网易云）/ `mg`（咪咕）/
 `bd`（千千）/ `joox` / `bili`（哔哩哔哩）/ `5sing` / `apple`（Apple Music，仅试听），
 以及有声平台 `xm`（喜马拉雅）/ `me`（猫耳FM）/ `qt`（蜻蜓FM）/ `lr`（懒人听书）。
 
@@ -39,7 +39,7 @@
 
 ### 歌曲 id 形态
 
-各平台 id 约定（含 `kw` 的 songmid、`kg` 的 hash、`qs`/`xm`/`me` 的 id、`mg` 的三元组、
+各平台 id 约定（含 `kw` 的 songmid、`kg` 的 hash、`xm`/`me` 的 id、`mg` 的三元组、
 `qt`/`lr` 的复合 id、`bili` 的 `<bvid>|<cid>` 等）详见 README「歌曲 ID 约定」。
 复合 id 含 `|` / `:` 时在 URL 中需编码（`|` → `%7C`）。
 
@@ -66,7 +66,7 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/url/:source/:id` | 播放地址；`?quality=`（64k/128k/320k/flac/flac24bit，默认 128k）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（响应 `via` 标记实际命中通道） |
-| GET | `/stream/:source/:id` | 加密流解密代理，`source` 用 path 段区分（`qs` 汽水解密流 / `mg` 咪咕 Z3D 加密流）。供 `/url` 返回的相对地址使用，不接受自行构造 |
+| GET | `/stream/:source/:id` | 加密流解密代理（`mg` 咪咕 Z3D 加密流）。供 `/url` 返回的相对地址使用，不接受自行构造 |
 | GET | `/lyric/:source/:id` | 歌词；可带 `?name=` `?interval=`（部分平台搜索歌词时需要） |
 | GET | `/pic/:source/:id` | 封面；可带 `?albumId=`（kg 需要） |
 
@@ -119,8 +119,6 @@
 | POST | `/login/tx/qr` → `/login/tx/qr/check` | QQ 音乐扫码 |
 | POST | `/login/tx` | 绑定 QQ 音乐 cookie（可选 App 抓包字段供自动续期） |
 | DELETE | `/login/tx` | 退出 QQ 音乐 |
-| POST | `/login/qs/qr` → `/login/qs/qr/check` | 汽水音乐扫码（用**汽水音乐 App** 扫一扫） |
-| DELETE | `/login/qs` | 退出汽水音乐 |
 | POST | `/login/xm` · `/login/me` | 绑定喜马拉雅 cookie / 猫耳FM token |
 | DELETE | `/login/xm` · `/login/me` | 退出对应平台 |
 | POST | `/login/lr` | 懒人听书账号登录（`account` + `password`） |

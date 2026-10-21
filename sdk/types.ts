@@ -3,7 +3,7 @@
 
 /** 音乐平台标识 */
 export type Source =
-  | 'kw' | 'kg' | 'tx' | 'wy' | 'qs'
+  | 'kw' | 'kg' | 'tx' | 'wy'
   | 'mg' | 'bd' | 'joox' | 'bili' | '5sing' | 'apple'
   | 'xm' | 'me' | 'qt' | 'lr'
 

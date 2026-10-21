@@ -20,7 +20,7 @@
 //   GET /playlist/:source/categories[/:categoryId]   歌单分类
 //   POST /parse/{song|album|playlist}/:source        链接解析
 //   GET /user-playlist/:source                       个人歌单
-//   GET /stream/:source/:id                          解密流代理（source: qs 汽水 / mg 咪咕）
+//   GET /stream/:source/:id                          解密流代理（source: mg 咪咕）
 //   GET /sources /health              GET /docs /redoc /openapi.json
 //
 // 状态码语义：200 成功；422 参数校验失败；404 路由或平台不存在；405 方法不允许；502 上游平台失败；500 内部错误
@@ -48,8 +48,8 @@ const PORT = process.env.PORT || 16688
 const DOCS_PREFIX = '/docs'
 const API_TITLE = 'MusicServer 聚合音乐 API'
 const API_DESCRIPTION = '多平台音乐聚合接口：搜索、播放地址、歌词、封面、榜单、歌单、专辑、歌手、链接解析。' +
-  '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）/ qs（汽水音乐）/ mg（咪咕）/ bd（千千）/ ' +
-  'joox / bili（哔哩哔哩）/ 5sing / apple（Apple Music，仅试听）与有声平台 xm（喜马拉雅）/ me（猫耳FM）/ qt（蜻蜓FM）/ lr（懒人听书）。'
+  '支持 kw（酷我）/ kg（酷狗）/ tx（QQ音乐）/ wy（网易云）/ mg（咪咕）/ bd（千千）/ ' +
+  'joox / bili（哔哩哔哩）/ 5sing / apple（Apple Music，仅试听）与有声平台 xm（喜马拉雅）/ me（猫耳FM）/ qt（蜻蜓FM）/ lr（懒人听书）。汽水音乐已拆分至独立服务端 SodaServer。'
 
 const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'))
 
@@ -178,7 +178,7 @@ fastify.register(swagger, {
       { name: '榜单', description: '排行榜' },
       { name: '歌单', description: '歌单与热搜' },
       { name: '歌手专辑', description: '歌手信息、歌曲与专辑详情' },
-      { name: '登录', description: '账号登录（wy 扫码/手机号、kg 扫码/token、tx 扫码/cookie、qs 抖音扫码）与状态' },
+      { name: '登录', description: '账号登录（wy 扫码/手机号、kg 扫码/token、tx 扫码/cookie）与状态' },
       { name: '系统', description: '健康检查、平台信息、文档' },
     ],
   },

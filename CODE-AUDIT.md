@@ -1,6 +1,7 @@
 # MusicServer 全量代码检查报告
 
 **检查时间**：2026-10-03
+**后续变更**：2026-10-21 汽水平台（qs）整体拆分至独立服务端 SodaServer（`gitea.4i.hk/hhhge/SodaServer`），文中 `sdk/qs`、`sdk/apis/qs.ts`、`/login/qs`、`/stream/qs` 及 README qs 行等表述已随拆分失效。
 **修复状态**（复查后更新）：P0-1 ~ P0-3、P1-4 ~ P1-16 **全部已修复**（含测试隔离与 isolated-vm 原生构建）；
 第四节 P2 卫生项已于 2026-10-03 清理完毕（注释死代码 630+ 行、裸 `console.log` 吞错 6 处、未使用符号 26 处清零、bili 状态校验去重）；
 第八节线索逐条复核：qian 导出名、migu 异常消息、Quality `preview`、bili 重试重复均已过时（早前重写时已解决），kw/kg/tx/wy parse/playlist 仅有骨架相似、实质各异，评估后不抽公共层。

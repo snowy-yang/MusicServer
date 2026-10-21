@@ -183,7 +183,7 @@ export const musicRoutes = async(fastify: any) => {
       if (res.encrypted && res.fileKey) {
         rawUrl = `/stream/mg/${registerMiguStream(rawUrl, String(res.fileKey))}`
       }
-      // qs 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）；
+      // mg 解密流等代理地址返回相对路径，按请求的协议与 host 补全（兼容本机/局域网播放器）；
       // 启用 AUTH_KEY 时附带短时签名（播放器拉流无法携带自定义头，签名不暴露秘钥本身）
       let url = rawUrl
       if (url.startsWith('/')) {
@@ -240,7 +240,7 @@ export const musicRoutes = async(fastify: any) => {
   fastify.get('/url/:source/:id', {
     schema: {
       summary: '获取播放地址',
-      description: 'id 为平台歌曲 id：kw/tx/wy 用 songmid，kg 用 hash，qs/xm/me 用声音 id，qt 为 <channelId>:<programId>（见 /album/qt），lr 为 <bookId>:<section>（见 /album/lr）。' +
+      description: 'id 为平台歌曲 id：kw/tx/wy 用 songmid，kg 用 hash，xm/me 用声音 id，qt 为 <channelId>:<programId>（见 /album/qt），lr 为 <bookId>:<section>（见 /album/lr）。' +
         '取流按「外部音源脚本（SOURCE_ENABLED 启用时）→ SDK 官方直连 → 酷我兜底」顺序尝试，' +
         '酷我兜底按歌名/歌手/时长匹配同一首歌（匿名可用无损），kg 可由 hash 反查歌曲信息，' +
         '其它平台需要兜底时传 name/singer/interval。响应中的 via 字段标记实际命中通道（仅兜底时出现）。',
@@ -260,40 +260,24 @@ export const musicRoutes = async(fastify: any) => {
     },
   }, urlHandler)
 
-  // 加密流解密代理（qs 汽水解密流 / mg 咪咕 Z3D 加密流）：统一 /stream/:source/:id，用 path 段 source 区分平台。
-  // - qs：/url/qs 登录态取流返回相对地址 /stream/qs/<trackId>，本端点完成"签名 track_v2 →
-  //   密音频下载 → spade key + AES-CTR 解密 → 回明文流"
-  // - mg：/url/mg 命中 Z3D/I3D 加密候选时登记票据并返回 /stream/mg/<票据>，本端点凭票下载密流逐字节解密
-  // 两者均由 /url 产出相对地址，路由层负责补全 origin；raw 豁免 { code, data } 信封包装
+  // 加密流解密代理（mg 咪咕 Z3D/I3D 加密流）：/url/mg 命中加密候选时登记票据并返回
+  // /stream/mg/<票据>，本端点凭票下载密流逐字节解密；由 /url 产出相对地址，路由层负责补全 origin；
+  // raw 豁免 { code, data } 信封包装（汽水解密流已拆分至独立服务端 SodaServer）
   fastify.get('/stream/:source/:id', {
     config: { raw: true },
     schema: {
-      summary: '加密流解密代理（qs / mg）',
-      description: '取流响应中返回的相对地址（/url/qs 的流地址、/url/mg 命中加密流时的地址），' +
+      summary: '加密流解密代理（mg）',
+      description: '取流响应中返回的相对地址（/url/mg 命中加密流时的地址），' +
         '服务端下载上游密流并在本地解密后返回明文音频；不接受客户端自行构造。' +
-        'source=qs 时 id 为汽水 track id（track_v2 签名 + cenc-aes-ctr 解密）；' +
-        'source=mg 时 id 为取流响应 url 中的票据段（票据 10 分钟内有效，过期请重新 /url/mg 取流）。',
+        'id 为取流响应 url 中的票据段（票据 10 分钟内有效，过期请重新 /url/mg 取流）。',
       tags: ['歌曲资源'],
       params: params({
-        source: { type: 'string', enum: ['qs', 'mg'], description: '平台 id：qs=汽水音乐解密流 / mg=咪咕加密流', example: 'qs' },
-        id: { type: 'string', description: 'qs: 汽水 track id；mg: 取流响应 url 中的票据段（无需自行构造）', example: '7123456789' },
+        source: { type: 'string', enum: ['mg'], description: '平台 id：mg=咪咕加密流', example: 'mg' },
+        id: { type: 'string', description: '取流响应 url 中的票据段（无需自行构造）', example: '7123456789' },
       }),
     },
   }, async(request, reply) => {
     const { source, id } = request.params
-
-    // 汽水：track id → 签名请求 → 下载密音频 → 本地解密为明文
-    if (source === 'qs') {
-      try {
-        const entry = await fastify.musicSdk.qs.getStreamBuffer(String(id))
-        reply.type(entry.contentType || 'audio/mp4')
-        reply.header('Accept-Ranges', 'none')
-        reply.header('Content-Length', entry.buffer.length)
-        return reply.send(entry.buffer)
-      } catch (err: any) {
-        throw upstream(err.message)
-      }
-    }
 
     // 咪咕：票据 → 逐块解密流
     const ticket = takeMiguStream(String(id))
