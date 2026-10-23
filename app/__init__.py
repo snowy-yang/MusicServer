@@ -9,4 +9,4 @@
   app/main.py            FastAPI 应用入口
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"

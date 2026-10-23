@@ -1,6 +1,10 @@
 # 音乐服务器（MusicServer）
 
-多平台音乐聚合 API 服务器，纯 Node.js 实现，无需浏览器环境。
+多平台音乐聚合 API 服务器，无需浏览器环境。
+
+> **v2.0（Python 版，当前默认分支）**：服务端已全量迁移到 Python 3.12 + FastAPI，14 个平台、
+> 各平台登录通道与 Node 版 v1.x 功能对齐（外部音源脚本加载暂未移植）。
+> Node/TypeScript 实现（v1.x）保留在 `master` 分支。
 
 ## 功能
 
@@ -30,17 +34,21 @@
 
 > 能力位以 `GET /sources` 返回为准（含 `albumSearch`/`playlist`/`parse` 等新增能力位）。
 
-## 快速开始
+## 快速开始（v2.0 Python）
+
+依赖 [uv](https://docs.astral.sh/uv/)（Python 3.12，见 `.python-version`）：
 
 ```bash
-pnpm install
-pnpm start       # 默认端口 16688，可用 PORT 环境变量修改（需 Node 22.18+，直接运行 .ts）
-pnpm dev         # 开发模式：node --watch 热重载，改动 src/、sdk/ 代码自动重启
-pnpm test        # 类型检查（tsc）+ 冒烟测试（自动启动/关闭本地服务器）
-pnpm typecheck   # 仅类型检查，不运行
+uv sync                                          # 安装依赖（FastAPI/uvicorn/aiohttp/cryptography/qrcode 等）
+uv run uvicorn app.main:app --host 0.0.0.0 --port 16688
+                                                 # 默认端口 16688；也可用 PORT 环境变量 + --port $PORT
+uv run ruff check app && uv run ruff format --check app   # 规范检查
+uv run pyright                                   # 类型检查（基础模式）
 ```
 
-环境变量（`PORT`、`SOURCE_*` 等）可写入项目根目录的 `.env` 文件（已 gitignore），启动时自动加载；已存在的真实环境变量优先于 `.env` 文件值。
+环境变量（`PORT`、`AUTH_KEY`、`RATE_LIMIT`、`DATA_DIR` 等）可写入项目根目录的 `.env` 文件（已 gitignore），启动时自动加载；已存在的真实环境变量优先于 `.env` 文件值。登录凭据持久化在 `data/auth.json`（0600，原子写入）。
+
+Node/TypeScript 版（v1.x，`master` 分支）：`pnpm install && pnpm start`（需 Node 22.18+，直接运行 `.ts`）。
 
 ## HTTP 接口
 
@@ -48,9 +56,9 @@ pnpm typecheck   # 仅类型检查，不运行
 
 | 接口 | 说明 |
 | --- | --- |
-| `GET /search/:source/:keyword[/:page]` | 搜索歌曲：平台 id 或 all（聚合，排除 xm/me/qt/lr）；第 1 页可省略页码段，下一页 `/search/kw/稻香/2`；?singer= 附加歌手、?limit= 每页条数 |
+| `GET /search/:source/:keyword[/:page]` | 搜索歌曲：平台 id 或 all（聚合，排除 xm/me/qt/lr/apple）；第 1 页可省略页码段，下一页 `/search/kw/稻香/2`；?singer= 附加歌手、?limit= 每页条数 |
 | `GET /find/:source/:keyword` | 精确匹配搜索（source 为平台 id 或 all；?singer= ?albumName= ?interval= 辅助匹配，all 时 ?excludeSource= 跳过平台） |
-| `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 64k/128k/320k/flac/flac24bit）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（跨平台匹配，响应 `via` 字段标记实际命中通道） |
+| `GET /url/:source/:id?quality=320k` | 获取播放地址（quality: 64k/128k/320k/flac/flac24bit）。取流链：SDK 直连 → 酷我兜底（跨平台匹配，响应 `via` 字段标记实际命中通道） |
 | `GET /stream/:source/:id` | 加密流解密代理（`mg` 咪咕 Z3D/I3D 加密流）。取流响应返回相对地址时使用，服务端下载上游密流并在本地解密回明文音频 |
 | `GET /lyric/:source/:id` | 获取歌词（返回 lyric/tlyric/yrc） |
 | `GET /pic/:source/:id` | 获取封面 |
@@ -107,7 +115,7 @@ pnpm typecheck   # 仅类型检查，不运行
 - **5sing**：`<songId>|<songType>`（如 `932557|yc`，songType 为 yc 原创 / fc 翻唱 / bz 伴奏），URL 路径需编码 `|` 为 `%7C`
 - **apple**：数字歌曲 id（搜索结果产出）；取流固定为 `preview` 试听片段（完整曲为 DRM，不在支持范围）
 
-`/url` 在外部音源与平台直连都失败时，自动降级到**酷我**兜底：按歌名/歌手/时长匹配同一首歌后走 kw 通道（匿名可拿无损）。kg 可由 hash 反查歌曲信息；其它平台需要兜底时给 `/url` 传 `name`/`singer`/`interval` 查询参数。
+`/url` 在平台直连失败时，自动降级到**酷我**兜底：按歌名/歌手/时长匹配同一首歌后走 kw 通道（匿名可拿无损）。kg 可由 hash 反查歌曲信息；其它平台需要兜底时给 `/url` 传 `name`/`singer`/`interval` 查询参数。
 
 ## 调用鉴权与限流
 
@@ -132,72 +140,57 @@ per-IP 滑动窗口限流，`RATE_LIMIT` 为每 IP 每分钟允许的请求数�
 
 ## 外部音源
 
-设置 `SOURCE_ENABLED=1` 后取流优先走外部音源（默认未设置时直接走 SDK 官方直连接口；是否启用由服务端在 `src/server.ts` 决策）。两种脚本都放 `sources/` 目录（不入库），按文件名混排成候选链：取流失败自动切换下一个，某平台连续失败 3 次的脚本降权冷却 5 分钟；整条音源链失败后回落 SDK 直连、再失败走酷我兜底（见上文取流链）。音源候选链只覆盖 kw/kg/tx/wy。音源模式下登录态不参与取流，登录自动续期不会启动（手动 `POST /login/refresh` 仍可用）。详见 [docs/source-ivm.md](docs/source-ivm.md) 与 [docs/source-simple.md](docs/source-simple.md)。
+**v2.0 未移植外部音源加载**（`SOURCE_ENABLED` / `sources/*.js` / `*.mjs` 候选链与 isolated-vm 沙箱不在本分支）。
+需要时请使用 `master` 分支的 v1.x（详见该分支 README 与 `docs/source-ivm.md`、`docs/source-simple.md`）。
 
-**社区音源脚本（`.js`）** —— 通用格式，isolated-vm 硬隔离沙箱执行（详见 `src/source-ivm.ts` 头注释），文件名排序即优先级；`SOURCE_SCRIPT_PATH` 可改为指定目录外单脚本，`SOURCE_LOG=0` 关闭请求日志，`SOURCE_ALLOW_ALL_HTTP=1` 放开 HTTP 白名单（调试用）。
-
-**简单 API 脚本（`.mjs`）** —— 进程内直接加载、无沙箱的第二套极简契约，只需导出一个 `getMusicUrl`，适合自己写的取流脚本（运行于服务器进程内，请只放自己审计过的代码）：
-
-```js
-// sources/99-my-api.mjs —— dev 热重载模式下保存即自动重启生效
-export const sources = ['kw', 'kg', 'tx', 'wy'] // 可选，默认四平台
-export const timeout = 15000                    // 可选，单次取流超时 ms（默认 15000）
-
-export async function getMusicUrl({ source, id, songInfo, quality, signal }) {
-  // source: 平台 id（kw/kg/tx/wy）；id: 歌曲 id（songmid/hash）
-  // quality: 128k/320k/flac/flac24bit
-  // signal: 取消/超时信号（AbortSignal），fetch(url, { signal }) 透传即可支持取消
-  const res = await fetch(`https://your-api/get?source=${source}&id=${id}&quality=${quality}`, { signal })
-  const { data } = await res.json()
-  return data.url // 播放地址字符串，或 { type, url }
-}
-```
-
-## 项目结构
+## 项目结构（v2.0）
 
 ```
-src/                HTTP 应用层（Fastify 服务器，全部 TypeScript 源码）
-  server.ts         HTTP 服务器入口（pnpm start 实际启动文件）
-  routes.ts         业务路由（JSON Schema 校验 + OpenAPI 元数据）
-  routes-login.ts   登录路由（wy 扫码/手机号、kg 扫码/短信/账密+风控验证/token、tx 扫码/cookie、
-                    bili 扫码、xm/me cookie 绑定、lr 账密）
-  source.ts         外部音源候选链（SOURCE_ENABLED 时 /url 取流优先走 sources/ 脚本，失败回落 SDK）
-  source-ivm.ts     社区音源脚本加载器（isolated-vm 硬隔离沙箱）
-  source-simple.ts  简单 API 音源脚本加载器（.mjs 进程内直载）
+app/                    Python 应用（FastAPI，Python 3.12）
+  main.py               HTTP 入口（装配中间件/异常处理/OpenAPI/路由 + lifespan）
+  config.py             环境变量、.env 加载、端口/鉴权/限流/数据目录
+  routes/
+    music.py            业务路由（搜索/取流/歌词/封面/榜单/歌单/专辑/歌手/解析/流代理）
+    login.py            登录路由（wy/kg/tx/bili 扫码与短信账密、xm/me cookie、lr 账密）
+    refresh.py          登录态自动续期（启动后延时首轮 + 每 24h，kg/tx）
+    system.py           /health、/sources
   http/
-    api-error.ts    业务错误类型（404/502 等 → 统一 JSON 响应）
-    auth-gate.ts    调用秘钥鉴权（AUTH_KEY，全路径防扫描；/stream/* 可改用短时签名）
-    rate-limit.ts   per-IP 滑动窗口限流（RATE_LIMIT，默认 120/分钟）
-    stream-sign.ts  /stream/* 流地址短时签名（HMAC 派生，10 分钟有效）
-    migu-stream.ts  咪咕加密流票据登记与逐块解密管道
+    api_error.py        业务错误（统一 JSON 响应）
+    auth_gate.py        调用秘钥鉴权（AUTH_KEY，全路径防扫描；/stream/* 可用短时签名）
+    rate_limit.py       per-IP 滑动窗口限流（RATE_LIMIT）
+    envelope.py         成功响应信封 { code: 0, data }
+    stream_sign.py      /stream/* 流地址短时签名（HMAC，10 分钟）
+    mg_stream.py        咪咕加密流票据与逐块解密管道
   openapi/
-    components.ts   OpenAPI 共享 schema（与路由校验同源）
-    ui.ts           ReDoc 页面模板
-sdk/                音乐聚合 SDK（仅官方平台：平台模块 + 官方直连取流 + 凭据 + 基础设施；14 个平台）
-  index.ts          平台聚合入口（通用工具转发，实现在 common/utils.ts）
-  apis/             各平台官方 URL 直连取流实现（14 平台）
-  auth/             登录态与登录协议（store.ts 持久化凭据到 data/auth.json；wy.ts 扫码/手机号、kg.ts 扫码/短信/token/续期、tx.ts 扫码/cookie/续期）
-  common/           SDK 基础设施
-    request.ts      HTTP 请求（可取消、自动 JSON 解析、gzip/deflate 解压）
-    utils.ts        工具函数（sizeFormate/formatPlayTime/dateFormat 等）
-    message.ts      请求错误消息
-  kg/ kw/ tx/ wy/ migu/ qian/ joox/ bili/ 5sing/ apple/ xm/ me/ qt/ lr/
-                    平台模块（搜索/歌词/榜单/歌单/专辑/链接解析等；migu 含 Z3D 流解密，bili 含扫码登录）
-  apis/             kw.ts kg.ts tx.ts wy.ts migu.ts qian.ts joox.ts bili.ts 5sing.ts apple.ts …
-test/
-  smoke-test.ts     冒烟测试（自动启动/关闭本地服务器，验证各平台接口）
-  source-simple-test.ts  简单 API 音源脚本加载器测试（离线）
+    components.py       OpenAPI 共享 schema
+    ui.py               ReDoc 页面
+  sdk/
+    __init__.py         平台注册表、聚合搜索、跨平台精确匹配
+    types.py            契约类型（SongInfo / MusicUrlResult 等）
+    auth_store.py       凭据持久化（data/auth.json，0600 + 原子替换）
+    common/             request（aiohttp 直连，不跟随 302、保留多值 Set-Cookie）、
+                        utils（size_formate/format_play_time/as_dict 等）、qrcode
+    auth/               登录协议（wy/kg/kg_simulate/tx/lr/bili）
+    apis/               各平台官方直连取流（14 平台，含 CDN 选址/档位降级）
+    platforms/          平台模块（每平台一个包，MODULE: Platform + 子模块）
+docs/
+  PORTING.md            TS → Python 平台移植契约（目录/子模块协议/签名差异/验收要求）
+pyproject.toml          uv 项目定义（依赖、ruff、pyright、pytest 配置）
+tests/                  pytest 目录（预留：TS 版 smoke 测试尚未移植）
 ```
 
-> 分层依赖严格单向：`src` → `sdk`，`sdk` 内部自包含（不反向依赖 src）。源码统一为 TypeScript（import 一律写 `.ts` 后缀），由 Node ≥22.18 的原生类型剥离直接运行——**无编译产物**，改完即跑；tsc 仅用于类型检查（`pnpm typecheck`）。代码只使用可剥离的 TS 语法（无 enum/namespace/参数属性），新增代码也须遵守。
+> 分层依赖单向：`routes` → `sdk`，`sdk` 内部自包含。全源码 `.py` 由 uv 管理的 CPython 3.12 直接运行，
+> 无编译产物；`ruff` 负责风格与静态检查，`pyright` 负责类型检查。TS 版对照见 `master` 分支。
 
 ## 已知限制
 
-- **kg 取流**：匿名仅能获取部分免费资源，VIP/付费歌需 `/login/kg` 登录（扫码/短信/token 均可）后取流，成功响应解析见 `sdk/apis/kg.ts` 头注释。
+- **kg 取流**：匿名仅能获取部分免费资源，VIP/付费歌需 `/login/kg` 登录（扫码/短信/token 均可）后取流，成功响应解析见 `app/sdk/apis/kg.py` 头注释。
 - **kw 取流**：主通道 mobi.s 严格校验「返回 bitrate == 请求档位且为明文格式」，档位缺失时沿降级链换档（flac24bit→flac→320k→128k）；web playUrl 回退通道匿名恒 128k。
 - **mg 取流**：匿名 PQ(128k) 永远可用，但候选链会优先探测更高档位——多数曲目实际能匿名拿到 SQ/ZQ 真无损直链（上游同款 tone 路径重写 + 逐档探测）；Z3D/I3D 加密候选经 `/stream/mg` 解密后同样可播。HQ/SQ 返回「登录后免费试听」时自动降级到可用的最高档。
 - **apple 取流**：只有 preview 试听片段（约 30–90s，AAC/m4a），返回的 `type` 固定为 `preview`，不要当作完整曲。
 - **bili 取流**：匿名最高 192k；flac/Hi-Res 需 `/login/bili/qr` 登录大会员账号。CDN 有约 1 小时的 `deadline` 签名，取流结果不宜缓存过久。
-- **5sing 歌单详情**：依赖 5sing 网页（`5sing.kugou.com/.../dj/...html`）解析曲目；2026-10-02 实测该站点网页层整体 502（搜索/取流/歌词等手机端 API 不受影响）。上游同样依赖该页面，待站点恢复即自动可用。
+- **xm 取流**：签名依赖 `hdaa.shuzilm.cn` 的设备上报；请求层必须直连（不走系统代理，Node 版语义一致）。
+- **5sing 歌词**：2026-10-23 实测匿名 `newget` 不返回 `dynamicWords`（搜索结果与多个关键词均如此，Node 版同样），拿不到时接口如实报错。
+- **5sing 歌单详情**：依赖 5sing 网页（`5sing.kugou.com/.../dj/...html`）解析曲目；2026-10-02 曾整体 502，2026-10-23 实测已恢复。
 - **link 解析**：`/parse/*` 走各平台网页链接解析（需上游有对应实现）；未实现的平台返回 404。
-- 平台接口随时可能变更，遇失效时可对照 `sdk/apis/` 内的接口文档调整。
+- 平台接口随时可能变更，遇失效时可对照 `app/sdk/apis/` 内的接口文档调整。

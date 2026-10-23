@@ -22,7 +22,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app import config
+from app import __version__, config
 from app.http.api_error import ApiError
 from app.http.auth_gate import auth_gate
 from app.http.rate_limit import make_rate_limiter
@@ -71,7 +71,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=API_TITLE,
         description=API_DESCRIPTION,
-        version="1.0.0",
+        version=__version__,
         lifespan=_lifespan,
         openapi_url="/openapi.json",
         docs_url="/docs",
@@ -186,7 +186,7 @@ def _install_openapi(app: FastAPI) -> None:
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
-        schema = get_openapi(title=API_TITLE, version="1.0.0", description=API_DESCRIPTION, routes=app.routes)
+        schema = get_openapi(title=API_TITLE, version=__version__, description=API_DESCRIPTION, routes=app.routes)
         components = schema.setdefault("components", {}).setdefault("schemas", {})
         for name, definition in COMPONENT_SCHEMAS.items():
             components.setdefault(name, definition)

@@ -1,6 +1,6 @@
 [project]
 name = "music-server"
-version = "1.0.0"
+version = "2.0.0"
 description = "多平台音乐聚合服务器"
 requires-python = ">=3.12,<3.13"
 dependencies = [
