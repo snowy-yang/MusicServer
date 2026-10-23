@@ -418,14 +418,10 @@ dependencies = [
     { name = "brotli" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "granian", extra = ["reload", "rloop", "uvloop", "winloop"] },
     { name = "pillow" },
     { name = "qrcode" },
     { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-granian = [
-    { name = "granian", extra = ["reload", "rloop", "uvloop", "winloop"] },
 ]
 
 [package.dev-dependencies]
@@ -443,12 +439,11 @@ requires-dist = [
     { name = "brotli", specifier = ">=1.1" },
     { name = "cryptography", specifier = ">=43" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "granian", extras = ["reload", "rloop", "uvloop", "winloop"], marker = "extra == 'granian'", specifier = ">=2.0" },
+    { name = "granian", extras = ["reload", "rloop", "uvloop", "winloop"], specifier = ">=2.0" },
     { name = "pillow", specifier = ">=10" },
     { name = "qrcode", specifier = ">=8" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["granian"]
 
 [package.metadata.requires-dev]
 dev = [

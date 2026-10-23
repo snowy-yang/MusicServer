@@ -5,24 +5,15 @@ description = "多平台音乐聚合服务器"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.115",
+  # 默认服务器：granian；uvicorn 作为备选（--server uvicorn）
+  # extras 按平台自动选择循环：rloop/uvloop（Unix）、winloop（Windows）、reload（watchfiles）
+  "granian[reload,rloop,uvloop,winloop]>=2.0",
   "uvicorn[standard]>=0.30",
   "aiohttp>=3.10",
   "brotli>=1.1",
   "cryptography>=43",
   "qrcode>=8",
   "pillow>=10",
-]
-
-# 可选：Granian 服务器（Rust HTTP 实现）与高性能事件循环
-#   rloop   —— Granian 内置的 Rust 事件循环，跨平台
-#   uvloop  —— POSIX 上的 libuv 循环
-#   winloop —— Windows 上的 libuv 循环（uvloop 的 Windows 对应实现）
-# 安装：uv sync --extra granian
-[project.optional-dependencies]
-granian = [
-  # granian 自带的 extras 已按平台配好 marker：
-  #   rloop（Unix）、uvloop（Unix）、winloop（Windows）、reload（watchfiles）
-  "granian[reload,rloop,uvloop,winloop]>=2.0",
 ]
 
 [dependency-groups]

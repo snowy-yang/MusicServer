@@ -45,9 +45,55 @@ def test_uvicorn_rejects_granian_only_loops() -> None:
         serve.resolve_loop("uvicorn", "rloop")
 
 
-def test_uvicorn_auto_and_asyncio_allowed() -> None:
-    assert serve.resolve_loop("uvicorn", "auto") == "auto"
+def test_uvicorn_auto_and_asyncio_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", True)
+    assert serve.resolve_loop("uvicorn", "auto") == "asyncio"
     assert serve.resolve_loop("uvicorn", "asyncio") == "asyncio"
+
+
+def test_default_loop_granian_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", True)
+    monkeypatch.setattr(serve, "has_module", lambda name: name == "winloop")
+    assert serve.default_loop("granian") == "winloop"
+
+
+def test_default_loop_granian_unix_prefers_rloop(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", False)
+    monkeypatch.setattr(serve, "has_module", lambda name: name in ("rloop", "uvloop"))
+    assert serve.default_loop("granian") == "rloop"
+
+
+def test_default_loop_granian_unix_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", False)
+    monkeypatch.setattr(serve, "has_module", lambda name: name == "uvloop")
+    assert serve.default_loop("granian") == "uvloop"
+
+    monkeypatch.setattr(serve, "has_module", lambda name: False)
+    assert serve.default_loop("granian") == "asyncio"
+
+
+def test_default_loop_uvicorn(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", False)
+    monkeypatch.setattr(serve, "has_module", lambda name: name == "uvloop")
+    assert serve.default_loop("uvicorn") == "uvloop"
+
+    # Windows 上 uvicorn 只有 asyncio（即使装了 winloop 也不会用）
+    monkeypatch.setattr(serve, "IS_WINDOWS", True)
+    monkeypatch.setattr(serve, "has_module", lambda name: name == "winloop")
+    assert serve.default_loop("uvicorn") == "asyncio"
+
+
+def test_default_loop_windows_without_winloop(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", True)
+    monkeypatch.setattr(serve, "has_module", lambda name: False)
+    assert serve.default_loop("granian") == "asyncio"
+
+
+def test_resolve_loop_auto_uses_platform_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", False)
+    monkeypatch.setattr(serve, "has_module", lambda name: name in ("rloop", "uvloop"))
+    assert serve.resolve_loop("granian", "auto") == "rloop"
+    assert serve.resolve_loop("uvicorn", "auto") == "uvloop"
 
 
 def test_build_command_granian(monkeypatch: pytest.MonkeyPatch) -> None:

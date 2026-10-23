@@ -53,29 +53,37 @@ Node/TypeScript 版（v1.x，`master` 分支）：`pnpm install && pnpm start`�
 
 ### 服务器与事件循环（uvicorn / granian）
 
-`scripts/serve.py` 统一启动入口：默认 `--server auto`（装了 granian 就用 granian，否则 uvicorn），
+`scripts/serve.py` 统一启动入口。默认组合按平台确定：
+
+| 平台 | 默认服务器 | 默认事件循环 |
+| --- | --- | --- |
+| Windows | granian | winloop（未安装则 asyncio） |
+| Linux / macOS | granian | rloop（未安装则 uvloop → asyncio） |
+| Windows + `--server uvicorn` | uvicorn | asyncio（uvicorn 不支持 winloop） |
+| Linux / macOS + `--server uvicorn` | uvicorn | uvloop（未安装则 asyncio） |
+
 事件循环可用 `auto / asyncio / rloop / uvloop / winloop`，参数与环境变量等价
-（`SERVER` / `LOOP` / `HOST` / `PORT` / `WORKERS` / `RELOAD`）。
+（`SERVER` / `LOOP` / `HOST` / `PORT` / `WORKERS` / `RELOAD`）。`auto` 会在启动器内解析成上表中的具体循环，
+启动日志会打印实际使用的组合；显式请求当前平台不可用的循环会直接报错并列出可用项（不会静默降级）。
 
 ```bash
-uv sync --extra granian                                  # Granian + rloop/uvloop/winloop + watchfiles
-uv run python scripts/serve.py                           # auto：granian（若已安装），loop=auto
-uv run python scripts/serve.py --server granian --loop rloop     # 仅 Unix（Rust 事件循环）
-uv run python scripts/serve.py --server granian --loop uvloop    # 仅 Unix
-uv run python scripts/serve.py --server granian --loop winloop   # 仅 Windows
-uv run python scripts/serve.py --server uvicorn --loop uvloop    # 仅 Unix
-uv run python scripts/serve.py --server granian --reload         # 热重载（强制单 worker）
+uv sync                                                 # 默认依赖已含 granian[rloop/uvloop/winloop/reload]
+uv run python scripts/serve.py                          # Windows → granian+winloop；Unix → granian+rloop
+uv run python scripts/serve.py --server uvicorn         # Unix → uvicorn+uvloop；Windows → uvicorn+asyncio
+uv run python scripts/serve.py --loop rloop             # 仅 Unix（Rust 事件循环）
+uv run python scripts/serve.py --loop uvloop            # 仅 Unix
+uv run python scripts/serve.py --loop winloop           # 仅 Windows
+uv run python scripts/serve.py --server granian --reload    # 热重载（强制单 worker）
 ```
 
 | 事件循环 | 平台 | 说明 |
 | --- | --- | --- |
 | `asyncio` | 全平台 | 标准库，始终可用 |
-| `rloop` | Unix | granian 的 Rust 事件循环（`rloop` 包，Windows 无 wheel） |
+| `rloop` | Unix | Rust 事件循环（`rloop` 包，Windows 无 wheel） |
 | `uvloop` | Unix | libuv 事件循环 |
 | `winloop` | Windows | uvloop 的 Windows 实现 |
-| `auto` | 全平台 | granian：rloop → uvloop → winloop → asyncio；uvicorn：uvloop → asyncio |
 
-显式请求当前平台不可用的循环会直接报错并列出可用项（不会静默降级）。
+granian 也支持显式指定与默认不同的循环（如 Unix 上 `--loop uvloop`、Windows 上 `--loop asyncio`）。
 
 ## HTTP 接口
 
@@ -204,7 +212,7 @@ scripts/
   serve.py              启动器（uvicorn / granian，事件循环 rloop/uvloop/winloop 选择与校验）
 docs/
   PORTING.md            TS → Python 平台移植契约（目录/子模块协议/签名差异/验收要求）
-pyproject.toml          uv 项目定义（依赖、granian 可选 extra、ruff、pyright、pytest 配置）
+pyproject.toml          uv 项目定义（默认 granian/uvicorn 依赖、ruff、pyright、pytest 配置）
 tests/
   test_serve.py         启动器服务器/循环选择逻辑测试（TS 版 smoke 测试尚未移植）
 ```

@@ -1,21 +1,22 @@
-"""启动器 —— uvicorn / granian，可选事件循环 rloop / uvloop / winloop。
+"""启动器 —— 默认 granian + 平台首选事件循环（Windows: winloop / Unix: rloop）。
 
 用法（在仓库根目录执行）：
 
-    uv run python scripts/serve.py                       # 默认：装了 granian 就优先 granian，否则 uvicorn
-    uv run python scripts/serve.py --server granian      # Rust HTTP 服务器
-    uv run python scripts/serve.py --server granian --loop rloop     # 仅 Unix（granian[rloop]）
-    uv run python scripts/serve.py --server granian --loop uvloop    # 仅 Unix（granian[uvloop]）
-    uv run python scripts/serve.py --server granian --loop winloop   # 仅 Windows（granian[winloop]）
-    uv run python scripts/serve.py --server uvicorn --loop uvloop    # uvicorn 在 Unix 上等价
+    uv run python scripts/serve.py                    # Windows: granian+winloop；Unix: granian+rloop
+    uv run python scripts/serve.py --server uvicorn   # Unix 默认 uvloop，Windows 默认 asyncio
+    uv run python scripts/serve.py --loop rloop       # 显式指定（平台/安装不支持时直接报错）
+    uv run python scripts/serve.py --loop uvloop
+    uv run python scripts/serve.py --loop winloop
 
-事件循环可用性（与 granian 的 extras / 平台 marker 一致）：
+事件循环可用性（与依赖的平台 marker 一致）：
     asyncio   始终可用
-    rloop     rloop 包，仅 Unix（granian 内置的 Rust 循环）
+    rloop     rloop 包，仅 Unix（Rust 事件循环）
     uvloop    uvloop 包，仅 Unix
     winloop   winloop 包，仅 Windows（uvloop 的 Windows 实现）
-`auto` 交给服务器自行选择：granian 优先 rloop → uvloop → winloop → asyncio；
-uvicorn 优先 uvloop（已安装时）→ asyncio。
+
+`auto` 在启动器内解析为具体循环，不交给服务器：
+    granian: Windows → winloop → asyncio；Unix → rloop → uvloop → asyncio
+    uvicorn: Windows → asyncio；Unix → uvloop → asyncio
 
 环境变量（参数优先）：SERVER / LOOP / HOST / PORT / WORKERS / RELOAD。
 PORT 默认读取 .env 后的 16688；HOST 默认 0.0.0.0（局域网播放器可直连）。
@@ -42,6 +43,7 @@ LOOPS = ("auto", "asyncio", "rloop", "uvloop", "winloop")
 
 #: 每个循环对应的可导入包（asyncio 无依赖）
 LOOP_PACKAGES = {"rloop": "rloop", "uvloop": "uvloop", "winloop": "winloop"}
+IS_WINDOWS = sys.platform.startswith("win")
 
 
 def has_module(name: str) -> bool:
@@ -53,7 +55,7 @@ def has_module(name: str) -> bool:
 
 
 def pick_server(requested: str) -> str:
-    """auto：安装了 granian 就用 granian，否则 uvicorn。"""
+    """auto：默认 granian（uv sync 已包含）；未安装时回退 uvicorn。"""
     if requested not in SERVERS:
         raise SystemExit(f"不支持的 server: {requested}（可选：{', '.join(SERVERS)}）")
     if requested != "auto":
@@ -71,18 +73,36 @@ def available_loops(server: str) -> list[str]:
     return loops
 
 
+def default_loop(server: str) -> str:
+    """平台默认循环：granian = Windows winloop / Unix rloop；uvicorn = Unix uvloop / Windows asyncio。
+
+    依赖未安装（例如只用 uvloop 时没装 rloop）则按优先级回退，直到 asyncio。
+    """
+    if server == "granian":
+        order = ("winloop", "asyncio") if IS_WINDOWS else ("rloop", "uvloop", "asyncio")
+    else:
+        order = ("asyncio",) if IS_WINDOWS else ("uvloop", "asyncio")
+    for loop in order:
+        if loop == "asyncio":
+            return loop
+        package = LOOP_PACKAGES.get(loop)
+        if package and has_module(package):
+            return loop
+    return "asyncio"
+
+
 def resolve_loop(server: str, loop: str) -> str:
-    """校验事件循环可用性；显式请求不可用时给出可操作的原因（不做静默降级）。"""
+    """auto → 平台默认循环；显式请求不可用时给出可操作的原因（不做静默降级）。"""
     if loop not in LOOPS:
         raise SystemExit(f"不支持的 loop: {loop}（可选：{', '.join(LOOPS)}）")
     if loop == "auto":
-        return loop
+        return default_loop(server)
     if server == "uvicorn":
         if loop == "asyncio":
             return loop
         if loop == "uvloop":
             if not has_module("uvloop"):
-                raise SystemExit("uvloop 未安装（仅 Unix 可用）：uv sync --extra granian 或改用 --loop auto")
+                raise SystemExit("uvloop 未安装（仅 Unix 可用）：uv sync 或改用 --loop auto")
             return loop
         raise SystemExit(f"uvicorn 不支持 --loop {loop}；请改用 --server granian（granian 支持 rloop/uvloop/winloop）")
 
@@ -115,7 +135,7 @@ def build_command(
         if reload:
             command.append("--reload")
         if reload and not has_module("watchfiles"):
-            print("[serve] 警告：granian --reload 需要 watchfiles（uv sync --extra granian 已包含）", flush=True)
+            print("[serve] 警告：granian --reload 需要 watchfiles（uv sync 已包含）", flush=True)
         command.append(APP_TARGET)
     else:
         command += [APP_TARGET, "--host", host, "--port", str(port)]
@@ -141,9 +161,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reload", action="store_true", help="开发热重载（强制单 worker）")
     args = parser.parse_args(argv)
 
-    server = pick_server(str(_arg_or_env(args.server, "SERVER", "auto")))
+    requested_server = str(_arg_or_env(args.server, "SERVER", "auto"))
+    server = pick_server(requested_server)
     if not has_module(server):
-        raise SystemExit(f"未安装 {server}：uv sync --extra granian（或 uv add {server}）")
+        raise SystemExit(f"未安装 {server}：uv sync（或 uv add {server}）")
+    if requested_server == "auto" and server == "uvicorn" and not has_module("granian"):
+        print("[serve] 未安装 granian，回退 uvicorn；uv sync 可安装默认的 granian 依赖", flush=True)
 
     loop = resolve_loop(server, str(_arg_or_env(args.loop, "LOOP", "auto")))
     host = str(_arg_or_env(args.host, "HOST", "0.0.0.0"))
