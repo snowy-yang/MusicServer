@@ -153,28 +153,32 @@ async def get_token(retry_num: int = 0) -> KwToken:
         cached = _state["token"]
         if cached is not None:
             return cached
-        try:
-            cookies = await fetch_home_set_cookie()
-        except Exception as err:
-            if retry_num >= 2:
-                raise RuntimeError(f"获取酷我token失败: {err}") from err
-            return await get_token(retry_num + 1)
+        # 重试必须在锁内用循环完成：asyncio.Lock 不可重入，锁内递归会永久死锁。
+        last_error: Exception | None = None
+        for _attempt in range(max(0, retry_num), 3):
+            try:
+                cookies = await fetch_home_set_cookie()
+            except Exception as err:  # noqa: BLE001 - 网络抖动重试，最终统一抛出
+                last_error = err
+                continue
 
-        found: list[tuple[str, str]] = []
-        for raw in cookies:
-            name, _, rest = raw.partition("=")
-            name = name.strip()
-            value = rest.split(";")[0] if rest else ""
-            if _TOKEN_NAME_RE.match(name) and value:
-                found.append((name, value))
-        if not found:
-            if retry_num >= 2:
-                raise RuntimeError("获取酷我token失败")
-            return await get_token(retry_num + 1)
+            found: list[tuple[str, str]] = []
+            for raw in cookies:
+                name, _, rest = raw.partition("=")
+                name = name.strip()
+                value = rest.split(";")[0] if rest else ""
+                if _TOKEN_NAME_RE.match(name) and value:
+                    found.append((name, value))
+            if not found:
+                last_error = RuntimeError("响应中没有 Hm_Iuvt_* cookie")
+                continue
 
-        token = KwToken(found[0][0], found[0][1])
-        _state["token"] = token
-        return token
+            token = KwToken(found[0][0], found[0][1])
+            _state["token"] = token
+            return token
+
+        detail = f": {last_error}" if last_error else ""
+        raise RuntimeError(f"获取酷我token失败{detail}") from last_error
 
 
 async def get_url_by_playurl(songmid: str, token: KwToken, retry_num: int = 0) -> dict[str, Any]:

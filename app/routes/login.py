@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.http.api_error import ApiError, upstream
+from app.http.api_error import ApiError, not_found, upstream
 from app.http.envelope import ok
 from app.routes.refresh import refresh_all
 from app.sdk import auth as auth_mod
 from app.sdk.auth_store import clear_credentials, get_credentials, get_tx_auth, set_credentials
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Path
 
 router = APIRouter()
 
@@ -329,6 +329,43 @@ async def bili_logout() -> Any:
 )
 async def login_refresh() -> Any:
     return ok(await refresh_all())
+
+
+# 这些平台没有独立登录协议，只能从浏览器/App 复制 cookie（README 平台表已声明 cookie 登录）。
+# 白名单限定，避免动态路由把任意平台写进凭据文件。
+_COOKIE_LOGIN_SOURCES = {"mg", "bd", "joox", "apple", "5sing"}
+
+
+@router.post(
+    "/login/{source}",
+    tags=[LOGIN_TAG],
+    summary="绑定平台 cookie",
+    description="mg/bd/joox/apple/5sing 用：从浏览器或 App 复制完整 cookie 字符串并持久化。"
+    "apple 需包含 media-user-token；joox 通常需 wmid/session_key。服务端不做在线校验。",
+)
+async def cookie_bind(
+    source: str = Path(..., description="平台 id（mg/bd/joox/apple/5sing）", examples=["bd"]),
+    cookie: str = Body(..., embed=True, description="完整 cookie 字符串"),
+) -> Any:
+    if source not in _COOKIE_LOGIN_SOURCES:
+        raise not_found(f"不支持的 cookie 登录平台: {source}")
+    value = str(cookie or "").strip()
+    if not value:
+        raise ApiError(422, "cookie 不能为空")
+    set_credentials(source, {"cookie": value})
+    return ok({"logged": True})
+
+
+@router.delete(
+    "/login/{source}",
+    tags=[LOGIN_TAG],
+    summary="退出平台登录（cookie 平台）",
+)
+async def cookie_logout(source: str = Path(..., description="平台 id（mg/bd/joox/apple/5sing）")) -> Any:
+    if source not in _COOKIE_LOGIN_SOURCES:
+        raise not_found(f"不支持的 cookie 登录平台: {source}")
+    clear_credentials(source)
+    return ok({"logged": False})
 
 
 def _stored_status(package: str) -> dict[str, Any]:

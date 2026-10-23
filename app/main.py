@@ -17,8 +17,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -28,6 +29,7 @@ from app.http.auth_gate import auth_gate
 from app.http.rate_limit import make_rate_limiter
 from app.openapi.components import COMPONENT_SCHEMAS
 from app.openapi.ui import redoc_html
+from app.sdk.common.request import close_session
 
 API_TITLE = "MusicServer 聚合音乐 API"
 API_DESCRIPTION = (
@@ -36,21 +38,6 @@ API_DESCRIPTION = (
     "joox / bili（哔哩哔哩）/ 5sing / apple（Apple Music，仅试听）与有声平台 "
     "xm（喜马拉雅）/ me（猫耳FM）/ qt（蜻蜓FM）/ lr（懒人听书）。"
 )
-
-
-class Envelope(JSONResponse):
-    """统一成功响应：{ code: 0, data }。文档里由路由的 responses 引用领域模型。"""
-
-    def render(self, content: Any) -> bytes:
-        return json.dumps({"code": 0, "data": content}, ensure_ascii=False).encode("utf-8")
-
-
-def ok(data: Any, status_code: int = 200) -> Envelope:
-    return Envelope(data, status_code=status_code)
-
-
-def make_router(tag: str) -> APIRouter:
-    return APIRouter(tags=[tag])
 
 
 @asynccontextmanager
@@ -63,6 +50,7 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await stop_refresh_scheduler()
+        await close_session()
 
 
 def create_app() -> FastAPI:
@@ -89,15 +77,24 @@ def create_app() -> FastAPI:
     app.state.started_at = time.time()
     app.state.auth_key = config.auth_key()
 
-    # ---- 中间行为：限流 → 鉴权（限流先计数，401 爆破同样受限） ----
-    app.middleware("http")(make_rate_limiter(config.rate_limit()))
+    # ---- 中间件顺序（后注册者在外层）：CORS → no-store → 限流 → 鉴权 ----
+    # 限流必须在鉴权之外：错误秘钥的 401 也要计数，才能真正防爆破。
     app.middleware("http")(auth_gate)
+    app.middleware("http")(make_rate_limiter(config.rate_limit()))
 
     @app.middleware("http")
     async def _no_store(request: Request, call_next):
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         return response
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        max_age=600,
+    )
 
     # ---- 异常处理 ----
     @app.exception_handler(ApiError)

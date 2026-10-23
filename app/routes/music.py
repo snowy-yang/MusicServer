@@ -6,9 +6,12 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+from collections.abc import Callable
 from typing import Any
 
-from app.http.api_error import not_found, upstream
+from app.http.api_error import ApiError, not_found, upstream
 from app.http.envelope import ok
 from app.http.mg_stream import (
     Z3DStreamDecoder,
@@ -18,7 +21,7 @@ from app.http.mg_stream import (
     take_migu_stream,
 )
 from app.http.stream_sign import sign_stream
-from app.sdk import SOURCE_MODULES, SUPPORTED_SOURCES, find_music
+from app.sdk import SOURCE_MODULES, SUPPORTED_SOURCES, find_music, support_quality
 from app.sdk.types import cap as get_cap
 from fastapi import APIRouter, Body, Path, Query, Request
 from fastapi.responses import StreamingResponse
@@ -27,15 +30,13 @@ router = APIRouter()
 
 QUALITIES = ["64k", "128k", "320k", "flac", "flac24bit"]
 
+
+def _allowed_qualities(source: str) -> list[str]:
+    """通用档位 + 平台自定义档位（如 5sing 的 sq/hq/lq）。"""
+    return list(dict.fromkeys([*QUALITIES, *support_quality.get(source, [])]))
+
+
 # ---- 常用 OpenAPI 响应片段 ----
-ENVELOPE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "code": {"type": "integer", "description": "0 表示成功", "example": 0},
-        "data": {"description": "业务数据"},
-    },
-    "required": ["code", "data"],
-}
 
 
 def envelope_ref(name: str) -> dict[str, Any]:
@@ -75,7 +76,7 @@ def get_source(source: str, capability: str | None = None) -> Any:
 
 
 def platform_path(source: str, capability: str | None = None, description: str = "平台 id（见 /sources）") -> Any:
-    return Path(..., description=f"{description}{f'，需支持 {capability} 能力' if capability else ''}", example="kw")
+    return Path(..., description=f"{description}{f'，需支持 {capability} 能力' if capability else ''}", examples=["kw"])
 
 
 # ---------- 搜索 ----------
@@ -125,8 +126,8 @@ async def search_platform(platform: str, word: str, page: int, limit: int) -> li
 )
 async def search_first(
     source: str = platform_path("kw", "search"),
-    keyword: str = Path(..., description="搜索关键词（URL 编码的中文可直接使用）", example="稻香"),
-    singer: str | None = Query(None, description="歌手名（与关键词拼接搜索）", example="周杰伦"),
+    keyword: str = Path(..., description="搜索关键词（URL 编码的中文可直接使用）", examples=["稻香"]),
+    singer: str | None = Query(None, description="歌手名（与关键词拼接搜索）", examples=["周杰伦"]),
     limit: int = Query(20, ge=1, le=100, description="每页条数"),
 ) -> Any:
     return ok(await _search_handler(source, keyword, 1, singer, limit))
@@ -141,7 +142,7 @@ async def search_first(
 )
 async def search_page(
     source: str = platform_path("kw", "search"),
-    keyword: str = Path(..., description="搜索关键词", example="稻香"),
+    keyword: str = Path(..., description="搜索关键词", examples=["稻香"]),
     page: int = Path(..., ge=1, description="页码"),
     singer: str | None = Query(None, description="歌手名"),
     limit: int = Query(20, ge=1, le=100, description="每页条数"),
@@ -155,15 +156,15 @@ async def search_page(
     description="按歌手、歌名、专辑、时长综合排序的精确匹配。source 为平台 id（只在单平台内匹配）或 all"
     "（跨平台聚合，可用 excludeSource 跳过某平台；聚合自动排除 xm/me/qt/lr 有声平台）。",
     tags=["搜索"],
-    responses=responses_for("FindResult", not_found=False),
+    responses=responses_for("FindResult"),
 )
 async def find(
-    source: str = Path(..., description="平台 id 或 all", example="all"),
-    keyword: str = Path(..., description="歌名", example="稻香"),
-    singer: str | None = Query(None, description="歌手名", example="周杰伦"),
-    albumName: str | None = Query(None, description="专辑名", example="魔杰座"),
-    interval: str | None = Query(None, description="时长（mm:ss），用于时长校验", example="03:43"),
-    excludeSource: str | None = Query(None, description="source=all 时跳过该平台", example="kw"),
+    source: str = Path(..., description="平台 id 或 all", examples=["all"]),
+    keyword: str = Path(..., description="歌名", examples=["稻香"]),
+    singer: str | None = Query(None, description="歌手名", examples=["周杰伦"]),
+    albumName: str | None = Query(None, description="专辑名", examples=["魔杰座"]),
+    interval: str | None = Query(None, description="时长（mm:ss），用于时长校验", examples=["03:43"]),
+    excludeSource: str | None = Query(None, description="source=all 时跳过该平台", examples=["kw"]),
 ) -> Any:
     kwargs: dict[str, Any] = {
         "name": keyword,
@@ -172,8 +173,10 @@ async def find(
         "interval": interval,
     }
     if source != "all":
+        get_source(source, "music_search")
         kwargs["only"] = source
     elif excludeSource:
+        get_source(excludeSource, "music_search")
         kwargs["source"] = excludeSource
     try:
         return ok({"list": await find_music(**kwargs)})
@@ -198,17 +201,16 @@ async def find(
 async def music_url(
     request: Request,
     source: str = platform_path("kw", "url"),
-    id: str = Path(..., description="平台歌曲 id", example="28423286"),
+    id: str = Path(..., description="平台歌曲 id", examples=["28423286"]),
     quality: str = Query("128k", description="音质"),
     albumId: str | None = Query(None, description="专辑 id"),
     name: str | None = Query(None, description="歌名（酷我兜底匹配用）"),
     singer: str | None = Query(None, description="歌手名（酷我兜底匹配用）"),
-    interval: str | None = Query(None, description="时长 mm:ss（酷我兜底匹配用）", example="04:17"),
+    interval: str | None = Query(None, description="时长 mm:ss（酷我兜底匹配用）", examples=["04:17"]),
 ) -> Any:
-    if quality not in QUALITIES:
-        from app.http.api_error import ApiError
-
-        raise ApiError(422, f"quality: 不支持的音质 {quality}（可选：{', '.join(QUALITIES)}）")
+    allowed = _allowed_qualities(source)
+    if quality not in allowed:
+        raise ApiError(422, f"quality: 不支持的音质 {quality}（{source} 可选：{', '.join(allowed)}）")
 
     module = get_source(source, "get_music_url")
     song_info = {"songmid": id, "hash": id, "copyrightId": id, "albumId": albumId or "", "_types": {}}
@@ -226,7 +228,8 @@ async def music_url(
             if auth_key:
                 path = raw_url.split("?")[0]
                 suffix = f"{'&' if '?' in raw_url else '?'}{sign_stream(auth_key, path)}"
-            raw_url = f"{request.url.scheme}://{request.headers.get('host', '')}{raw_url}{suffix}"
+            base = str(request.base_url).rstrip("/")
+            raw_url = f"{base}{raw_url}{suffix}"
         payload: dict[str, Any] = {"type": result.get("type") or quality, "url": raw_url}
         if via != source:
             payload["via"] = via
@@ -297,29 +300,36 @@ def _stream_response(url: str, decoder: Z3DStreamDecoder) -> StreamingResponse:
     """异步队列桥接：下载协程生产解密块，StreamingResponse 消费块。
 
     解密按块增量进行（跨块保持全局偏移），整段音频可达上百 MB，不能读进内存。
+    队列有界并由生产者 ``await queue.put`` 形成背压；客户端断开时整个任务被取消。
+    上游/解密失败会作为异常项传给消费者并中断响应，避免把截断音频伪装成正常结束。
     """
-    import asyncio
-
-    queue: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=32)
+    queue: asyncio.Queue[bytes | Exception | None] = asyncio.Queue(maxsize=32)
 
     async def produce() -> None:
         try:
-            await stream_decrypted(url, decoder.feed, queue.put_nowait)
-        except Exception as err:  # noqa: BLE001 - 响应头已发出，只能中断连接`r`n            # 日志留痕，只能中断连接；把错误留在服务端日志
+            await stream_decrypted(url, decoder.feed, queue.put)
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:  # noqa: BLE001 - 响应头已发出，只能把错误交给消费者中断连接
             print(f"[stream] 上游读取中断: {err!r}")
-        finally:
-            queue.put_nowait(None)
+            await queue.put(err)
+            return
+        await queue.put(None)
 
     async def body():
         task = asyncio.create_task(produce())
         try:
             while True:
-                chunk = await queue.get()
-                if chunk is None:
+                item = await queue.get()
+                if item is None:
                     break
-                yield chunk
+                if isinstance(item, Exception):
+                    raise item
+                yield item
         finally:
             task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
     return StreamingResponse(
         body(),
@@ -405,7 +415,7 @@ async def _board_handler(source: str, board_id: str, page: int) -> Any:
 async def board_first(
     source: str = platform_path("kw", "boards"),
     boardId: str = Path(
-        ..., description="榜单 id，兼容榜单列表返回的带前缀 id（kw__93）与裸 bangid（93）", example="kw__93"
+        ..., description="榜单 id，兼容榜单列表返回的带前缀 id（kw__93）与裸 bangid（93）", examples=["kw__93"]
     ),
 ) -> Any:
     return await _board_handler(source, boardId, 1)
@@ -602,10 +612,36 @@ async def _album_detail(source: str, album_id: str, page: int, limit: int) -> An
 )
 async def album_first(
     source: str = platform_path("kg", "album"),
-    id: str = Path(..., description="平台专辑 id（搜索结果中的 albumId）", example="123456"),
+    id: str = Path(..., description="平台专辑 id（搜索结果中的 albumId）", examples=["123456"]),
     limit: int = Query(20, ge=1, le=100, description="每页条数"),
 ) -> Any:
     return await _album_detail(source, id, 1, limit)
+
+
+# 注意：静态段路由必须先于 `/{id}/{page}` 注册。Starlette 按注册顺序匹配，
+# 否则 /album/{source}/search/{keyword} 会被 /album/{source}/{id}/{page} 捕获，
+# keyword 落到 page 参数上直接 422。
+@router.get(
+    "/album/{source}/search/{keyword}",
+    summary="搜索专辑",
+    description="支持 kg/kw/tx/wy/mg/bd/joox/apple（见 /sources 的 albumSearch 能力位）。",
+    tags=["歌手专辑"],
+    responses=responses_for("AlbumDetailResult", not_found=False),
+)
+async def album_search(
+    source: str = platform_path("kg", "album.search_album"),
+    keyword: str = Path(..., description="专辑名关键词", examples=["魔杰座"]),
+    page: int = Query(1, ge=1, description="页码"),
+    limit: int = Query(20, ge=1, le=100, description="每页条数"),
+) -> Any:
+    module = get_source(source, "album.search_album")
+    try:
+        res = await module.album.search_album(keyword, page, limit)
+    except Exception as err:
+        raise upstream(str(err)) from err
+    if isinstance(res, list):
+        return ok({"source": source, "list": res, "page": page, "limit": limit, "total": len(res)})
+    return ok({"source": source, **res})
 
 
 @router.get(
@@ -623,29 +659,6 @@ async def album_page(
     return await _album_detail(source, id, page, limit)
 
 
-@router.get(
-    "/album/{source}/search/{keyword}",
-    summary="搜索专辑",
-    description="支持 kg/kw/tx/wy/mg/bd/joox/apple（见 /sources 的 albumSearch 能力位）。",
-    tags=["歌手专辑"],
-    responses=responses_for("AlbumDetailResult", not_found=False),
-)
-async def album_search(
-    source: str = platform_path("kg", "album.search_album"),
-    keyword: str = Path(..., description="专辑名关键词", example="魔杰座"),
-    page: int = Query(1, ge=1, description="页码"),
-    limit: int = Query(20, ge=1, le=100, description="每页条数"),
-) -> Any:
-    module = get_source(source, "album.search_album")
-    try:
-        res = await module.album.search_album(keyword, page, limit)
-    except Exception as err:
-        raise upstream(str(err)) from err
-    if isinstance(res, list):
-        return ok({"source": source, "list": res, "page": page, "limit": limit, "total": len(res)})
-    return ok({"source": source, **res})
-
-
 # ---------- 歌单 ----------
 
 
@@ -659,7 +672,7 @@ async def album_search(
 )
 async def playlist_search(
     source: str = platform_path("kw", "playlist.search_playlist"),
-    keyword: str = Path(..., description="歌单关键词", example="华语"),
+    keyword: str = Path(..., description="歌单关键词", examples=["华语"]),
     page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="每页条数"),
 ) -> Any:
@@ -713,7 +726,7 @@ async def _category_playlists(source: str, category_id: str, page: int, limit: i
 )
 async def playlist_category_items(
     source: str = platform_path("kw", "playlist.get_categories"),
-    categoryId: str = Path(..., description="分类 id（分类列表返回）", example="华语"),
+    categoryId: str = Path(..., description="分类 id（分类列表返回）", examples=["华语"]),
     page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="每页条数"),
 ) -> Any:
@@ -755,7 +768,7 @@ async def _playlist_detail(source: str, playlist_id: str, page: int, limit: int)
 )
 async def playlist_first(
     source: str = platform_path("kw", "playlist"),
-    id: str = Path(..., description="歌单 id（或平台歌单链接）", example="123456789"),
+    id: str = Path(..., description="歌单 id（或平台歌单链接）", examples=["123456789"]),
     limit: int = Query(20, ge=1, le=100, description="每页条数"),
 ) -> Any:
     return await _playlist_detail(source, id, 1, limit)
@@ -818,19 +831,23 @@ async def _parse_handler(kind: str, source: str, link: str) -> Any:
 _PARSE_KINDS = {"song": "歌曲", "album": "专辑", "playlist": "歌单"}
 
 
+def _make_parse_handler(kind: str) -> Callable[..., Any]:
+    """闭包固定解析类型 —— 不能让 kind 出现在 handler 签名里，否则 FastAPI 会把它当 query 参数。"""
+
+    async def handler(
+        source: str = platform_path("kw", f"parse.parse_{kind}"),
+        link: str = Body(..., embed=True, description="平台链接或裸 id"),
+    ) -> Any:
+        return await _parse_handler(kind, source, str(link).strip())
+
+    return handler
+
+
 def _register_parse_routes() -> None:
     for kind, label in _PARSE_KINDS.items():
-
-        async def handler(
-            source: str = platform_path("kw", "parse.parse_song"),
-            link: str = Body(..., embed=True, description="平台链接或裸 id"),
-            _kind: str = kind,
-        ) -> Any:
-            return await _parse_handler(_kind, source, str(link).strip())
-
         router.add_api_route(
             f"/parse/{kind}/{{source}}",
-            handler,
+            _make_parse_handler(kind),
             methods=["POST"],
             summary=f"解析{label}链接",
             description="把平台链接（或裸 id）解析成结构化歌曲/曲目数据。支持平台见 /sources 的 parse 能力位；"

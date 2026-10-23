@@ -65,7 +65,7 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/url/:source/:id` | 播放地址；`?quality=`（64k/128k/320k/flac/flac24bit，默认 128k）。取流链：外部音源（启用时）→ SDK 直连 → 酷我兜底（响应 `via` 标记实际命中通道） |
+| GET | `/url/:source/:id` | 播放地址；`?quality=`（通用 64k/128k/320k/flac/flac24bit，5sing 另有 sq/hq/lq，默认 128k）。取流链：SDK 直连 → 酷我兜底（响应 `via` 标记实际命中通道） |
 | GET | `/stream/:source/:id` | 加密流解密代理（`mg` 咪咕 Z3D 加密流）。供 `/url` 返回的相对地址使用，不接受自行构造 |
 | GET | `/lyric/:source/:id` | 歌词；可带 `?name=` `?interval=`（部分平台搜索歌词时需要） |
 | GET | `/pic/:source/:id` | 封面；可带 `?albumId=`（kg 需要） |
@@ -125,11 +125,13 @@
 | DELETE | `/login/lr` | 退出懒人听书 |
 | POST | `/login/bili/qr` → `/login/bili/qr/check` | 哔哩哔哩扫码（解锁大会员音质） |
 | DELETE | `/login/bili` | 退出哔哩哔哩 |
+| POST | `/login/{mg,bd,joox,apple,5sing}` | 绑定对应平台 cookie（body `{"cookie": "..."}`，服务端不做在线校验） |
+| DELETE | `/login/{mg,bd,joox,apple,5sing}` | 退出对应平台 |
 | POST | `/login/refresh` | 手动触发登录态续期（kg/tx） |
 | GET | `/login/status` | 登录状态总览（各平台 `logged` 与账号资料） |
 
-- 凭据持久化于 `data/auth.json`（不入库，文件权限 0600），登录后取流与平台请求自动携带。
-- 自动续期：启动 10s 后对 kg/tx 执行一次，此后每 24h 一次（音源模式下不参与取流，自动续期不启动）。
+- 凭据持久化于 `data/auth.json`（不入库，文件权限 0600），登录后取流与平台请求自动携带；文件被外部修改时会自动重载。
+- 自动续期：启动 10s 后对 kg/tx 执行一次，此后每 24h 一次。
 
 ## 响应示例
 

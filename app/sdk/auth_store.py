@@ -14,6 +14,7 @@ import os
 import threading
 import time
 from datetime import UTC
+from pathlib import Path
 from typing import Any
 
 from app.config import data_dir
@@ -21,41 +22,58 @@ from app.config import data_dir
 _lock = threading.Lock()
 _cache: dict[str, Any] = {}
 _loaded = False
+_cache_path: str | None = None
+_cache_mtime: int | None = None
 
 
-def _data_file():
+def _data_file() -> Path:
     return data_dir() / "auth.json"
 
 
-def _load() -> dict[str, Any]:
-    global _cache, _loaded
-    if _loaded:
-        return _cache
-    path = _data_file()
-    if not path.exists():
-        _cache = {}
-        _loaded = True
-        return _cache
+def _mtime(path: Path) -> int | None:
     try:
-        _cache = json.loads(path.read_text(encoding="utf-8"))
+        return path.stat().st_mtime_ns
+    except OSError:
+        return None
+
+
+def _backup_corrupt(path: Path, err: Exception) -> None:
+    """损坏文件先备份再重置，避免后续 set_credentials 用空表覆盖可抢救的数据。"""
+    backup = path.with_name(f"{path.name}.corrupt-{int(time.time() * 1000)}")
+    try:
+        path.rename(backup)
+        print(f"[auth/store] {path} 解析失败，已备份为 {backup}，本次以空凭据启动: {err}")
+    except OSError:
+        print(f"[auth/store] {path} 解析失败且备份未成功，本次以空凭据启动: {err}")
+
+
+def _load() -> dict[str, Any]:
+    """读取凭据缓存；文件被外部修改（mtime 变化）时自动重载。"""
+    global _cache, _loaded, _cache_path, _cache_mtime
+    path = _data_file()
+    mtime = _mtime(path)
+    if _loaded and _cache_path == str(path) and _cache_mtime == mtime:
+        return _cache
+
+    try:
+        if mtime is None:
+            _cache = {}
+        else:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("auth.json 顶层必须是 JSON 对象")
+            _cache = data
     except (ValueError, OSError) as err:
-        # 解析失败绝不能静默清空：先改名备份，让残留凭据仍可人工抢救；
-        # 否则下一次 set_credentials 就会用空表覆盖掉本可恢复的文件。
-        backup = path.with_name(f"{path.name}.corrupt-{int(time.time() * 1000)}")
-        try:
-            path.rename(backup)
-            print(f"[auth/store] {path} 解析失败，已备份为 {backup}，本次以空凭据启动: {err}")
-        except OSError:
-            print(f"[auth/store] {path} 解析失败且备份未成功，本次以空凭据启动: {err}")
+        _backup_corrupt(path, err)
         _cache = {}
     _loaded = True
+    _cache_path = str(path)
+    _cache_mtime = _mtime(path)
     return _cache
 
 
 def _save(data: dict[str, Any]) -> None:
-    global _cache, _loaded
-    _cache = data
-    _loaded = True
+    global _cache, _loaded, _cache_path, _cache_mtime
     path = _data_file()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
@@ -70,6 +88,10 @@ def _save(data: dict[str, Any]) -> None:
         except OSError:
             pass
         raise
+    _cache = data
+    _loaded = True
+    _cache_path = str(path)
+    _cache_mtime = _mtime(path)
 
 
 def get_credentials(platform: str) -> dict[str, Any] | None:
@@ -79,7 +101,7 @@ def get_credentials(platform: str) -> dict[str, Any] | None:
 
 def set_credentials(platform: str, credentials: dict[str, Any]) -> None:
     with _lock:
-        data = _load()
+        data = dict(_load())
         merged = {**data.get(platform, {}), **credentials, "updatedAt": _iso_now()}
         data[platform] = merged
         _save(data)
@@ -87,7 +109,7 @@ def set_credentials(platform: str, credentials: dict[str, Any]) -> None:
 
 def clear_credentials(platform: str) -> None:
     with _lock:
-        data = _load()
+        data = dict(_load())
         data.pop(platform, None)
         _save(data)
 

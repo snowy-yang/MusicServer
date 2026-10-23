@@ -23,21 +23,11 @@ from app.sdk.platforms.apple.util import (
     extract_apple_id,
     fetch_apple_song_resource,
     get_apple_config,
-    get_apple_token,
 )
 
 
 def _song_id_of(song_info: dict[str, Any]) -> str:
     return extract_apple_id(str(song_info.get("songmid") or song_info.get("id") or ""), "song")
-
-
-async def _init() -> bool:
-    """预热 developer token（失败不阻塞启动，路由调用时会重试）。"""
-    try:
-        await get_apple_token()
-        return True
-    except Exception:  # noqa: BLE001 - token 预热失败不影响后续请求的重试
-        return False
 
 
 async def _get_music_url(song_info: dict[str, Any], quality: str, retry_num: int = 0) -> dict[str, Any]:
@@ -120,7 +110,6 @@ def status() -> dict[str, Any]:
 MODULE = Platform(
     id="apple",
     name="Apple Music",
-    init=_init,
     music_search=music_search,
     album=_AppleAlbum,
     playlist=playlist,

@@ -62,9 +62,9 @@ def _extract_login_cookie(set_cookie: list[str]) -> tuple[str, str]:
     return joined, match.group(1) if match else ""
 
 
-async def _fetch_profile() -> dict[str, Any]:
-    """登录成功后拉取账号资料。"""
-    body, _ = await _request_weapi("/api/w/nuser/account/get", {})
+async def _fetch_profile(cookie: str | None = None) -> dict[str, Any]:
+    """登录成功后拉取账号资料（cookie 显式传入新登录会话，避免首次登录读到旧 cookie）。"""
+    body, _ = await _request_weapi("/api/w/nuser/account/get", {}, cookie)
     body = as_dict(body)
     account = as_dict(body.get("account"))
     profile = as_dict(body.get("profile"))
@@ -81,7 +81,10 @@ async def _apply_login(set_cookie: list[str]) -> dict[str, Any]:
     cookie, music_u = _extract_login_cookie(set_cookie)
     if not music_u:
         raise RuntimeError("登录响应中缺少 MUSIC_U")
-    profile = await _fetch_profile()
+    try:
+        profile = await _fetch_profile(cookie)
+    except Exception:  # noqa: BLE001 - 资料拉取失败不影响已成功的登录，返回空资料
+        profile = {"userid": None, "nickname": None, "avatar": None, "vipType": None}
     set_credentials("wy", {"cookie": cookie, "musicU": music_u, **profile})
     return profile
 

@@ -1,6 +1,6 @@
 @echo off
 if "%1"=="dev" (
-  pnpm run dev
+  uv run python scripts/serve.py --reload
 ) else (
-  pnpm run start
+  uv run python scripts/serve.py %*
 )

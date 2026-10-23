@@ -28,7 +28,7 @@ def verify_stream_sign(auth_key: str, path: str, exp: object, sig: object) -> bo
     """校验流地址签名（常量时间比较 + 时效窗口）。"""
     try:
         exp_num = int(float(str(exp)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return False
     sig_str = str(sig or "")
     if not sig_str:

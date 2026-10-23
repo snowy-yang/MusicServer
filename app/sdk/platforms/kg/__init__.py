@@ -25,12 +25,6 @@ from app.sdk.platforms.kg import (
     singer,
     song_list,
 )
-from app.sdk.platforms.kg.util import get_device
-
-
-async def _init() -> None:
-    """预先固化设备指纹（取流签名依赖 dfid/mid，首次调用时生成并持久化）。"""
-    get_device()
 
 
 def get_music_detail_page_url(song_info: dict[str, Any]) -> str:
@@ -61,5 +55,4 @@ MODULE = Platform(
     get_pic=pic.get_pic,
     get_music_info=get_music_info,
     get_music_detail_page_url=get_music_detail_page_url,
-    init=_init,
 )

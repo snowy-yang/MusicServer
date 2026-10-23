@@ -25,7 +25,6 @@ __all__ = [
     "find_music",
     "format_play_count",
     "format_play_time",
-    "init",
     "search_music",
     "size_formate",
     "sources",
@@ -111,18 +110,6 @@ def _quality_table() -> dict[str, list[str]]:
 
 
 support_quality: dict[str, list[str]] = _quality_table()
-
-
-async def init() -> None:
-    """调用各平台的 init 钩子（无 init 的跳过；单个失败不阻塞启动，与原 init 一致）。"""
-    for item in SUPPORTED_SOURCES:
-        hook = getattr(item["module"], "init", None)
-        if hook is None:
-            continue
-        try:
-            await hook()
-        except Exception as err:  # noqa: BLE001
-            print(f"[sdk] {item['id']} init 失败（已跳过）: {err}")
 
 
 def _trim_str(value: Any) -> Any:

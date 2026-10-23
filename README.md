@@ -125,7 +125,9 @@ granian 也支持显式指定与默认不同的循环（如 Unix 上 `--loop uvl
 | `POST /login/me` | 绑定猫耳FM token（App 抓包或 m.missevan.com 复制，须含 `token=`，解锁付费声音取流） |
 | `POST /login/lr` | 懒人听书账号登录（account+password，懒人取流要求登录态，免费章节同样） |
 | `POST /login/bili/qr` → `POST /login/bili/qr/check` | 哔哩哔哩扫码登录（B站 App 扫一扫，登录后解锁大会员音质） |
+| `POST /login/{mg,bd,joox,apple,5sing}` | 绑定对应平台 cookie（body `{"cookie": "..."}`；apple 需含 `media-user-token`、joox 通常需 `wmid`/`session_key`；服务端不做在线校验） |
 | `DELETE /login/{wy,kg,tx,xm,me,lr,bili}` | 清除对应平台凭据（退出登录） |
+| `DELETE /login/{mg,bd,joox,apple,5sing}` | 清除对应平台 cookie 凭据 |
 | `GET /login/status` | 登录状态（登录后取流/请求自动携带凭据） |
 | `GET /sources` | 平台列表（音质与能力） |
 | `GET /health` | 健康检查 |
@@ -186,7 +188,7 @@ app/                    Python 应用（FastAPI，Python 3.12）
   config.py             环境变量、.env 加载、端口/鉴权/限流/数据目录
   routes/
     music.py            业务路由（搜索/取流/歌词/封面/榜单/歌单/专辑/歌手/解析/流代理）
-    login.py            登录路由（wy/kg/tx/bili 扫码与短信账密、xm/me cookie、lr 账密）
+    login.py            登录路由（wy/kg/tx/bili 扫码与短信账密、xm/me cookie、lr 账密、mg/bd/joox/apple/5sing cookie）
     refresh.py          登录态自动续期（启动后延时首轮 + 每 24h，kg/tx）
     system.py           /health、/sources
   http/
@@ -214,7 +216,9 @@ docs/
   PORTING.md            TS → Python 平台移植契约（目录/子模块协议/签名差异/验收要求）
 pyproject.toml          uv 项目定义（默认 granian/uvicorn 依赖、ruff、pyright、pytest 配置）
 tests/
-  test_serve.py         启动器服务器/循环选择逻辑测试（TS 版 smoke 测试尚未移植）
+  conftest.py           测试隔离（临时 DATA_DIR，不触碰真实凭据）
+  test_serve.py         启动器服务器/循环选择逻辑测试
+  test_http.py          HTTP 回归（CORS/限流/路由/流式管道/登录存储；TS smoke 尚未全量移植）
 ```
 
 > 分层依赖单向：`routes` → `sdk`，`sdk` 内部自包含。全源码 `.py` 由 uv 管理的 CPython 3.12 直接运行，

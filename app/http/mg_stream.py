@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from urllib.parse import urljoin
 
@@ -167,7 +167,7 @@ def migu_stream_content_type(url: str) -> str:
 async def stream_decrypted(
     url: str,
     feed: Callable[[bytes], bytes],
-    on_chunk: Callable[[bytes], None],
+    on_chunk: Callable[[bytes], Awaitable[None]],
     *,
     max_redirects: int = 3,
 ) -> None:
@@ -175,12 +175,14 @@ async def stream_decrypted(
 
     整段音频可达上百 MB，因此按块处理而不读入内存；上游 URL 常带 302，
     这里手动跟随（默认不跟随重定向，与请求层语义一致）。
+    on_chunk 为 async，调用方可用有界队列形成背压，避免慢客户端时丢块/死锁。
     """
     timeout = aiohttp.ClientTimeout(total=300, sock_read=60)
     headers = {"User-Agent": MIGU_STREAM_UA, "Referer": "https://music.migu.cn/"}
     current = url
     for _ in range(max_redirects + 1):
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        # trust_env=False：与 common/request 保持一致，不读系统代理（Windows 上 aiohttp 会走 IE 设置）
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=False) as session:
             async with session.get(current, headers=headers, allow_redirects=False) as resp:
                 if 300 <= resp.status < 400 and (location := resp.headers.get("location")):
                     current = urljoin(current, location)
@@ -190,6 +192,6 @@ async def stream_decrypted(
                 async for chunk in resp.content.iter_any():
                     plain = feed(chunk)
                     if plain:
-                        on_chunk(plain)
+                        await on_chunk(plain)
                 return
     raise RuntimeError("重定向次数过多")

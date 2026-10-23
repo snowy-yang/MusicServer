@@ -31,13 +31,13 @@ from app.sdk.platforms.kw import album, hot_search, leaderboard, lyric, music_se
 MODULE = Platform(
     id="kw",
     name="酷我音乐",
-    music_search=music_search,      # 子模块对象（有 .search 方法）
-    leaderboard=leaderboard,        # .get_boards() / .get_list(bangid, page)
-    song_list=song_list,            # .get_list(sort_id, tag_id, page) / .sort_list
-    hot_search=hot_search,          # .get_list()
+    music_search=music_search,  # 子模块对象（有 .search 方法）
+    leaderboard=leaderboard,  # .get_boards() / .get_list(bangid, page)
+    song_list=song_list,  # .get_list(sort_id, tag_id, page) / .sort_list
+    hot_search=hot_search,  # .get_list()
     album=album,
     playlist=playlist,
-    get_lyric=lyric.get_lyric,      # 顶层方法直接挂函数
+    get_lyric=lyric.get_lyric,  # 顶层方法直接挂函数
     get_pic=pic.get_pic,
 )
 ```
@@ -118,14 +118,14 @@ async def handle_music_info(song_info: dict) -> dict     # 可选：补全 name/
 ```python
 from app.sdk.common.request import http_fetch
 
-resp = await http_fetch(url, headers={...})                  # 默认 GET
-resp = await http_fetch(url, method="POST", form={...})      # urlencoded
-resp = await http_fetch(url, method="POST", body={...})      # JSON
-resp = await http_fetch(url, timeout=10_000)                 # 毫秒，与原文一致
+resp = await http_fetch(url, headers={...})  # 默认 GET
+resp = await http_fetch(url, method="POST", form={...})  # urlencoded
+resp = await http_fetch(url, method="POST", body={...})  # JSON
+resp = await http_fetch(url, timeout=10_000)  # 毫秒，与原文一致
 
-resp.status_code   # int（Node 的 statusCode）
-resp.body          # 已解析：JSON → dict/list，否则 str
-resp.raw           # 原始 bytes
+resp.status_code  # int（Node 的 statusCode）
+resp.body  # 已解析：JSON → dict/list，否则 str
+resp.raw  # 原始 bytes
 resp.header("set-cookie")
 ```
 
@@ -175,9 +175,9 @@ from app.sdk.common.utils import size_formate
 ```python
 from app.sdk.auth_store import get_credentials, set_credentials, get_kg_auth, get_tx_auth, get_cookie
 
-get_cookie("xm")        # 空字符串表示未登录
-get_kg_auth()           # {"token", "userid"} 或 None
-get_tx_auth()           # {"cookie", "uin"} 或 None
+get_cookie("xm")  # 空字符串表示未登录
+get_kg_auth()  # {"token", "userid"} 或 None
+get_tx_auth()  # {"cookie", "uin"} 或 None
 ```
 
 ## 8. 错误
