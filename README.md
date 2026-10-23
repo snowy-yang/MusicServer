@@ -58,17 +58,17 @@ Node/TypeScript 版（v1.x，`master` 分支）：`pnpm install && pnpm start`�
 | 平台 | 默认服务器 | 默认事件循环 |
 | --- | --- | --- |
 | Windows | granian | winloop（未安装则 asyncio） |
-| Linux / macOS | granian | rloop（未安装则 uvloop → asyncio） |
+| Linux / macOS | granian；rloop 不可用时退回 uvicorn | rloop；退回 uvicorn 时 uvloop（再退 asyncio） |
 | Windows + `--server uvicorn` | uvicorn | asyncio（uvicorn 不支持 winloop） |
 | Linux / macOS + `--server uvicorn` | uvicorn | uvloop（未安装则 asyncio） |
 
 事件循环可用 `auto / asyncio / rloop / uvloop / winloop`，参数与环境变量等价
-（`SERVER` / `LOOP` / `HOST` / `PORT` / `WORKERS` / `RELOAD`）。`auto` 会在启动器内解析成上表中的具体循环，
-启动日志会打印实际使用的组合；显式请求当前平台不可用的循环会直接报错并列出可用项（不会静默降级）。
+（`SERVER` / `LOOP` / `HOST` / `PORT` / `WORKERS` / `RELOAD`）。`auto` 会在启动器内解析成上表中的具体组合，
+启动日志会打印实际使用的 server+loop；显式请求当前平台不可用的循环会直接报错并列出可用项（不会静默降级）。
 
 ```bash
 uv sync                                                 # 默认依赖已含 granian[rloop/uvloop/winloop/reload]
-uv run python scripts/serve.py                          # Windows → granian+winloop；Unix → granian+rloop
+uv run python scripts/serve.py                          # Windows → granian+winloop；Unix → granian+rloop（缺 rloop 退 uvicorn+uvloop）
 uv run python scripts/serve.py --server uvicorn         # Unix → uvicorn+uvloop；Windows → uvicorn+asyncio
 uv run python scripts/serve.py --loop rloop             # 仅 Unix（Rust 事件循环）
 uv run python scripts/serve.py --loop uvloop            # 仅 Unix

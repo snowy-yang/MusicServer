@@ -12,11 +12,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts import serve
 
 
-def test_pick_server_auto_prefers_granian(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(serve, "has_module", lambda name: name == "granian")
+def test_pick_server_auto_windows_prefers_granian(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", True)
+    monkeypatch.setattr(serve, "has_module", lambda name: name in ("granian", "winloop"))
     assert serve.pick_server("auto") == "granian"
 
     monkeypatch.setattr(serve, "has_module", lambda name: False)
+    assert serve.pick_server("auto") == "uvicorn"
+
+
+def test_pick_server_auto_unix_prefers_granian_rloop(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serve, "IS_WINDOWS", False)
+    monkeypatch.setattr(serve, "has_module", lambda name: name in ("granian", "rloop", "uvloop", "uvicorn"))
+    assert serve.pick_server("auto") == "granian"
+
+
+def test_pick_server_auto_unix_falls_back_to_uvicorn_uvloop(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 例如 granian 已安装但 rloop 不可用：默认改为 uvicorn+uvloop
+    monkeypatch.setattr(serve, "IS_WINDOWS", False)
+    monkeypatch.setattr(serve, "has_module", lambda name: name in ("granian", "uvloop", "uvicorn"))
     assert serve.pick_server("auto") == "uvicorn"
 
 

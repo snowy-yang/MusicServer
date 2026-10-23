@@ -14,9 +14,10 @@
     uvloop    uvloop 包，仅 Unix
     winloop   winloop 包，仅 Windows（uvloop 的 Windows 实现）
 
-`auto` 在启动器内解析为具体循环，不交给服务器：
-    granian: Windows → winloop → asyncio；Unix → rloop → uvloop → asyncio
-    uvicorn: Windows → asyncio；Unix → uvloop → asyncio
+`auto` 在启动器内解析成具体组合，不交给服务器：
+    服务器：Windows → granian；Unix → granian+rloop，rloop 不可用时退回 uvicorn+uvloop
+    循环：  granian → Windows winloop / Unix rloop→uvloop→asyncio；
+            uvicorn → Unix uvloop→asyncio / Windows asyncio
 
 环境变量（参数优先）：SERVER / LOOP / HOST / PORT / WORKERS / RELOAD。
 PORT 默认读取 .env 后的 16688；HOST 默认 0.0.0.0（局域网播放器可直连）。
@@ -55,11 +56,21 @@ def has_module(name: str) -> bool:
 
 
 def pick_server(requested: str) -> str:
-    """auto：默认 granian（uv sync 已包含）；未安装时回退 uvicorn。"""
+    """auto：平台默认组合。
+
+    Windows：granian（+winloop）；Unix：granian+rloop，rloop 不可用时退回 uvicorn+uvloop，
+    最后才回退到已安装的服务器（循环由 default_loop 再降级）。
+    """
     if requested not in SERVERS:
         raise SystemExit(f"不支持的 server: {requested}（可选：{', '.join(SERVERS)}）")
     if requested != "auto":
         return requested
+    if IS_WINDOWS:
+        return "granian" if has_module("granian") else "uvicorn"
+    if has_module("granian") and has_module("rloop"):
+        return "granian"
+    if has_module("uvicorn") and has_module("uvloop"):
+        return "uvicorn"
     return "granian" if has_module("granian") else "uvicorn"
 
 
@@ -165,8 +176,9 @@ def main(argv: list[str] | None = None) -> int:
     server = pick_server(requested_server)
     if not has_module(server):
         raise SystemExit(f"未安装 {server}：uv sync（或 uv add {server}）")
-    if requested_server == "auto" and server == "uvicorn" and not has_module("granian"):
-        print("[serve] 未安装 granian，回退 uvicorn；uv sync 可安装默认的 granian 依赖", flush=True)
+    if requested_server == "auto" and server == "uvicorn":
+        reason = "未安装 granian" if not has_module("granian") else "rloop 不可用"
+        print(f"[serve] 默认组合回退 uvicorn（{reason}）；uv sync 会安装 granian+rloop 默认栈", flush=True)
 
     loop = resolve_loop(server, str(_arg_or_env(args.loop, "LOOP", "auto")))
     host = str(_arg_or_env(args.host, "HOST", "0.0.0.0"))
