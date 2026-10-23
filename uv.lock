@@ -270,6 +270,41 @@ wheels = [
 ]
 
 [[package]]
+name = "granian"
+version = "2.8.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e2/63/c2548102956296ee0f8671291dd5a6f3f3dc2fc7c4e62e0b86e3be6de571/granian-2.8.5.tar.gz", hash = "sha256:032588689e2d524d633fcb088ee54fad4c5655d0af1a75058d5b4240be4f6864", size = 130933, upload-time = "2026-10-20T11:43:38.079Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/91/103c04ea8ef7d9d40cdecb96a07cae09bfe9e3857d39b8174fc5c1a771fd/granian-2.8.5-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:3404a620364f3816f126863910e6dc86da833298608896e556c01c9bf52a63c2", size = 4600588, upload-time = "2026-10-20T11:42:01.027Z" },
+    { url = "https://files.pythonhosted.org/packages/df/f2/52735de5caa6db560bfe91b60c97f5a1bf57a035ccd08004f21f18762830/granian-2.8.5-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:dcb0ecee7650794738fa347ce1aac5a7f790bf36dc0dace4194578335ad3fa60", size = 4310695, upload-time = "2026-10-20T11:42:02.305Z" },
+    { url = "https://files.pythonhosted.org/packages/60/e3/274741428e960bf59b12c51cdca2340698e708f3bab4ec6fa16b0765d12a/granian-2.8.5-cp312-cp312-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:29a5e1459736acd617631524db3c430df7b7fe2fd55b6f21536eb9d30a603d41", size = 5156401, upload-time = "2026-10-20T11:42:03.738Z" },
+    { url = "https://files.pythonhosted.org/packages/77/53/c9c16f814597303e4373eb3cdfc8b0ca75582f6939a1a84b9109c98cbfeb/granian-2.8.5-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:217c38e88aa324ef73c9c5d823434b5c5ee7a7181b36c23b408d439905ece7a9", size = 4658203, upload-time = "2026-10-20T11:42:05.252Z" },
+    { url = "https://files.pythonhosted.org/packages/26/7e/9a4aebcc1fe18d849b79cbf2aded21e8d6023436b98a53b1514955c5470a/granian-2.8.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:66f0de2cb17109da7ca070a2898e4543083914c2c440ba4a134a53cf4ec526be", size = 5067921, upload-time = "2026-10-20T11:42:06.555Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/4b/d7bb8f98d739e62379d88131654ee68de441ccc5d6118f578784689257fe/granian-2.8.5-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:95bae2039b53bc532386a0b1327b52e73c16b3e11997a727024f9bd385242a2b", size = 5117522, upload-time = "2026-10-20T11:42:07.749Z" },
+    { url = "https://files.pythonhosted.org/packages/59/3e/2c494c6afa6c4ae564c05d0611ce7ee108824812a74bb20e024e752a8f2c/granian-2.8.5-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:1c72079469aba9856d4d030b21ff75a5c2d9a201cab930926237ab1646e5596f", size = 5141659, upload-time = "2026-10-20T11:42:08.96Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/16/047f981331408110441c5adbdf9a21acd34846e13ee6546e77c7359b760a/granian-2.8.5-cp312-cp312-musllinux_1_1_armv7l.whl", hash = "sha256:8d263fe13e16a612a0149e6948f556e5ed8fb4fdec9890812743d116025fb442", size = 5210772, upload-time = "2026-10-20T11:42:10.818Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/21/40f73b96a0fe0bcdea7a65ede042a029a10c1490a513fbf8909087eab02c/granian-2.8.5-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:19902f90f272c089ecea998214c62f7eae846d454a9a82458fcb77b41adddd29", size = 5157211, upload-time = "2026-10-20T11:42:12.484Z" },
+    { url = "https://files.pythonhosted.org/packages/14/a5/ac92e100d1f5141115ee796321d8f9d25d8f2c07198e5763b1ce53c457bc/granian-2.8.5-cp312-cp312-win_amd64.whl", hash = "sha256:efc2ae72102983a32cf6cc524a595fae3211937bdeb5bf93767b01dc6798f8ea", size = 3212050, upload-time = "2026-10-20T11:42:13.894Z" },
+]
+
+[package.optional-dependencies]
+reload = [
+    { name = "watchfiles" },
+]
+rloop = [
+    { name = "rloop", marker = "sys_platform != 'win32'" },
+]
+uvloop = [
+    { name = "uvloop", marker = "platform_python_implementation == 'CPython' and sys_platform != 'win32'" },
+]
+winloop = [
+    { name = "winloop", marker = "platform_python_implementation == 'CPython' and sys_platform == 'win32'" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -388,6 +423,11 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.optional-dependencies]
+granian = [
+    { name = "granian", extra = ["reload", "rloop", "uvloop", "winloop"] },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
@@ -403,10 +443,12 @@ requires-dist = [
     { name = "brotli", specifier = ">=1.1" },
     { name = "cryptography", specifier = ">=43" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "granian", extras = ["reload", "rloop", "uvloop", "winloop"], marker = "extra == 'granian'", specifier = ">=2.0" },
     { name = "pillow", specifier = ">=10" },
     { name = "qrcode", specifier = ">=8" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
+provides-extras = ["granian"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -649,6 +691,23 @@ wheels = [
 ]
 
 [[package]]
+name = "rloop"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/a2/331e56526095044a06e1e0ed5ec0a9ab7a1ce50ee5ed32a8adce1e1c9df6/rloop-0.5.0.tar.gz", hash = "sha256:6706b97558fc787c607ae7dac9ce3d5c823afbf21ef9686284247cbdc311f95e", size = 44758, upload-time = "2026-08-30T14:32:17.56Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/6b/3f307a59a31c3154554da5981a7379db41700b20df283e3cf2addf1c4ab4/rloop-0.5.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:6f389f7250e32078ddf8e9c3ab87b3be738cccb0e2e99b9edf9c5435d07ad70d", size = 344425, upload-time = "2026-08-30T14:31:01.41Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/30/573c5389f1665daba6aa78e5beb709c283a044b1f05c2c2b90211ad5ae2e/rloop-0.5.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b5ad51ce6089c7f6892e4cfd4f0db18aca65efec9a0be77f39265560ef12570e", size = 321921, upload-time = "2026-08-30T14:31:02.697Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/5e/957b80c9542e0908eca5a4e37741e356f0fab83c999aede160260adaeef2/rloop-0.5.0-cp312-cp312-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:7e4cd6d26705d9d9d0a4ca227e9c4e9f60145e2cae499481dcef2df6dda489c7", size = 401550, upload-time = "2026-08-30T14:31:03.903Z" },
+    { url = "https://files.pythonhosted.org/packages/de/9c/6e1a768ebe2f4c89e8a93203aa501e86672206cad32e57c4116b195b7896/rloop-0.5.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fd4b86dc8519af28e6cb7d07fc82c675edc1be21074fce071851cc0bf8deaa4d", size = 355556, upload-time = "2026-08-30T14:31:05.445Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/ba/9d047ad4bafa0a61a0fc6ac25f8c1d87f8bc8e27f270651d27457cea0a60/rloop-0.5.0-cp312-cp312-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:ccb7766d90fa66028d9fab15969c4c777953c95c7b307aad7b6315fa24aa523f", size = 376083, upload-time = "2026-08-30T14:31:07.309Z" },
+    { url = "https://files.pythonhosted.org/packages/12/94/55bbed8a92f48ef7ce023f7c822ee0b055e7804cc3403f012f396dd0d0d7/rloop-0.5.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:907f7759f03f57feca3f7048876799c65855e09c5a879214d14b2513185103a9", size = 369378, upload-time = "2026-08-30T14:31:08.798Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/b8/534aea30c3ce62c7fd82bf8c8daab4bb522100a250fd8e2785685d927c21/rloop-0.5.0-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:53a4c85f4d88f288830eafc69b05e4aeb6e412fbbe838a110943af66cfdff552", size = 534315, upload-time = "2026-08-30T14:31:10.329Z" },
+    { url = "https://files.pythonhosted.org/packages/01/81/212704e88bd5cf4355bdcc23d88b6f3093be814a719b346d56d2104a8eab/rloop-0.5.0-cp312-cp312-musllinux_1_1_armv7l.whl", hash = "sha256:45f718b1d777ba1ec19d3930f28ccc615be1b17152a474408ea5454793116281", size = 653639, upload-time = "2026-08-30T14:31:11.872Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/c9/659dcb15c728e9686b7aba3bee2f4ee4b4d4b68013848439d25ff6d6d993/rloop-0.5.0-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:2b8c5c5d077d2015ecd095eb2a578bf58237aea8fb7bc00d0e7abe6205cfd5b0", size = 583098, upload-time = "2026-08-30T14:31:13.191Z" },
+]
+
+[[package]]
 name = "ruff"
 version = "0.17.2"
 source = { registry = "https://pypi.org/simple" }
@@ -802,6 +861,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/b8/7eb904583ea2090b329f50487e6f8dc58eb558712b9f3c16f289f0be668e/websockets-17.3-pp312-pypy312_pp80-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:4e7b5d23ef144b32645d97bd99f382c4394c443395f45fe1576786838d26e308", size = 217828, upload-time = "2026-10-19T16:58:01.822Z" },
     { url = "https://files.pythonhosted.org/packages/79/36/f54b4a1cd9456ca0a65a76d77d181621433793aca633dfeed214748ff4f0/websockets-17.3-pp312-pypy312_pp80-win_amd64.whl", hash = "sha256:13eace1b315345ebac5b27821f5dcce24e5cf9976ab18f79e00a59bdd67e5d19", size = 306301, upload-time = "2026-10-19T16:58:03.161Z" },
     { url = "https://files.pythonhosted.org/packages/d7/b0/3f01fcb3406662f6deb1e3e72b34dd0979e993991c0b7435a9e12bc14f02/websockets-17.3-py3-none-any.whl", hash = "sha256:dc2b495a92b3971966bf102e73589f950db3ec1ca6713265355ce7771d97b199", size = 212375, upload-time = "2026-10-19T16:58:04.483Z" },
+]
+
+[[package]]
+name = "winloop"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/8c/c9af1d80e8680be97127b2429b03ecd2030e90ede8ab252a218db154bcd3/winloop-0.8.0.tar.gz", hash = "sha256:5a34605a72df5416279e89193688de0efb9e541c99e65923abcf0d7ff788510a", size = 2759840, upload-time = "2026-10-10T19:51:12.608Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/33/b28cd18a260800726e531575607ed3f2692993deb54e5fd05b129d0bd58c/winloop-0.8.0-cp312-cp312-win_amd64.whl", hash = "sha256:10e0b32d206274435dc6f1f4542f6f6c47287e45c661c510ab782cecb52d65a3", size = 699338, upload-time = "2026-10-10T19:50:57.486Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/10/54c71ab926840a2da5b6de6fd669e874b49eac97d496b0d27c9c57fd73ed/winloop-0.8.0-cp312-cp312-win_arm64.whl", hash = "sha256:2b200e3d4d833b82693c6038ddbaed72dd12e5517008c08042615545c47b4595", size = 604518, upload-time = "2026-10-10T19:50:58.804Z" },
 ]
 
 [[package]]

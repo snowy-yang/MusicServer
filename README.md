@@ -44,11 +44,38 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 16688
                                                  # 默认端口 16688；也可用 PORT 环境变量 + --port $PORT
 uv run ruff check app && uv run ruff format --check app   # 规范检查
 uv run pyright                                   # 类型检查（基础模式）
+uv run pytest                                    # 单元测试（tests/）
 ```
 
 环境变量（`PORT`、`AUTH_KEY`、`RATE_LIMIT`、`DATA_DIR` 等）可写入项目根目录的 `.env` 文件（已 gitignore），启动时自动加载；已存在的真实环境变量优先于 `.env` 文件值。登录凭据持久化在 `data/auth.json`（0600，原子写入）。
 
 Node/TypeScript 版（v1.x，`master` 分支）：`pnpm install && pnpm start`（需 Node 22.18+，直接运行 `.ts`）。
+
+### 服务器与事件循环（uvicorn / granian）
+
+`scripts/serve.py` 统一启动入口：默认 `--server auto`（装了 granian 就用 granian，否则 uvicorn），
+事件循环可用 `auto / asyncio / rloop / uvloop / winloop`，参数与环境变量等价
+（`SERVER` / `LOOP` / `HOST` / `PORT` / `WORKERS` / `RELOAD`）。
+
+```bash
+uv sync --extra granian                                  # Granian + rloop/uvloop/winloop + watchfiles
+uv run python scripts/serve.py                           # auto：granian（若已安装），loop=auto
+uv run python scripts/serve.py --server granian --loop rloop     # 仅 Unix（Rust 事件循环）
+uv run python scripts/serve.py --server granian --loop uvloop    # 仅 Unix
+uv run python scripts/serve.py --server granian --loop winloop   # 仅 Windows
+uv run python scripts/serve.py --server uvicorn --loop uvloop    # 仅 Unix
+uv run python scripts/serve.py --server granian --reload         # 热重载（强制单 worker）
+```
+
+| 事件循环 | 平台 | 说明 |
+| --- | --- | --- |
+| `asyncio` | 全平台 | 标准库，始终可用 |
+| `rloop` | Unix | granian 的 Rust 事件循环（`rloop` 包，Windows 无 wheel） |
+| `uvloop` | Unix | libuv 事件循环 |
+| `winloop` | Windows | uvloop 的 Windows 实现 |
+| `auto` | 全平台 | granian：rloop → uvloop → winloop → asyncio；uvicorn：uvloop → asyncio |
+
+显式请求当前平台不可用的循环会直接报错并列出可用项（不会静默降级）。
 
 ## HTTP 接口
 
@@ -173,10 +200,13 @@ app/                    Python 应用（FastAPI，Python 3.12）
     auth/               登录协议（wy/kg/kg_simulate/tx/lr/bili）
     apis/               各平台官方直连取流（14 平台，含 CDN 选址/档位降级）
     platforms/          平台模块（每平台一个包，MODULE: Platform + 子模块）
+scripts/
+  serve.py              启动器（uvicorn / granian，事件循环 rloop/uvloop/winloop 选择与校验）
 docs/
   PORTING.md            TS → Python 平台移植契约（目录/子模块协议/签名差异/验收要求）
-pyproject.toml          uv 项目定义（依赖、ruff、pyright、pytest 配置）
-tests/                  pytest 目录（预留：TS 版 smoke 测试尚未移植）
+pyproject.toml          uv 项目定义（依赖、granian 可选 extra、ruff、pyright、pytest 配置）
+tests/
+  test_serve.py         启动器服务器/循环选择逻辑测试（TS 版 smoke 测试尚未移植）
 ```
 
 > 分层依赖单向：`routes` → `sdk`，`sdk` 内部自包含。全源码 `.py` 由 uv 管理的 CPython 3.12 直接运行，
@@ -193,4 +223,6 @@ tests/                  pytest 目录（预留：TS 版 smoke 测试尚未移植
 - **5sing 歌词**：2026-10-23 实测匿名 `newget` 不返回 `dynamicWords`（搜索结果与多个关键词均如此，Node 版同样），拿不到时接口如实报错。
 - **5sing 歌单详情**：依赖 5sing 网页（`5sing.kugou.com/.../dj/...html`）解析曲目；2026-10-02 曾整体 502，2026-10-23 实测已恢复。
 - **link 解析**：`/parse/*` 走各平台网页链接解析（需上游有对应实现）；未实现的平台返回 404。
+- **多 worker**：限流计数、登录续期调度、咪咕加密流票据都是进程内状态；`WORKERS>1` 时各自独立
+  （续期会重复执行、`/stream/mg` 票据可能落到别的 worker）。默认单 worker，多 worker 部署需自行加粘性会话。
 - 平台接口随时可能变更，遇失效时可对照 `app/sdk/apis/` 内的接口文档调整。

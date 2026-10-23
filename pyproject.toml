@@ -13,6 +13,18 @@ dependencies = [
   "pillow>=10",
 ]
 
+# 可选：Granian 服务器（Rust HTTP 实现）与高性能事件循环
+#   rloop   —— Granian 内置的 Rust 事件循环，跨平台
+#   uvloop  —— POSIX 上的 libuv 循环
+#   winloop —— Windows 上的 libuv 循环（uvloop 的 Windows 对应实现）
+# 安装：uv sync --extra granian
+[project.optional-dependencies]
+granian = [
+  # granian 自带的 extras 已按平台配好 marker：
+  #   rloop（Unix）、uvloop（Unix）、winloop（Windows）、reload（watchfiles）
+  "granian[reload,rloop,uvloop,winloop]>=2.0",
+]
+
 [dependency-groups]
 dev = [
   "pytest>=8",
@@ -25,7 +37,7 @@ dev = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-src = ["app", "tests"]
+src = ["app", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "BLE", "ASYNC", "RUF"]
@@ -43,7 +55,7 @@ ignore = [
 quote-style = "double"
 
 [tool.pyright]
-include = ["app", "tests"]
+include = ["app", "tests", "scripts"]
 exclude = [".venv", "tmp"]
 pythonVersion = "3.12"
 typeCheckingMode = "basic"
